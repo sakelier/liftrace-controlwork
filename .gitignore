@@ -1,0 +1,17 @@
+# --- ROS / catkin build artifacts ---
+/build/
+/devel/
+/install/
+/logs/
+
+# --- Compiled binaries / libraries ---
+*.so
+*.o
+*.a
+
+# --- Prebuilt odom_visualization executables (rebuild from src/) ---
+/src/Fast-Planner/uav_simulator/Utils/odom_visualization/bin/
+
+# --- Dereferenced symlink loop: catkin_simple test fixture recurses into a
+#     full copy of itself (~40 levels). Redundant with /src/tool/catkin_simple/. ---
+/src/tool/catkin_simple/test/scenarios/hello_world/catkin_simple/
