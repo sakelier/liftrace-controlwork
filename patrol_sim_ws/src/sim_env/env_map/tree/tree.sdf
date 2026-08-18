@@ -1,0 +1,68 @@
+<sdf version="1.6">
+  <model name="tree">
+    <static>true</static>
+    <link name="link">
+      <collision name="collision">
+        <geometry>
+          <box>
+            <size>.1 .1 1</size>
+          </box>
+        </geometry>
+      </collision>
+      <!-- <visual name="brindilla">
+         <geometry>
+          <mesh>
+            <uri>file://tree/meshes/apple.dae</uri>
+          </mesh>
+          <submesh>
+            <name>brindilla</name>
+          </submesh>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0</diffuse>
+          <pbr>
+            <metal>
+              <albedo_map>file://tree/materials/textures/brn1.png</albedo_map>
+            </metal>
+          </pbr>
+        </material>
+      </visual> -->
+      <visual name="apple">
+        <geometry>
+          <mesh>
+            <uri>file://tree/meshes/apple.dae</uri>
+            <submesh>
+              <name>apple_texture_1.001</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0</diffuse>
+          <pbr>
+            <metal>
+              <albedo_map>file://tree/materials/textures/apple.jpg</albedo_map>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+      <visual name="branch">
+        <geometry>
+          <mesh>
+            <uri>file://tree/meshes/apple.dae</uri>
+            <submesh>
+              <name>Branch1</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0</diffuse>
+          <script>
+                <uri>model://tree/materials/scripts</uri>
+                <uri>model://tree/materials/textures</uri>
+                <name>Cargo/Diffuse</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

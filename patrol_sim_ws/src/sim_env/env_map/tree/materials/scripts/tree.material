@@ -1,0 +1,13 @@
+material Cargo/Diffuse
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+          {
+            texture brn1.png
+          }
+    }
+  }
+}
