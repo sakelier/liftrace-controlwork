@@ -44,8 +44,9 @@
     <arg name="fy" value="387.229248046875"/>
 
     <!-- maximum velocity and acceleration the drone will reach -->
-    <arg name="max_vel" value="3.0" />
-    <arg name="max_acc" value="2.0" />
+    <!-- 小型目标搜索场地：限制速度以保证下视视觉具有足够观测时间。 -->
+    <arg name="max_vel" value="1.0" />
+    <arg name="max_acc" value="1.0" />
 
     <!-- 1: use 2D Nav Goal to select goal  -->
     <!-- 2: use global waypoints below  -->

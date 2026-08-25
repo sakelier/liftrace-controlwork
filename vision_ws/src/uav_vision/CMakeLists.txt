@@ -109,6 +109,7 @@ catkin_install_python(PROGRAMS
   scripts/target_map_projector.py
   scripts/target_detector.py
   scripts/target_detector_rknn.py
+  scripts/pose_tf_broadcaster.py
   scripts/mock_uav_pose.py
   scripts/mock_image_publisher.py
   scripts/mock_detection_feeder.py
