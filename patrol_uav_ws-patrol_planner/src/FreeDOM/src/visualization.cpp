@@ -1,7 +1,5 @@
 #include "freedom/visualization.h"
 
-#include <pcl/filters/voxel_grid.h>
-
 namespace freedom{
 void Visualizer::set_params(const Config& config,ros::NodeHandle& nh)
 {
@@ -16,8 +14,6 @@ void Visualizer::set_params(const Config& config,ros::NodeHandle& nh)
     half_voxel_bias = Eigen::Vector3d(voxel_size,voxel_size,voxel_size)/2.0;
     half_block_bias = Eigen::Vector3d(block_size,block_size,block_size)/2.0;
     enable_raycast_enhancement = config.enable_raycast_enhancement;
-    static_pointcloud_viz_voxel_size = config.static_pointcloud_viz_voxel_size;
-    static_pointcloud_viz_throttle.configure(config.static_pointcloud_viz_max_rate_hz);
 
     scan_blocks_pub = nh.advertise<sensor_msgs::PointCloud2>("scan_blocks",10);
     scan_voxels_pub = nh.advertise<sensor_msgs::PointCloud2>("scan_voxels",10);
@@ -37,7 +33,6 @@ void Visualizer::set_params(const Config& config,ros::NodeHandle& nh)
     static_voxels_pub = nh.advertise<sensor_msgs::PointCloud2>("static_voxels",10);
     static_subvoxels_pub = nh.advertise<sensor_msgs::PointCloud2>("static_subvoxels",10);
     static_pointcloud_pub = nh.advertise<sensor_msgs::PointCloud2>("static_pointcloud",10);
-    static_pointcloud_viz_pub = nh.advertise<sensor_msgs::PointCloud2>("static_pointcloud_viz",1);
 
     raycast_map_range_pub = nh.advertise<visualization_msgs::Marker>("raycast_range",10);
     local_map_range_pub = nh.advertise<visualization_msgs::Marker>("local_map_range",10);
@@ -319,10 +314,6 @@ void Visualizer::visualize_map_removal_result(const MRMap& map)
     if(static_pointcloud_pub.getNumSubscribers()>0)
         visualize_static_pointcloud(map);
 
-    if(static_pointcloud_viz_pub.getNumSubscribers()>0 &&
-       static_pointcloud_viz_throttle.should_publish(ros::WallTime::now().toSec()))
-        visualize_static_pointcloud_viz(map);
-    
     if(raycast_map_range_pub.getNumSubscribers()>0)
         visualize_raycast_map_range(map);
 
@@ -679,63 +670,6 @@ void Visualizer::visualize_static_pointcloud(const MRMap& map)
     pointcloud_msg.header.frame_id = map_tf_frame;
 
     static_pointcloud_pub.publish(pointcloud_msg);
-}
-
-void Visualizer::visualize_static_pointcloud_viz(const MRMap& map)
-{
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>());
-
-    unsigned int block_idx_size = map.getVoxel2blockMultiples();
-    unsigned int voxel_idx_size = map.getSubvoxel2voxelMultiples();
-    unsigned int voxel_num = map.getVoxel2blockMultiplesCubed();
-    unsigned int sub_voxel_num = map.getSubvoxel2voxelMultiplesCubed();
-
-    for(const auto& block_pair : map.get_static_blocks())
-    {
-        Eigen::Vector3d block_bias = block_size * block_pair.first.cast<double>();
-        const StaticBlock& static_block = block_pair.second;
-
-        Eigen::Vector3i local_voxel_idx(0,0,0);
-        for(unsigned int i = 0; i < voxel_num; ++i)
-        {
-            if(!static_block.is_static_voxel_allocated(i))
-            {
-                incrementIdx(local_voxel_idx,block_idx_size);
-                continue;
-            }
-
-            const StaticVoxel& static_voxel = block_pair.second.getStaticVoxel(i);
-            Eigen::Vector3i local_subvoxel_idx(0,0,0);
-            for(unsigned int j = 0; j < sub_voxel_num; ++j)
-            {
-                if(static_voxel.scan_in_subvoxel[j] == StaticVoxel::NOT_A_SCAN ||
-                   static_voxel.dynamic_level[j] != DynamicLevel::STATIC)
-                {
-                    incrementIdx(local_subvoxel_idx,voxel_idx_size);
-                    continue;
-                }
-
-                Eigen::Vector3d point = block_bias + static_voxel.points[j].cast<double>();
-                pointcloud->emplace_back(point.x(),point.y(),point.z());
-                incrementIdx(local_subvoxel_idx,voxel_idx_size);
-            }
-
-            incrementIdx(local_voxel_idx,block_idx_size);
-        }
-    }
-
-    pcl::PointCloud<pcl::PointXYZ> downsampled_pointcloud;
-    pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
-    voxel_filter.setInputCloud(pointcloud);
-    const float leaf_size = static_cast<float>(static_pointcloud_viz_voxel_size);
-    voxel_filter.setLeafSize(leaf_size,leaf_size,leaf_size);
-    voxel_filter.filter(downsampled_pointcloud);
-
-    sensor_msgs::PointCloud2 pointcloud_msg;
-    pcl::toROSMsg(downsampled_pointcloud,pointcloud_msg);
-    pointcloud_msg.header.stamp = ros::Time::now();
-    pointcloud_msg.header.frame_id = map_tf_frame;
-    static_pointcloud_viz_pub.publish(pointcloud_msg);
 }
 
 void Visualizer::visualize_raycast_map_range(const MRMap& map)
