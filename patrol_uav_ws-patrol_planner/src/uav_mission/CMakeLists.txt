@@ -9,6 +9,7 @@ project(uav_mission)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  message_generation
   roscpp
   rospy
   sensor_msgs
@@ -16,6 +17,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   uav_vision
 )
+
+catkin_python_setup()
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -50,12 +53,12 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+## Navigation-owned mission/executor contract.
+add_message_files(
+  FILES
+  NavigationDecision.msg
+  NavigationResult.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -72,10 +75,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   sensor_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -107,16 +111,11 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
-catkin_python_setup()
-
 catkin_package(
-#  INCLUDE_DIRS include
 #  LIBRARIES uav_mission
-#  CATKIN_DEPENDS geometry_msgs roscpp rospy sensor_msgs std_msgs tf2_ros uav_vision
 #  DEPENDS system_lib
-
-INCLUDE_DIRS include
   CATKIN_DEPENDS
+    message_runtime
     roscpp
     rospy
     std_msgs
@@ -133,7 +132,6 @@ INCLUDE_DIRS include
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -142,6 +140,7 @@ add_executable(target_search_manager_cpp
 )
 
 add_dependencies(target_search_manager_cpp
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
 
@@ -237,6 +236,10 @@ install(DIRECTORY launch config
 #############
 ## Testing ##
 #############
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_contract_profile.py)
+endif()
 
 ## Add gtest based cpp test target and link libraries
 # catkin_add_gtest(${PROJECT_NAME}-test test/test_uav_mission.cpp)
