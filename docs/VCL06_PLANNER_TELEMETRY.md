@@ -54,3 +54,9 @@ catkin_test_results build/test_results/plan_manage
 ```
 
 该验证只构建消息、节点和 schema/序列化测试，不启动 ROS master、Gazebo、PX4 或执行机构。
+
+## 初始化安全修正
+
+`KinoReplanFSM::init()` 显式把 `trigger_` 初始化为 `false`。原实现会在收到首个 goal 前由
+INIT 状态读取该成员，未初始化值可能导致未定义分支；本修正不改变目标、轨迹或控制输出，
+只固定启动状态。
