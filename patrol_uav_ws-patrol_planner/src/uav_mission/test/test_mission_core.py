@@ -476,6 +476,196 @@ class MissionCoreTest(unittest.TestCase):
             timeout_first.active_action.command,
         )
 
+    def test_on_time_stamp_reported_after_deadline_still_expires(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate())
+        delayed_ack = release_ack(action, 1)
+        self.assertLess(delayed_ack.event_time, action.deadline_at)
+        accepted, reason, next_action = core.apply_result(
+            delayed_ack, action.deadline_at)
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "late_payload_committed")
+        self.assertEqual(next_action.command, "RETURN_HOME")
+        self.assertTrue(core.mission_failed)
+        self.assertEqual(core.slots[0].status, SlotStatus.COMMITTED)
+
+    def test_late_return_success_cannot_override_safety_timeout(self):
+        result_first = self.make_core()
+        return_action = result_first.choose(610.0, (0.0, 0.0))
+        delayed_success = result_for(
+            return_action,
+            1,
+            status="SUCCEEDED",
+            stage="PLANNER",
+            terminal=True,
+            reason="home_reached",
+        )
+        accepted, reason, abort = result_first.apply_result(
+            delayed_success, return_action.deadline_at)
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "safety_motion_timed_out")
+        self.assertEqual(abort.command, "ABORT")
+
+        timer_first = self.make_core()
+        timer_action = timer_first.choose(610.0, (0.0, 0.0))
+        handled, reason, abort = timer_first.expire_active(
+            timer_action.deadline_at)
+        self.assertTrue(handled, reason)
+        self.assertEqual(abort.command, "ABORT")
+        accepted, reason, _ = timer_first.apply_result(
+            result_for(
+                timer_action,
+                1,
+                status="SUCCEEDED",
+                stage="PLANNER",
+                terminal=True,
+                reason="home_reached",
+            ),
+            timer_action.deadline_at,
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(reason, "result_precedes_decision")
+        self.assertEqual(
+            result_first.active_action.command,
+            timer_first.active_action.command,
+        )
+
+    def test_late_recovery_success_cannot_override_safety_timeout(self):
+        result_first = self.make_core()
+        action = self.dispatch(result_first, candidate())
+        self.assertTrue(result_first.apply_result(
+            release_ack(action, 1), action.issued_at + 0.1)[0])
+        delayed_recovery = result_for(
+            action,
+            2,
+            status="SUCCEEDED",
+            stage="RECOVERY",
+            terminal=True,
+            reason="recovery_complete",
+            event_time=action.deadline_at - 0.01,
+        )
+        accepted, reason, return_action = result_first.apply_result(
+            delayed_recovery, action.deadline_at)
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "committed_recovery_timed_out")
+        self.assertEqual(return_action.command, "RETURN_HOME")
+        self.assertTrue(result_first.mission_failed)
+
+        timer_first = self.make_core()
+        timer_action = self.dispatch(timer_first, candidate())
+        self.assertTrue(timer_first.apply_result(
+            release_ack(timer_action, 1), timer_action.issued_at + 0.1)[0])
+        timer_first.expire_active(timer_action.deadline_at)
+        accepted, reason, _ = timer_first.apply_result(
+            result_for(
+                timer_action,
+                2,
+                status="SUCCEEDED",
+                stage="RECOVERY",
+                terminal=True,
+                reason="recovery_complete",
+                event_time=timer_action.deadline_at - 0.01,
+            ),
+            timer_action.deadline_at,
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(reason, "result_precedes_decision")
+        self.assertTrue(timer_first.mission_failed)
+        self.assertEqual(
+            result_first.active_action.command,
+            timer_first.active_action.command,
+        )
+
+    def test_late_landing_success_cannot_override_safety_timeout(self):
+        def dispatch_land(core):
+            return_action = core.choose(610.0, (0.0, 0.0))
+            accepted, reason, land_action = core.apply_result(
+                result_for(
+                    return_action,
+                    1,
+                    status="SUCCEEDED",
+                    stage="PLANNER",
+                    terminal=True,
+                    reason="home_reached",
+                ),
+                return_action.issued_at + 0.1,
+            )
+            self.assertTrue(accepted, reason)
+            self.assertEqual(land_action.command, "LAND")
+            return land_action
+
+        result_first = self.make_core()
+        land_action = dispatch_land(result_first)
+        accepted, reason, abort = result_first.apply_result(
+            result_for(
+                land_action,
+                2,
+                status="SUCCEEDED",
+                stage="LANDING",
+                terminal=True,
+                reason="landed",
+                event_time=land_action.deadline_at - 0.01,
+            ),
+            land_action.deadline_at,
+        )
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "safety_motion_timed_out")
+        self.assertEqual(abort.command, "ABORT")
+
+        timer_first = self.make_core()
+        timer_land = dispatch_land(timer_first)
+        timer_first.expire_active(timer_land.deadline_at)
+        accepted, reason, _ = timer_first.apply_result(
+            result_for(
+                timer_land,
+                2,
+                status="SUCCEEDED",
+                stage="LANDING",
+                terminal=True,
+                reason="landed",
+                event_time=timer_land.deadline_at - 0.01,
+            ),
+            timer_land.deadline_at,
+        )
+        self.assertFalse(accepted)
+        self.assertEqual(reason, "result_precedes_decision")
+        self.assertEqual(
+            result_first.active_action.command,
+            timer_first.active_action.command,
+        )
+
+    def test_expired_success_without_ack_can_be_corrected_same_sequence(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate())
+        invalid = result_for(
+            action,
+            1,
+            status="SUCCEEDED",
+            stage="RECOVERY",
+            terminal=True,
+            reason="done_without_release_ack",
+            event_time=action.deadline_at + 0.01,
+        )
+        accepted, reason, _ = core.apply_result(
+            invalid, action.deadline_at + 0.02)
+        self.assertFalse(accepted)
+        self.assertEqual(reason, "success_without_payload_commit")
+        corrected = result_for(
+            action,
+            1,
+            status="PROGRESS",
+            stage="RELEASE",
+            payload_committed=True,
+            reason="release_ack_success",
+            event_time=action.deadline_at + 0.01,
+        )
+        accepted, reason, next_action = core.apply_result(
+            corrected, action.deadline_at + 0.02)
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "late_payload_committed")
+        self.assertEqual(next_action.command, "RETURN_HOME")
+        self.assertEqual(core.slots[0].status, SlotStatus.COMMITTED)
+
     def test_late_target_failure_cannot_release_slot_for_retry(self):
         core = self.make_core()
         action = self.dispatch(core, candidate())
@@ -500,6 +690,84 @@ class MissionCoreTest(unittest.TestCase):
             core.queue.entries[action.candidate_key].status,
             CandidateStatus.EXHAUSTED,
         )
+
+    def test_release_stage_failure_quarantines_then_late_ack_commits(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate())
+        accepted, reason, next_action = core.apply_result(
+            result_for(
+                action,
+                1,
+                status="TIMED_OUT",
+                stage="RELEASE",
+                terminal=True,
+                retryable=True,
+                reason="release_result_missing",
+            ),
+            action.issued_at + 0.1,
+        )
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "candidate_release_state_uncertain")
+        self.assertEqual(next_action.command, "RETURN_HOME")
+        self.assertEqual(core.slots[0].status, SlotStatus.QUARANTINED)
+        self.assertEqual(
+            core.queue.entries[action.candidate_key].status,
+            CandidateStatus.EXHAUSTED,
+        )
+        self.assertIn(action.decision_seq, core.quarantined_actions)
+
+        accepted, reason, next_action = core.apply_result(
+            release_ack(action, 2), action.issued_at + 0.2)
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "late_payload_committed")
+        self.assertIsNone(next_action)
+        self.assertEqual(core.slots[0].status, SlotStatus.COMMITTED)
+        self.assertEqual(core.committed_slots, 1)
+
+    def test_release_stage_latch_cannot_be_cleared_by_stage_rollback(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate())
+        accepted, reason, _ = core.apply_result(
+            result_for(
+                action,
+                1,
+                status="PROGRESS",
+                stage="RELEASE",
+                reason="release_started_without_ack",
+            ),
+            action.issued_at + 0.1,
+        )
+        self.assertTrue(accepted, reason)
+        accepted, reason, next_action = core.apply_result(
+            result_for(
+                action,
+                2,
+                status="FAILED",
+                stage="PLANNER",
+                terminal=True,
+                retryable=True,
+                reason="stage_rollback_failure",
+            ),
+            action.issued_at + 0.2,
+        )
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "candidate_release_state_uncertain")
+        self.assertEqual(next_action.command, "RETURN_HOME")
+        self.assertEqual(core.slots[0].status, SlotStatus.QUARANTINED)
+
+    def test_unknown_target_stage_is_rejected_without_sequence_consumption(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate())
+        invalid = result_for(action, 1, stage="LANDING")
+        accepted, reason, _ = core.apply_result(
+            invalid, action.issued_at + 0.1)
+        self.assertFalse(accepted)
+        self.assertEqual(reason, "target_stage_invalid")
+        accepted, reason, _ = core.apply_result(
+            result_for(action, 1, stage="PLANNER"),
+            action.issued_at + 0.2,
+        )
+        self.assertTrue(accepted, reason)
 
     def test_late_release_ack_reconciles_quarantined_slot(self):
         core = self.make_core()
@@ -531,6 +799,25 @@ class MissionCoreTest(unittest.TestCase):
         self.assertFalse(accepted)
         self.assertEqual(reason, "success_without_payload_commit")
         self.assertEqual(core.slots[0].status, SlotStatus.QUARANTINED)
+        self.assertIn(action.decision_seq, core.quarantined_actions)
+
+    def test_quarantined_negative_terminal_keeps_release_tombstone(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate())
+        core.expire_active(action.deadline_at)
+        accepted, reason, _ = core.apply_result(
+            result_for(
+                action,
+                1,
+                status="FAILED",
+                stage="RECOVERY",
+                terminal=True,
+                reason="executor_failed_after_timeout",
+            ),
+            action.deadline_at + 0.1,
+        )
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "quarantined_terminal_recorded")
         self.assertIn(action.decision_seq, core.quarantined_actions)
 
     def test_committed_recovery_timeout_keeps_slot_and_returns(self):

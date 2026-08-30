@@ -52,9 +52,12 @@ payload slot 和目标上方安全航点冻结进不可变 `CoreAction`。执行
 结果按 `mission_id + executor_id + event_seq` 去重，并逐字段核对 `decision_seq、command、
 target_id、target_first_seen、target_class、attempt、payload_slot`。执行器在任务中途改变、
 重复/乱序事件或身份不一致均不能改变队列；结果携带的事件时间不得超出 manager 接收时钟
-容差，防止未来时间戳提前改变状态。decision deadline 为排他边界：事件时间处于边界或其后
-即按租约超时归约，不依赖 timer 与 result 回调先后；迟到释放 ACK 仍提交载荷事实，但任务
-标记失败并立即返航，其他迟到目标结果不能释放槽位重试。
+容差，防止未来时间戳提前改变状态。decision deadline 为排他边界：事件时间或 manager
+接收时间任一处于边界或其后即按租约超时归约，不依赖 timer 与 result 回调先后；迟到释放
+ACK 仍提交载荷事实，但任务标记失败并立即返航，其他迟到目标结果不能释放槽位重试。
+隔离事务收到否定终态后仍保留有限 tombstone，因为否定结果不能证明载荷未被物理释放。
+超期的 `SUCCEEDED` 若没有释放 ACK，与正常路径一样拒绝且不消耗 `event_seq`，允许同序号
+的真实释放证据纠正该事件。
 
 `SEARCH、RESUME、APPROACH、RETURN_HOME、LAND、ABORT` 共用同一个全局单调
 `decision_seq`。targetless motion 也必须经过同一 result reducer；返航成功才产生 LAND，
@@ -75,12 +78,18 @@ evidence_source 非空
 标记任务失败并立即返航。未见提交 ACK 的成功终态以 `success_without_payload_commit`
 拒绝。语义非法的事件不会消耗 event sequence，因此同序号的修正事件仍可被接收。
 
+未提交失败只有在可证明仍处于 `DISPATCH/PLANNER/CAPTURE/ALIGNMENT` 时才能释放槽位。
+一旦收到 `RELEASE/RECOVERY` 阶段事件，核心锁存“可能已释放”；后续即使 stage 回退，失败
+也只能把槽位转为 `QUARANTINED` 并返航，不能重试或复用。该 tombstone 接受同一 decision
+后续身份匹配的真实释放 ACK，并把槽位收敛为 `COMMITTED`。
+
 ## 验证边界
 
 `test/test_mission_core.py` 与 `test/test_coverage_route.py` 以系统 Python 执行确定性回归，
 不启动 ROS master、Gazebo、PX4 或执行机构。它们覆盖准入拒绝、权重排序、冻结派发、
 搜索中断边界、覆盖/时间兜底、cursor 恢复、冷却重试、全局序号、targetless result、
-decision timeout、返航/降落失败、三槽完成，以及释放提交后恢复失败等核心状态转换。
+decision timeout、返航/降落失败、释放阶段槽位互锁、三槽完成，以及释放提交后恢复失败等
+核心状态转换。
 
 尚未在本阶段完成：ROS manager 运行桥、planner 遥测消费、统一仿真与真实执行代理。
 它们必须在合同和本核心之上独立实现，不能回退为直接调用舵机。

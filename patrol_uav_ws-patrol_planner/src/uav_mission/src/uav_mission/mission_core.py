@@ -25,6 +25,15 @@ R2026_WEIGHTS = {
     "panzer": 2.5,
     "red_cross": 10.0,
 }
+TARGET_STAGES = (
+    "DISPATCH",
+    "PLANNER",
+    "CAPTURE",
+    "ALIGNMENT",
+    "RELEASE",
+    "RECOVERY",
+)
+UNCERTAIN_RELEASE_STAGES = frozenset(("RELEASE", "RECOVERY"))
 
 
 class CandidateStatus(Enum):
@@ -537,6 +546,7 @@ class MissionCore:
         self.decision_seq = 0
         self.active_action: Optional[CoreAction] = None
         self.active_committed = False
+        self.active_release_started = False
         self.quarantined_actions: Dict[int, CoreAction] = {}
         self.executor_id: Optional[str] = None
         self.last_event_seq: Dict[str, int] = {}
@@ -767,6 +777,7 @@ class MissionCore:
         slot.candidate_key = entry.snapshot.key
         self.phase = MissionPhase.EXECUTING
         self.active_committed = False
+        self.active_release_started = False
         target = entry.reserved_snapshot
         goal = GoalSnapshot(
             self.config.mission_frame,
@@ -839,6 +850,15 @@ class MissionCore:
             self.executor_id = event.executor_id
         self.last_event_seq[event.executor_id] = event.event_seq
 
+    def _observe_target_stage(self, event: ResultEvent) -> str:
+        """Latch physical release uncertainty; later stage rollback cannot clear it."""
+
+        if event.stage not in TARGET_STAGES:
+            return "target_stage_invalid"
+        if event.stage in UNCERTAIN_RELEASE_STAGES:
+            self.active_release_started = True
+        return "accepted"
+
     @staticmethod
     def _terminal_status_valid(event: ResultEvent) -> bool:
         return event.status in (
@@ -874,6 +894,8 @@ class MissionCore:
                 return "terminal_status_invalid"
             if event.status == "SUCCEEDED" and event.retryable:
                 return "successful_result_must_not_retry"
+            if not self.active_committed and event.status == "SUCCEEDED":
+                return "success_without_payload_commit"
             if self.active_committed:
                 if event.stage != "RECOVERY":
                     return "committed_terminal_stage_invalid"
@@ -1010,6 +1032,7 @@ class MissionCore:
                 return False, "committed_result_must_not_retry", None
             self._record_result_sequence(event)
             self.active_action = None
+            self.active_release_started = False
             if event.status != "SUCCEEDED":
                 self.mission_failed = True
                 return True, "committed_recovery_failed", self._return_action(
@@ -1023,10 +1046,20 @@ class MissionCore:
         if event.status == "SUCCEEDED":
             return False, "success_without_payload_commit", None
         self._record_result_sequence(event)
+        if self.active_release_started:
+            self.queue.quarantine(key, event.reason or
+                                  "release_state_uncertain")
+            slot.status = SlotStatus.QUARANTINED
+            self.quarantined_actions[action.decision_seq] = action
+            self.active_action = None
+            self.mission_failed = True
+            return True, "candidate_release_state_uncertain", self._return_action(
+                "candidate_release_state_uncertain", now)
         self.queue.fail(key, event.retryable, now, event.reason)
         slot.status = SlotStatus.FREE
         slot.candidate_key = None
         self.active_action = None
+        self.active_release_started = False
         self.phase = MissionPhase.SEARCH
         return True, "candidate_failed", None
 
@@ -1062,7 +1095,9 @@ class MissionCore:
         if event.status == "SUCCEEDED":
             return False, "success_without_payload_commit", None
         self._record_result_sequence(event)
-        self.quarantined_actions.pop(action.decision_seq, None)
+        # A negative terminal result cannot prove the payload is still
+        # present.  Keep the tombstone so a later guarded release ACK can
+        # still reconcile the irreversible physical fact.
         return True, "quarantined_terminal_recorded", None
 
     def _expire_action(self, action: CoreAction, now: float
@@ -1135,6 +1170,8 @@ class MissionCore:
             if reason == "accepted":
                 reason = self._validate_result_against_action(
                     event, quarantined)
+            if reason == "accepted" and event.stage not in TARGET_STAGES:
+                reason = "target_stage_invalid"
             if reason != "accepted":
                 return False, reason, None
             return self._apply_quarantined_result(quarantined, event)
@@ -1142,7 +1179,12 @@ class MissionCore:
         if reason != "accepted":
             return False, reason, None
         action = self.active_action
-        if event.event_time >= action.deadline_at:
+        if action.has_target:
+            reason = self._observe_target_stage(event)
+            if reason != "accepted":
+                return False, reason, None
+        if (float(now) >= action.deadline_at or
+                event.event_time >= action.deadline_at):
             return self._apply_expired_result(action, event, now)
         if action.has_target:
             return self._apply_target_result(action, event, now)
