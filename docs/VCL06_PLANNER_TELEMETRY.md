@@ -6,6 +6,13 @@
 目标请求、实际规划目标和每次规划尝试关联起来。本变更不增加超时、有限重试或新的
 到达判定，也不修改目标、阈值、轨迹生成和 FSM 状态迁移。
 
+节点使用私有参数 `~goal_status_topic` 配置输出话题，默认值为
+`/planning/goal_status`。launch 中可按需设置：
+
+```xml
+<param name="goal_status_topic" value="/planning/goal_status" />
+```
+
 ## 消息契约
 
 话题类型为 `plan_manage/PlannerStatus`：
@@ -18,6 +25,11 @@
 - `FAILED_ATTEMPT` 只表示一次规划调用失败，明确为非终态；原 FSM 仍按既有逻辑重试。
 - `TRAJECTORY_FINISHED` 只表示当前局部轨迹时间走完，不等价于任务层的速度/驻留到达判定。
 - 活跃目标被新目标覆盖时，旧 `goal_seq` 先发布 `CANCELLED`，随后新目标发布 `ACCEPTED`。
+
+唯一受支持的跨节点关联方式是：执行桥把导航决策的 `decision_seq` 原样写入
+`/fastplanner/goal` 的 `PoseStamped.header.seq`，planner 再把它回传为 `goal_seq`。
+旧发布者通常写入 0 或非唯一序号，不满足该关联契约；在执行桥完成适配前，消费方不得
+把旧发布者产生的 `goal_seq` 当作唯一任务标识。
 
 状态序列通常为：
 

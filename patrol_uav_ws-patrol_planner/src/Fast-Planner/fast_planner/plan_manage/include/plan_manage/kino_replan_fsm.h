@@ -28,7 +28,6 @@
 
 #include <Eigen/Eigen>
 #include <algorithm>
-#include <cstdint>
 #include <iostream>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
@@ -43,6 +42,7 @@
 #include <plan_env/sdf_map.h>
 #include <plan_manage/Bspline.h>
 #include <plan_manage/PlannerStatus.h>
+#include <plan_manage/planner_status_tracker.h>
 #include <plan_manage/planner_manager.h>
 #include <traj_utils/planning_visualization.h>
 
@@ -87,6 +87,7 @@ private:
   double no_replan_thresh_, replan_thresh_;
   double waypoints_[50][3];
   int waypoint_num_;
+  std::string goal_status_topic_;
 
   /* planning data */
   bool trigger_, have_target_, have_odom_;
@@ -100,10 +101,7 @@ private:
   int current_wp_;
 
   /* goal telemetry (does not participate in planner decisions) */
-  geometry_msgs::PoseStamped requested_goal_, effective_goal_;
-  uint32_t goal_seq_, planning_attempt_;
-  uint64_t goal_status_event_seq_;
-  bool goal_status_active_;
+  PlannerStatusTracker goal_status_tracker_;
 
   /* ROS utils */
   ros::NodeHandle node_;
@@ -118,7 +116,8 @@ private:
   void changeFSMExecState(FSM_EXEC_STATE new_state, string pos_call);
   void printFSMExecState();
   void updateEffectiveGoal();
-  void publishGoalStatus(uint8_t status, const std::string& reason);
+  double currentGoalDistance() const;
+  void publishGoalStatus(const plan_manage::PlannerStatus& msg);
 
   /* ROS functions */
   void execFSMCallback(const ros::TimerEvent& e);
