@@ -11,6 +11,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include "freedom/freedom.h"
+#include "freedom/visualization_utils.h"
 
 namespace freedom{
 class Visualizer{
@@ -22,6 +23,8 @@ public:
         int voxel_depth;
         int block_depth;
         bool enable_raycast_enhancement;
+        double static_pointcloud_viz_max_rate_hz;
+        double static_pointcloud_viz_voxel_size;
     };
 
     Visualizer(){}
@@ -59,12 +62,15 @@ private:
     ros::Publisher static_voxels_pub;
     ros::Publisher static_subvoxels_pub;
     ros::Publisher static_pointcloud_pub;
+    ros::Publisher static_pointcloud_viz_pub;
 
     ros::Publisher scan_map_range_pub;
     ros::Publisher local_map_range_pub;
     ros::Publisher raycast_map_range_pub;
 
     bool enable_raycast_enhancement;
+    double static_pointcloud_viz_voxel_size;
+    PublishThrottle static_pointcloud_viz_throttle;
 
     // scan removal results
     void visualize_scan_blocks(const ScanMap& scan);
@@ -85,6 +91,7 @@ private:
     void visualize_static_voxels(const MRMap& map);
     void visualize_static_subvoxels(const MRMap& map);
     void visualize_static_pointcloud(const MRMap& map);
+    void visualize_static_pointcloud_viz(const MRMap& map);
 
     void visualize_scan_map_range(const ScanMap& scan);
     void visualize_local_map_range(const MRMap& map);

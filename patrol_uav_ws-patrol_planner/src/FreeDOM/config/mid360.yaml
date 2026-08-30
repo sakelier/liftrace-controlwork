@@ -47,3 +47,8 @@ raycast_enhancement:
   fov_mask_name: ""
 
 num_threads: 8
+
+visualization:
+  # RViz-only cloud. The planner continues using /freedom/static_pointcloud.
+  static_pointcloud_viz_max_rate_hz: 0.5
+  static_pointcloud_viz_voxel_size: 0.20

@@ -1,5 +1,7 @@
 #include "freedom/freenode.h"
 
+#include <cmath>
+
 namespace freedom{
 FreeNode::FreeNode()
 {
@@ -150,6 +152,22 @@ void FreeNode::get_params(ros::NodeHandle &nh_private, FreeDOM::Config& map_conf
     param.getParam<int>("map/voxel_depth",vis_config.voxel_depth,2);
     param.getParam<int>("map/block_depth",vis_config.block_depth,5);
     param.getParam<bool>("raycast_enhancement/enable_raycast_enhancement",vis_config.enable_raycast_enhancement,false);
+    param.getParam<double>("visualization/static_pointcloud_viz_max_rate_hz",
+                           vis_config.static_pointcloud_viz_max_rate_hz,0.5);
+    param.getParam<double>("visualization/static_pointcloud_viz_voxel_size",
+                           vis_config.static_pointcloud_viz_voxel_size,0.2);
+    if(!std::isfinite(vis_config.static_pointcloud_viz_max_rate_hz) ||
+       vis_config.static_pointcloud_viz_max_rate_hz <= 0.0)
+    {
+        ROS_WARN("visualization/static_pointcloud_viz_max_rate_hz must be positive; using 0.5 Hz");
+        vis_config.static_pointcloud_viz_max_rate_hz = 0.5;
+    }
+    if(!std::isfinite(vis_config.static_pointcloud_viz_voxel_size) ||
+       vis_config.static_pointcloud_viz_voxel_size <= 0.0)
+    {
+        ROS_WARN("visualization/static_pointcloud_viz_voxel_size must be positive; using 0.20 m");
+        vis_config.static_pointcloud_viz_voxel_size = 0.2;
+    }
 }
 
 void FreeNode::mapping_thread()

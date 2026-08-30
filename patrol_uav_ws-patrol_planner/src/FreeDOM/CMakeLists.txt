@@ -79,3 +79,9 @@ target_link_libraries( static_map_evaluate
     ${catkin_LIBRARIES} 
     ${PCL_LIBRARIES}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(freedom_visualization_utils_test
+    test/visualization_utils_test.cpp
+  )
+endif()
