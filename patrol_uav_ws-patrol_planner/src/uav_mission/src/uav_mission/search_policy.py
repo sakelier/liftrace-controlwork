@@ -52,6 +52,8 @@ class SearchPolicy:
 
         if self.altitude <= 0.0:
             raise ValueError("altitude must be positive")
+        if self.altitude > 4.0:
+            raise ValueError("altitude exceeds the competition limit")
 
     def _generate_waypoints(self):
         waypoints = []
@@ -123,15 +125,3 @@ class SearchPolicy:
         return self.current_waypoint
         # 要是index == N，那么就意味着飞向第N点（从0开始计数），
         # 意味着完成了N个航点，此时会返回None
-
-    
-
-
-
-
-
-        
-
-    
-
-        

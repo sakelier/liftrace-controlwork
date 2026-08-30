@@ -239,6 +239,7 @@ install(DIRECTORY launch config
 
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_contract_profile.py)
+  catkin_add_nosetests(test/test_coverage_route.py)
   catkin_add_nosetests(test/test_mission_core.py)
 endif()
 

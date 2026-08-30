@@ -6,8 +6,10 @@ validated before a node starts publishing flight goals.
 
 from dataclasses import dataclass
 import math
+from numbers import Real
 from pathlib import Path
-from typing import Dict, Iterable, Tuple
+from types import MappingProxyType
+from typing import Dict, Iterable, Mapping, Tuple
 
 import yaml
 
@@ -17,7 +19,7 @@ class CompetitionProfile:
     """A closed set of task classes and their rule weights."""
 
     name: str
-    weights: Dict[str, float]
+    weights: Mapping[str, float]
     interrupt_top_k: int
     required_deliveries: int = 3
 
@@ -26,16 +28,23 @@ class CompetitionProfile:
             raise ValueError("profile name must not be empty")
         if not self.weights:
             raise ValueError("profile must contain at least one class")
+        frozen_weights = {}
         for class_name, weight in self.weights.items():
             if not str(class_name).strip():
                 raise ValueError("profile class name must not be empty")
-            if not math.isfinite(float(weight)) or float(weight) <= 0.0:
+            if (isinstance(weight, bool) or not isinstance(weight, Real) or
+                    not math.isfinite(float(weight)) or float(weight) <= 0.0):
                 raise ValueError("profile weights must be finite and positive")
-        if int(self.interrupt_top_k) != self.interrupt_top_k:
+            frozen_weights[str(class_name)] = float(weight)
+        object.__setattr__(
+            self, "weights", MappingProxyType(frozen_weights))
+        if (isinstance(self.interrupt_top_k, bool) or
+                not isinstance(self.interrupt_top_k, int)):
             raise ValueError("interrupt_top_k must be an integer")
         if self.interrupt_top_k <= 0 or self.interrupt_top_k > len(self.weights):
             raise ValueError("interrupt_top_k is outside the class range")
-        if int(self.required_deliveries) != self.required_deliveries:
+        if (isinstance(self.required_deliveries, bool) or
+                not isinstance(self.required_deliveries, int)):
             raise ValueError("required_deliveries must be an integer")
         if self.required_deliveries <= 0:
             raise ValueError("required_deliveries must be positive")
@@ -61,7 +70,18 @@ class CompetitionProfile:
 def _coerce_weights(raw_classes) -> Dict[str, float]:
     if not isinstance(raw_classes, dict):
         raise ValueError("profile classes must be a mapping")
-    return {str(name): float(weight) for name, weight in raw_classes.items()}
+    result = {}
+    for name, weight in raw_classes.items():
+        if isinstance(weight, bool) or not isinstance(weight, Real):
+            raise ValueError("profile weights must be numeric")
+        result[str(name)] = float(weight)
+    return result
+
+
+def _required_int(raw, field_name: str) -> int:
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise ValueError("%s must be an integer" % field_name)
+    return raw
 
 
 def load_profile(path, profile_name: str) -> CompetitionProfile:
@@ -77,8 +97,10 @@ def load_profile(path, profile_name: str) -> CompetitionProfile:
     return CompetitionProfile(
         name=profile_name,
         weights=_coerce_weights(raw.get("classes")),
-        interrupt_top_k=int(raw.get("interrupt_top_k", 0)),
-        required_deliveries=int(raw.get("required_deliveries", 3)),
+        interrupt_top_k=_required_int(
+            raw.get("interrupt_top_k"), "interrupt_top_k"),
+        required_deliveries=_required_int(
+            raw.get("required_deliveries"), "required_deliveries"),
     )
 
 

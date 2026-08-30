@@ -24,6 +24,10 @@ profile 确定为 `red_cross、panzer、bridge`。
 ROS epoch 浮点秒精度丢失。队列按“权重、可达性、地图质量、类别置信度、距离、首次出现
 时间、ID”稳定排序，同一类别只让最佳实例竞争槽位，已投类别不重复投递。
 
+派发 `APPROACH` 时，核心把 profile、目标身份、类别、地图点、最后观测时间、attempt、
+payload slot 和目标上方安全航点冻结进不可变 `CoreAction`。执行期间到达的更新只刷新队列
+中的最新快照，不能改变本次投递归因；提交时仍使用派发快照的类别。
+
 ## 搜索、时限和槽位
 
 - 只在 `SEARCH` 阶段允许高权重目标中断；执行中的新候选只入队，不抢占当前任务。
@@ -31,13 +35,32 @@ ROS epoch 浮点秒精度丢失。队列按“权重、可达性、地图质量�
 - 动态估时包含保守路径系数、单槽服务时间、返航路径、返航/降落储备和决策 guard。
 - 预计无法在 510 秒前完成当前投递，或无法在 600 秒内完成返航降落的候选不启动。
 - 510 秒是硬返航边界；三槽一经提交完毕立即返航。
-- 未提交失败释放槽位；可重试候选冷却 20 秒，最多尝试 2 次。
+- 执行器明确报告的未提交失败释放槽位；可重试候选冷却 20 秒，最多尝试 2 次。
+- 每个 target/search/return/land decision 都有明确 deadline。目标事务未见提交 ACK 就超时
+  时，核心不能臆测载荷仍在：对应槽位转入 `QUARANTINED`、候选禁止重试并立即返航；延迟
+  到达且身份匹配的释放 ACK 仍可把该槽位收敛为 `COMMITTED`。提交后的 recovery 超时保留
+  槽位并返航，返航或降落超时进入 ABORT，禁止无限等待越过任务上限。
+- 比赛配置和派发动作均为不可变对象，构造后不能把 510 s、600 s 或 4 m 硬边界改大。
+
+`CoverageRoute` 独立持有 nominal waypoint cursor、route revision 和活动 decision。目标
+中断只清除活动搜索派发，不推进 cursor；恢复时重新派发同一 waypoint。只有匹配的成功
+终态才正常推进，重复/错序结果不改变 cursor；同一航点连续失败达到上限后会显式记入
+`skipped_indices` 再推进，避免规划器永久卡在单点。
 
 ## 结果 reducer 与不可逆边界
 
 结果按 `mission_id + executor_id + event_seq` 去重，并逐字段核对 `decision_seq、command、
 target_id、target_first_seen、target_class、attempt、payload_slot`。执行器在任务中途改变、
-重复/乱序事件或身份不一致均不能改变队列。
+重复/乱序事件或身份不一致均不能改变队列；结果携带的事件时间不得超出 manager 接收时钟
+容差，防止未来时间戳提前改变状态。decision deadline 为排他边界：事件时间处于边界或其后
+即按租约超时归约，不依赖 timer 与 result 回调先后；迟到释放 ACK 仍提交载荷事实，但任务
+标记失败并立即返航，其他迟到目标结果不能释放槽位重试。
+
+`SEARCH、RESUME、APPROACH、RETURN_HOME、LAND、ABORT` 共用同一个全局单调
+`decision_seq`。targetless motion 也必须经过同一 result reducer；返航成功才产生 LAND，
+返航失败不得直接降落。`APPROACH` 在本合同中是一次复合目标事务，执行桥通过 result 的
+`PLANNER→CAPTURE→ALIGNMENT→RELEASE→RECOVERY` stage 报告内部进度，manager 不另建
+第二套阶段状态机。
 
 payload 的唯一提交事件为非终态 `PROGRESS/RELEASE`，并同时满足：
 
@@ -54,9 +77,10 @@ evidence_source 非空
 
 ## 验证边界
 
-`test/test_mission_core.py` 以系统 Python 执行确定性回归，不启动 ROS master、Gazebo、PX4
-或执行机构。它覆盖准入拒绝、权重排序、搜索中断边界、覆盖/时间兜底、冷却重试、硬返航、
-结果幂等、三槽完成，以及释放提交后恢复失败等核心状态转换。
+`test/test_mission_core.py` 与 `test/test_coverage_route.py` 以系统 Python 执行确定性回归，
+不启动 ROS master、Gazebo、PX4 或执行机构。它们覆盖准入拒绝、权重排序、冻结派发、
+搜索中断边界、覆盖/时间兜底、cursor 恢复、冷却重试、全局序号、targetless result、
+decision timeout、返航/降落失败、三槽完成，以及释放提交后恢复失败等核心状态转换。
 
-尚未在本阶段完成：ROS manager 运行桥、planner 遥测消费、搜索路线游标恢复、统一仿真与
-真实执行代理。它们必须在合同和本核心之上独立实现，不能回退为直接调用舵机。
+尚未在本阶段完成：ROS manager 运行桥、planner 遥测消费、统一仿真与真实执行代理。
+它们必须在合同和本核心之上独立实现，不能回退为直接调用舵机。
