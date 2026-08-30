@@ -60,3 +60,10 @@ catkin_test_results build/test_results/plan_manage
 `KinoReplanFSM::init()` 显式把 `trigger_` 初始化为 `false`。原实现会在收到首个 goal 前由
 INIT 状态读取该成员，未初始化值可能导致未定义分支；本修正不改变目标、轨迹或控制输出，
 只固定启动状态。
+
+## Catkin 下游依赖修正
+
+`plan_manage` 只生成消息并构建可执行节点，没有名为 `plan_manage` 的库目标。因此
+`catkin_package()` 不再导出不存在的同名库。该修正确保 `uav_mission` 等下游包可以通过
+`find_package(catkin COMPONENTS plan_manage)` 使用 `PlannerStatus`，不会在 CMake 配置阶段
+因虚假库导出而失败。

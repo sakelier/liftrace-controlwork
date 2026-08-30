@@ -40,7 +40,6 @@ generate_messages(
 # catkin_package(CATKIN_DEPENDS message_runtime)
 catkin_package(
  INCLUDE_DIRS include
- LIBRARIES plan_manage
  CATKIN_DEPENDS roscpp std_msgs geometry_msgs plan_env path_searching bspline bspline_opt traj_utils message_runtime
 #  DEPENDS system_lib
 )
@@ -76,4 +75,3 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(planner_status_schema_test ${catkin_LIBRARIES})
   endif()
 endif()
-
