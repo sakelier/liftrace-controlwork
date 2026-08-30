@@ -55,6 +55,7 @@ void KinoReplanFSM::publishGoalStatus(const plan_manage::PlannerStatus& msg) {
 void KinoReplanFSM::init(ros::NodeHandle& nh) {
   current_wp_  = 0;
   exec_state_  = FSM_EXEC_STATE::INIT;
+  trigger_     = false;
   have_target_ = false;
   have_odom_   = false;
   goal_status_tracker_.reset();
