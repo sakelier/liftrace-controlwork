@@ -13,6 +13,7 @@ std_msgs/Header header
 uint8 schema_version
 string mission_id
 uint32 decision_seq
+time deadline
 uint8 command
 string class_profile
 bool has_goal

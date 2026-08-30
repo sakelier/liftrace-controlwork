@@ -23,7 +23,9 @@
 ## 3. NavigationDecision v1
 
 `schema_version` 必须为消息常量 `SCHEMA_VERSION=1`。`header.stamp` 是决策产生时间，
-`mission_id + decision_seq` 在一次任务内唯一。命令编号固定为：
+`deadline` 是执行租约的 ROS 绝对时刻；执行桥不得在该时刻后新进入下一执行阶段，超时后
+只能上报终态/不可逆 ACK 并停止继续执行。`mission_id + decision_seq` 在一次任务内唯一。
+命令编号固定为：
 
 | 命令 | 编号 |
 |---|---:|
@@ -39,6 +41,8 @@
 字段约束：
 
 - `class_profile` 标识产生决策时使用的 profile。
+- `deadline > header.stamp`；执行桥必须按 ROS time 检查租约。晚到但真实的 guarded release
+  ACK 仍须原样回报，manager 负责把不确定槽位隔离，禁止因消息延迟复用 payload。
 - `has_goal=false` 时接收方不得读取 `goal`；`has_target=false` 时不得用 `target_id`
   判断目标是否存在。`target_id=0` 是合法 ID。
 - 一个目标实例由 `mission_id + target_id + target_first_seen` 唯一标识，防止视觉 reset

@@ -77,6 +77,7 @@ class NavigationMessageContractTest(unittest.TestCase):
             "uint8 schema_version",
             "string mission_id",
             "uint32 decision_seq",
+            "time deadline",
             "string class_profile",
             "bool has_goal",
             "bool has_target",
