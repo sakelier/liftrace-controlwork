@@ -16,7 +16,9 @@ FreeDOM 的 `/freedom/static_pointcloud` 是规划输入，必须保持原始内
 
 体素过滤不在 `freedom_node` 建图回调内执行。两个节点进程隔离，因此降采样计算
 不会同步阻塞 FreeDOM 的地图集成与原始点云发布路径。统一 launch 默认启动 relay，
-也可用 `enable_static_pointcloud_viz:=false` 关闭。
+也可用 `enable_static_pointcloud_viz:=false` 关闭。常用入口
+`fast_lio/launch/mapping_mid360.launch` 已声明并向下转发该开关和
+`static_pointcloud_viz_config`，所以从顶层启动时无需绕过 FAST_LIO launch。
 
 ## 参数
 
@@ -39,8 +41,10 @@ stamp_policy: now_if_zero
 `frame_id_override`，且仅用于已有正确 TF 的场景，不执行坐标变换。
 `stamp_policy` 可选 `preserve_input`、`now_if_zero` 或 `now`。
 
-话题不得相同，队列必须为正整数，频率和体素尺寸必须是有限正数；配置错误时节点
-直接退出，避免静默采用错误坐标契约。节流使用单调墙钟，不依赖 Gazebo `/clock`。
+输入输出话题经 ROS namespace 和 remap 完整解析后的最终名称不得相同；因此即使参数
+文本不同，只要最终解析为同一话题，节点也会拒绝启动以阻止自环。队列必须为正整数，
+频率和体素尺寸必须是有限正数；配置错误时节点直接退出，避免静默采用错误坐标契约。
+节流使用单调墙钟，不依赖 Gazebo `/clock`。
 可通过 launch 参数 `static_pointcloud_viz_config` 替换整份配置文件。
 
 ## 运行检查
@@ -63,6 +67,7 @@ real/sim launch 仍订阅原始 `/freedom/static_pointcloud`。关闭所有 `_vi
 - `catkin_make -DROS_EDITION=ROS1 -DCATKIN_WHITELIST_PACKAGES=freedom -j1`：通过；
 - `catkin_make -DROS_EDITION=ROS1 -DCATKIN_WHITELIST_PACKAGES=freedom run_tests_freedom -j1`：坐标、header、无订阅门控、节流与参数策略测试全部通过；
 - `roslaunch --dump-params freedom run_freedom_mid360.launch`：通过，relay 参数正确落入 `/static_pointcloud_viz/*`；
+- `roslaunch --dump-params fast_lio mapping_mid360.launch`：通过，顶层开关和配置文件正确转发；设为 `enable_static_pointcloud_viz:=false` 后 relay 参数不再展开；
 - `git diff --check`：通过。
 
 本次未启动 Gazebo。实际点云压缩比、relay 输入/输出带宽、进程 CPU 和原建图频率

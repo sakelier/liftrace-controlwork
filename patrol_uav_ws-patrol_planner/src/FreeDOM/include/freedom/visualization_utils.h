@@ -47,6 +47,12 @@ inline StampPolicy parse_stamp_policy(const std::string& value)
     throw std::invalid_argument("stamp_policy must be preserve_input, now_if_zero, or now");
 }
 
+inline bool topics_form_self_loop(const std::string& resolved_input_topic,
+                                  const std::string& resolved_output_topic)
+{
+    return resolved_input_topic == resolved_output_topic;
+}
+
 inline std_msgs::Header make_output_header(const std_msgs::Header& input,
                                            FramePolicy frame_policy,
                                            const std::string& frame_id_override,

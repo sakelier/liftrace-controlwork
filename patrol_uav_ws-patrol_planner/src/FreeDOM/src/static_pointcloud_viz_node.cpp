@@ -34,8 +34,8 @@ public:
             boost::bind(&StaticPointcloudVizNode::connect_callback,this,_1),
             boost::bind(&StaticPointcloudVizNode::disconnect_callback,this,_1));
 
-        ROS_INFO_STREAM("static_pointcloud_viz_node ready: " << input_topic_
-                        << " -> " << output_topic_ << ", max_rate=" << max_rate_hz_
+        ROS_INFO_STREAM("static_pointcloud_viz_node ready: " << resolved_input_topic_
+                        << " -> " << resolved_output_topic_ << ", max_rate=" << max_rate_hz_
                         << " Hz, leaf=" << voxel_leaf_size_ << " m");
     }
 
@@ -57,12 +57,10 @@ private:
                                        "now_if_zero");
     }
 
-    void validate_params() const
+    void validate_params()
     {
         if(input_topic_.empty() || output_topic_.empty())
             throw std::invalid_argument("input_topic and output_topic must not be empty");
-        if(input_topic_ == output_topic_)
-            throw std::invalid_argument("input_topic and output_topic must differ");
         if(input_queue_size_ <= 0 || output_queue_size_ <= 0)
             throw std::invalid_argument("input_queue_size and output_queue_size must be positive");
         if(!std::isfinite(max_rate_hz_) || max_rate_hz_ <= 0.0)
@@ -71,6 +69,13 @@ private:
             throw std::invalid_argument("voxel_leaf_size must be a finite positive number");
         if(frame_policy_name_ == "override" && frame_id_override_.empty())
             throw std::invalid_argument("frame_id_override is required for override frame_policy");
+
+        resolved_input_topic_ = nh_.resolveName(input_topic_, true);
+        resolved_output_topic_ = nh_.resolveName(output_topic_, true);
+        if(topics_form_self_loop(resolved_input_topic_,resolved_output_topic_))
+            throw std::invalid_argument(
+                "input_topic and output_topic resolve/remap to the same ROS name: " +
+                resolved_input_topic_);
     }
 
     void connect_callback(const ros::SingleSubscriberPublisher&)
@@ -82,7 +87,7 @@ private:
         input_sub_ = nh_.subscribe(input_topic_,
                                    static_cast<std::uint32_t>(input_queue_size_),
                                    &StaticPointcloudVizNode::pointcloud_callback,this);
-        ROS_INFO_STREAM("static_pointcloud_viz_node subscribed to " << input_topic_);
+        ROS_INFO_STREAM("static_pointcloud_viz_node subscribed to " << resolved_input_topic_);
     }
 
     void disconnect_callback(const ros::SingleSubscriberPublisher&)
@@ -93,7 +98,7 @@ private:
 
         input_sub_.shutdown();
         gate_.reset();
-        ROS_INFO_STREAM("static_pointcloud_viz_node released " << input_topic_
+        ROS_INFO_STREAM("static_pointcloud_viz_node released " << resolved_input_topic_
                         << " because no output subscriber remains");
     }
 
@@ -132,6 +137,8 @@ private:
 
     std::string input_topic_;
     std::string output_topic_;
+    std::string resolved_input_topic_;
+    std::string resolved_output_topic_;
     int input_queue_size_ = 1;
     int output_queue_size_ = 1;
     double max_rate_hz_ = 0.5;

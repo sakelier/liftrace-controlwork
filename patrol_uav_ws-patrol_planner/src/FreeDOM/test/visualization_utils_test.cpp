@@ -128,6 +128,19 @@ TEST(ParameterPolicyTest, RejectsUnknownPoliciesAndInvalidLeafSize)
     EXPECT_THROW(downsample_pointcloud(cloud,0.0),std::invalid_argument);
 }
 
+TEST(TopicLoopGuardTest, ComparesResolvedNamesInsteadOfRawParameterText)
+{
+    const std::string raw_input = "static_pointcloud";
+    const std::string raw_output = "/freedom/static_pointcloud";
+    EXPECT_NE(raw_input,raw_output);
+
+    const std::string resolved_input = "/freedom/static_pointcloud";
+    const std::string resolved_output = "/freedom/static_pointcloud";
+    EXPECT_TRUE(topics_form_self_loop(resolved_input,resolved_output));
+    EXPECT_FALSE(topics_form_self_loop(resolved_input,
+                                       "/freedom/static_pointcloud_viz"));
+}
+
 }  // namespace freedom
 
 int main(int argc, char** argv)
