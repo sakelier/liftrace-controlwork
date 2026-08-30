@@ -28,6 +28,7 @@
 
 #include <Eigen/Eigen>
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
@@ -41,6 +42,7 @@
 #include <plan_env/obj_predictor.h>
 #include <plan_env/sdf_map.h>
 #include <plan_manage/Bspline.h>
+#include <plan_manage/PlannerStatus.h>
 #include <plan_manage/planner_manager.h>
 #include <traj_utils/planning_visualization.h>
 
@@ -97,11 +99,17 @@ private:
   Eigen::Vector3d end_pt_, end_vel_;                              // target state
   int current_wp_;
 
+  /* goal telemetry (does not participate in planner decisions) */
+  geometry_msgs::PoseStamped requested_goal_, effective_goal_;
+  uint32_t goal_seq_, planning_attempt_;
+  uint64_t goal_status_event_seq_;
+  bool goal_status_active_;
+
   /* ROS utils */
   ros::NodeHandle node_;
   ros::Timer exec_timer_, safety_timer_, vis_timer_, test_something_timer_;
   ros::Subscriber waypoint_sub_, odom_sub_;
-  ros::Publisher replan_pub_, new_pub_, bspline_pub_;
+  ros::Publisher replan_pub_, new_pub_, bspline_pub_, goal_status_pub_;
 
   /* helper functions */
   bool callKinodynamicReplan();        // front-end and back-end method
@@ -109,6 +117,8 @@ private:
                                        // optimization; 1: new, 2: replan
   void changeFSMExecState(FSM_EXEC_STATE new_state, string pos_call);
   void printFSMExecState();
+  void updateEffectiveGoal();
+  void publishGoalStatus(uint8_t status, const std::string& reason);
 
   /* ROS functions */
   void execFSMCallback(const ros::TimerEvent& e);
