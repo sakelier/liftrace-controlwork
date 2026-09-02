@@ -65,6 +65,13 @@ uav_vision/ReleaseEvidenceContext
 现有 r9 阻塞和后续 Gate 条件见
 `docs/导航组本地完整任务联调HANDOFF_20260902.md`。
 
+## 轻量策略仿真
+
+导航组另设纯 Python 仓 `https://github.com/sakelier/liftrace-sim.git`，用于批量设计和比较牛耕搜索、
+障碍/A*、Cue 中断、有限载荷投递及动态阈值策略。它不属于本 ROS 工作区，也不进入正式 launch；
+其参数只能作为本仓 feature 分支的候选输入，仍须经过 ROS/PX4/Gazebo 完整 Gate 验证。记录时版本为
+`main@18f6ee8`，详细模型边界见 HANDOFF 第 12 节。
+
 ## 当前验收边界
 
 同步导航上游 PR #1～#6 后，`freedom;plan_manage;patrol_control;uav_mission` Catkin 定向构建和
