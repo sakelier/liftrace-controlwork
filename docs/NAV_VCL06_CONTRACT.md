@@ -123,3 +123,21 @@ profiles:
 
 它们只用于记录来源，不在原文中追加回复或决策。后续阶段回复、接口裁定和 Gate 证据必须
 另建文档，避免把集成侧结论伪装成上游原始要求。
+
+## 7. 2026-08-31 执行桥同步状态
+
+导航 PR #6 已转为 Ready，当前 HEAD `d95377c`；planner bridge 的四个代码提交截至
+`3864a7c`，已在视觉集成分支等价导入为 `98cb587/83e796b/c7c1d8f/933eb78`。本仓后续只把既有
+`MissionCommand/AlignmentTargetContext/ReleaseEvidenceContext/ReleaseResult` 接入同一个
+executor，并增加正式 launch 与只读 Gate。
+
+接口集合保持不变：没有新增 msg/srv/action、legacy/deprecated schema、第二 planner-goal
+adapter 或并行任务 manager。正式图中 clean manager 是唯一 raw decision 发布者，
+`/navigation/planner_bridge` 是 `/fastplanner/goal` 唯一发布者。PR 正文已按 motion-only 范围、
+默认关闭开关和当前验证证据更新；target transaction、LAND 与系统地图 Gate 仍明确属于集成层。
+
+仿真地图已由真实 LiDAR→FAST-LIO→FreeDOM 链恢复：三段点云非空，
+`/freedom/static_pointcloud` 为新鲜 `camera_init` frame 并持续约 10 Hz。90 秒 Gate v3 未再出现
+`map_missing/map_stale`，合同错误、碰撞和越界均为 0；但仍因 `wall_timeout` FAIL，仅产生
+3 个 decision/5 个 result，没有 selected/APPROACH/投递/返航/LAND。地图 readiness 成立不等于
+`P_interrupt` 或完整任务 PASS，后续仍必须使用真实地图合同，不能由视觉伪造或放宽年龄阈值。

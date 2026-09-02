@@ -1,9 +1,10 @@
-"""Deterministic, ROS-free execution policy for navigation motion decisions.
+"""Deterministic, ROS-free execution policy for navigation decisions.
 
-The class in this module deliberately stops at planner motion. A ROS adapter
-publishes its selected goal and exposes LAND/HOLD/ABORT/target-stage handoff
-states to separate executors. This module never imports ROS and never
-operates a flight mode, payload mechanism or actuator.
+The class owns planner motion and the single typed-result sequence.  A ROS
+adapter performs the existing target-alignment and landing handoffs, then
+reports their observed stages back through the narrow methods in this module.
+This module never imports ROS and never operates a flight mode, payload
+mechanism or actuator.
 
 All clocks and source stamps are integer nanoseconds.  Decision identity is
 copied into an immutable ``ExecutionEvent`` when the decision is accepted, so
@@ -17,10 +18,10 @@ from typing import Dict, Optional, Tuple
 
 
 MOTION_COMMANDS = frozenset((
-    "SEARCH", "RESUME", "APPROACH", "RETURN_HOME",
+    "SEARCH", "RESUME", "APPROACH", "RETURN_HOME", "ABORT",
 ))
-EXTERNAL_COMMANDS = frozenset(("LAND", "ABORT", "HOLD"))
-REJECTED_COMMANDS = frozenset(("ALIGN",))
+EXTERNAL_COMMANDS = frozenset(("LAND",))
+REJECTED_COMMANDS = frozenset(("ALIGN", "HOLD"))
 KNOWN_COMMANDS = MOTION_COMMANDS | EXTERNAL_COMMANDS | REJECTED_COMMANDS
 
 PLANNER_STATUSES = (
@@ -329,6 +330,7 @@ class _GoalLifecycle:
     dispatch_ns: int
     effective_goal: Optional[MotionGoal] = None
     planning_attempt: int = 0
+    failed_attempt_count: int = 0
     planner_accepted: bool = False
     trajectory_ready: bool = False
     trajectory_finished: bool = False
@@ -338,6 +340,8 @@ class _GoalLifecycle:
     terminal: bool = False
     handed_off: bool = False
     retired: bool = False
+    payload_committed: bool = False
+    late_payload_commit_allowed: bool = False
 
 
 class PlannerMotionExecutor:
@@ -357,6 +361,10 @@ class PlannerMotionExecutor:
         self._last_now_ns = 0
         self._last_odom: Optional[OdomSample] = None
         self._active: Optional[_GoalLifecycle] = None
+        # At most one physically uncertain release may outlive the active
+        # navigation action.  This is a fact-reconciliation fence, not a
+        # retry/history queue.
+        self._pending_release: Optional[_GoalLifecycle] = None
         self._awaiting_cancel_goal_seq = 0
 
     def snapshot(self) -> ExecutorSnapshot:
@@ -394,7 +402,9 @@ class PlannerMotionExecutor:
 
     def _result(self, state: _GoalLifecycle, now_ns: int, status: str,
                 stage: str, terminal: bool, retryable: bool,
-                reason: str) -> ExecutionEvent:
+                reason: str, payload_committed: bool = False,
+                evidence_source: str = "planner_motion_executor"
+                ) -> ExecutionEvent:
         self._executor_event_seq += 1
         decision = state.decision
         target = decision.target
@@ -409,7 +419,7 @@ class PlannerMotionExecutor:
             stage=stage,
             terminal=terminal,
             retryable=retryable,
-            payload_committed=False,
+            payload_committed=bool(payload_committed),
             has_target=target is not None,
             target_id=(target.target_id if target else 0),
             target_first_seen_ns=(target.first_seen_ns if target else 0),
@@ -417,7 +427,7 @@ class PlannerMotionExecutor:
             attempt=(target.attempt if target else 0),
             payload_slot=(target.payload_slot if target else 0),
             reason=reason,
-            evidence_source="planner_motion_executor",
+            evidence_source=evidence_source,
         )
 
     def _validate_now(self, now_ns: int) -> Optional[ExecutorOutcome]:
@@ -505,6 +515,8 @@ class PlannerMotionExecutor:
             self, decision: MotionDecision) -> Optional[str]:
         if decision.command == "ALIGN":
             return "align_not_owned_by_motion_executor"
+        if decision.command == "HOLD":
+            return "hold_not_supported"
         goal = decision.goal
         if goal is not None:
             if goal.frame_id != self.config.mission_frame:
@@ -559,6 +571,12 @@ class PlannerMotionExecutor:
         )
         if replacement_requires_cancel:
             self._awaiting_cancel_goal_seq = active.decision.decision_seq
+        if (active is not None and active.late_payload_commit_allowed and
+                not active.payload_committed):
+            if (self._pending_release is not None and
+                    self._pending_release is not active):
+                return self._fail_closed("pending_release_fence_conflict")
+            self._pending_release = active
         if active is not None:
             active.retired = True
 
@@ -674,8 +692,6 @@ class PlannerMotionExecutor:
             expected_attempt = state.planning_attempt + 1
             if event.planning_attempt != expected_attempt:
                 return self._fail_closed("planner_attempt_not_monotonic")
-            if event.planning_attempt > self.config.max_planning_attempts:
-                return self._fail_closed("planner_attempt_limit_exceeded")
             state.planning_attempt = event.planning_attempt
             state.trajectory_ready = False
             state.dwell_start_ns = 0
@@ -696,6 +712,9 @@ class PlannerMotionExecutor:
                 self._result(state, int(now_ns), "PROGRESS", "PLANNER",
                              False, False, "planner_trajectory_ready"),))
         if status == "FAILED_ATTEMPT":
+            state.failed_attempt_count += 1
+            if state.failed_attempt_count > self.config.max_planning_attempts:
+                return self._fail_closed("planner_attempt_limit_exceeded")
             return self._outcome(True, "planner_attempt_failed_nonterminal",
                 events=(self._result(
                     state, int(now_ns), "PROGRESS", "PLANNER", False, False,
@@ -745,6 +764,129 @@ class PlannerMotionExecutor:
         )
         return self._outcome(
             True, "motion_succeeded", events=(event,))
+
+    def report_target_stage(self, decision_seq: int, now_ns: int,
+                            status: str, stage: str,
+                            terminal: bool = False,
+                            retryable: bool = False,
+                            payload_committed: bool = False,
+                            reason: str = "",
+                            evidence_source: str =
+                            "target_transaction_executor") -> ExecutorOutcome:
+        """Record one observed stage for the handed-off APPROACH decision.
+
+        The ROS adapter owns no result counter.  Planner, capture, release and
+        recovery facts all pass through this method and therefore share the
+        executor's one ``executor_id/event_seq`` stream.
+        """
+
+        invalid_now = self._validate_now(now_ns)
+        if invalid_now is not None:
+            return invalid_now
+        state = self._active
+        if (state is None or state.decision.command != "APPROACH" or
+                state.decision.decision_seq != int(decision_seq)):
+            pending = self._pending_release
+            if (pending is not None and
+                    pending.decision.decision_seq == int(decision_seq)):
+                state = pending
+        if (state is None or state.decision.command != "APPROACH" or
+                state.decision.decision_seq != int(decision_seq) or
+                not state.handed_off):
+            return self._outcome(False, "target_transaction_not_active")
+
+        status = str(status).strip().upper()
+        stage = str(stage).strip().upper()
+        terminal = bool(terminal)
+        retryable = bool(retryable)
+        payload_committed = bool(payload_committed)
+        late_payload_commit = (
+            payload_committed and state.terminal and state.retired and
+            state.late_payload_commit_allowed and
+            not state.payload_committed
+        )
+        if ((state.terminal or state.retired) and
+                not late_payload_commit):
+            return self._outcome(False, "target_transaction_not_active")
+        if stage not in ("CAPTURE", "ALIGNMENT", "RELEASE", "RECOVERY"):
+            return self._outcome(False, "target_stage_invalid")
+        if not str(reason).strip() or not str(evidence_source).strip():
+            return self._outcome(False, "target_result_evidence_missing")
+
+        if payload_committed:
+            valid = (
+                status == "PROGRESS" and stage == "RELEASE" and
+                not terminal and not retryable and
+                reason == "release_ack_success" and
+                not state.payload_committed
+            )
+            if not valid:
+                return self._outcome(False, "payload_commit_shape_invalid")
+            state.payload_committed = True
+            state.late_payload_commit_allowed = False
+            if self._pending_release is state:
+                self._pending_release = None
+        elif terminal:
+            if status not in (
+                    "SUCCEEDED", "FAILED", "REJECTED", "CANCELLED",
+                    "TIMED_OUT"):
+                return self._outcome(False, "target_terminal_status_invalid")
+            if status == "SUCCEEDED" and not state.payload_committed:
+                return self._outcome(False, "target_success_without_commit")
+            if state.payload_committed and (stage != "RECOVERY" or retryable):
+                return self._outcome(False, "committed_recovery_shape_invalid")
+        else:
+            if status not in ("ACCEPTED", "STARTED", "PROGRESS"):
+                return self._outcome(False, "target_progress_status_invalid")
+            if retryable:
+                return self._outcome(False, "target_progress_must_not_retry")
+
+        event = self._result(
+            state, int(now_ns), status, stage, terminal, retryable, reason,
+            payload_committed=payload_committed,
+            evidence_source=str(evidence_source),
+        )
+        if terminal:
+            state.terminal = True
+            state.retired = True
+            state.late_payload_commit_allowed = (
+                status == "TIMED_OUT" and stage == "RELEASE" and
+                not state.payload_committed and not retryable and
+                reason == "release_result_deadline_reached"
+            )
+        return self._outcome(True, "target_stage_recorded", events=(event,))
+
+    def report_landing(self, decision_seq: int, now_ns: int, status: str,
+                       terminal: bool, reason: str) -> ExecutorOutcome:
+        """Record observed landing progress for the handed-off LAND command."""
+
+        invalid_now = self._validate_now(now_ns)
+        if invalid_now is not None:
+            return invalid_now
+        state = self._active
+        if (state is None or state.decision.command != "LAND" or
+                state.decision.decision_seq != int(decision_seq) or
+                not state.handed_off or state.terminal or state.retired):
+            return self._outcome(False, "landing_not_active")
+        status = str(status).strip().upper()
+        terminal = bool(terminal)
+        if not str(reason).strip():
+            return self._outcome(False, "landing_reason_missing")
+        if terminal:
+            if status not in (
+                    "SUCCEEDED", "FAILED", "REJECTED", "CANCELLED",
+                    "TIMED_OUT"):
+                return self._outcome(False, "landing_terminal_status_invalid")
+        elif status not in ("ACCEPTED", "STARTED", "PROGRESS"):
+            return self._outcome(False, "landing_progress_status_invalid")
+        event = self._result(
+            state, int(now_ns), status, "LANDING", terminal, False, reason,
+            evidence_source="patrol_control_landing",
+        )
+        if terminal:
+            state.terminal = True
+            state.retired = True
+        return self._outcome(True, "landing_stage_recorded", events=(event,))
 
     def apply_odom(self, sample: OdomSample, now_ns: int) -> ExecutorOutcome:
         """Use fresh same-frame odometry to confirm distance/speed/dwell."""

@@ -9,12 +9,14 @@
   </node> -->
   
   <!-- size of map, change the size in x, y, z according to your application -->
-  <arg name="map_size_x" value="50.0"/>
-  <arg name="map_size_y" value="50.0"/>
-  <arg name="map_size_z" value="10.0"/>
+  <arg name="map_size_x" value="20.0"/>
+  <arg name="map_size_y" value="20.0"/>
+  <arg name="map_size_z" value="5.0"/>
+  <arg name="obstacles_inflation" value="0.25"/>
+  <arg name="clearance_threshold" value="0.20"/>
 
   <!-- topic of your odometry such as VIO or LIO -->
-  <arg name="odom_topic" value="/mavros/local_position/odom" />
+  <arg name="odom_topic" value="/state_ukf/odom" />
 
   <!-- main algorithm params -->
   <include file="$(find plan_manage)/launch/patrol_planner_sim.xml">
@@ -44,9 +46,10 @@
     <arg name="fy" value="387.229248046875"/>
 
     <!-- maximum velocity and acceleration the drone will reach -->
-    <!-- 小型目标搜索场地：限制速度以保证下视视觉具有足够观测时间。 -->
-    <arg name="max_vel" value="1.0" />
-    <arg name="max_acc" value="1.0" />
+    <arg name="max_vel" value="3.0" />
+    <arg name="max_acc" value="2.0" />
+    <arg name="obstacles_inflation" value="$(arg obstacles_inflation)" />
+    <arg name="clearance_threshold" value="$(arg clearance_threshold)" />
 
     <!-- 1: use 2D Nav Goal to select goal  -->
     <!-- 2: use global waypoints below  -->
@@ -91,7 +94,7 @@
   </node>
 
   <!-- use simulator -->
-  <!-- <include file="$(find plan_manage)/launch/simulator.xml">
+  <include file="$(find plan_manage)/launch/simulator.xml">
     <arg name="map_size_x_" value="$(arg map_size_x)"/>
     <arg name="map_size_y_" value="$(arg map_size_y)"/>
     <arg name="map_size_z_" value="$(arg map_size_z)"/>
@@ -99,7 +102,7 @@
     <arg name="p_num" value="150"/>
 
     <arg name="odometry_topic" value="$(arg odom_topic)" />
-  </include> -->
+  </include>
 
 
 

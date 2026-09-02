@@ -3,6 +3,7 @@
 
 import json
 import math
+from numbers import Real
 import threading
 
 import rospy
@@ -15,6 +16,7 @@ from uav_vision.msg import TargetCandidateArray
 from uav_mission.coverage_route import CoverageRoute
 from uav_mission.mission_core import (
     CandidateSnapshot,
+    GoalSnapshot,
     MissionConfig,
     MissionCore,
     MissionPhase,
@@ -101,6 +103,9 @@ class NavigationMissionManager:
             rospy.get_param("~readiness/pose_max_age", 0.5))
         self._map_max_age = float(
             rospy.get_param("~readiness/map_max_age", 2.0))
+        self._stamp_future_tolerance = float(
+            rospy.get_param(
+                "~readiness/stamp_future_tolerance", 0.05))
         self._require_map = rospy.get_param("~readiness/require_map", True)
         self._tick_hz = float(rospy.get_param("~runtime/tick_hz", 10.0))
         self._mission_id_prefix = str(
@@ -145,6 +150,11 @@ class NavigationMissionManager:
         for name, value in numeric.items():
             if not math.isfinite(value) or value <= 0.0:
                 raise ValueError("%s must be finite and positive" % name)
+        if (not math.isfinite(self._stamp_future_tolerance) or
+                self._stamp_future_tolerance < 0.0 or
+                self._stamp_future_tolerance > 0.1):
+            raise ValueError(
+                "stamp_future_tolerance must be finite and within [0, 0.1]")
         if not isinstance(self._require_map, bool):
             raise ValueError("readiness/require_map must be boolean")
         if self._profile_name == "r2026" and not self._require_map:
@@ -153,9 +163,23 @@ class NavigationMissionManager:
             raise ValueError("runtime/mission_id_prefix must not be empty")
 
     def _mission_config(self):
+        mission_frame = rospy.get_param("~mission/frame", "camera_init")
+        route_values = rospy.get_param(
+            "~mission/post_delivery_route", [])
+        if not isinstance(route_values, (list, tuple)):
+            raise ValueError("mission/post_delivery_route must be a list")
+        post_delivery_route = []
+        for index, point in enumerate(route_values):
+            if (not isinstance(point, (list, tuple)) or len(point) != 3 or
+                    any(isinstance(value, bool) or not isinstance(value, Real)
+                        for value in point)):
+                raise ValueError(
+                    "mission/post_delivery_route[%d] must be [x,y,z]" %
+                    index)
+            post_delivery_route.append(GoalSnapshot(
+                mission_frame, *(float(value) for value in point)))
         return MissionConfig(
-            mission_frame=rospy.get_param(
-                "~mission/frame", "camera_init"),
+            mission_frame=mission_frame,
             candidate_max_age=rospy.get_param(
                 "~mission/candidate_max_age", 0.5),
             transform_max_age=rospy.get_param(
@@ -188,6 +212,13 @@ class NavigationMissionManager:
             result_future_tolerance=rospy.get_param(
                 "~mission/result_future_tolerance", 0.1),
             home_xy=rospy.get_param("~mission/home_xy", [0.0, 0.0]),
+            post_delivery_route=tuple(post_delivery_route),
+            post_delivery_route_revision=rospy.get_param(
+                "~mission/post_delivery_route_revision", "direct-home-v1"),
+            landing_xy=rospy.get_param(
+                "~mission/landing_xy", [0.0, 0.0]),
+            landing_anchor_tolerance=rospy.get_param(
+                "~mission/landing_anchor_tolerance", 0.15),
         )
 
     def _new_runtime(self):
@@ -210,12 +241,18 @@ class NavigationMissionManager:
         return MissionRuntime(MissionCore(profile, config), route)
 
     @staticmethod
-    def _age_is_valid(stamp, now, max_age):
+    def _age_state(stamp, now, max_age, future_tolerance):
         stamp_sec = stamp.to_sec()
         if stamp_sec <= 0.0:
-            return False
+            return "stale"
         age = now - stamp_sec
-        return math.isfinite(age) and 0.0 <= age <= max_age
+        if not math.isfinite(age):
+            return "stale"
+        if age < -future_tolerance:
+            return "future"
+        if age > max_age:
+            return "stale"
+        return "fresh"
 
     def _readiness(self, now):
         if not math.isfinite(now) or now <= 0.0:
@@ -226,8 +263,15 @@ class NavigationMissionManager:
             return False, "pose_missing"
         if self._pose.header.frame_id != config.mission_frame:
             return False, "pose_frame_mismatch"
-        if not self._age_is_valid(
-                self._pose.header.stamp, now, self._pose_max_age):
+        pose_age_state = self._age_state(
+            self._pose.header.stamp,
+            now,
+            self._pose_max_age,
+            self._stamp_future_tolerance,
+        )
+        if pose_age_state == "future":
+            return False, "pose_stamp_in_future"
+        if pose_age_state != "fresh":
             return False, "pose_stale"
         position = self._pose.pose.position
         if not all(math.isfinite(value) for value in
@@ -241,8 +285,15 @@ class NavigationMissionManager:
             return False, "map_missing"
         if self._map.header.frame_id != config.mission_frame:
             return False, "map_frame_mismatch"
-        if not self._age_is_valid(
-                self._map.header.stamp, now, self._map_max_age):
+        map_age_state = self._age_state(
+            self._map.header.stamp,
+            now,
+            self._map_max_age,
+            self._stamp_future_tolerance,
+        )
+        if map_age_state == "future":
+            return False, "map_stamp_in_future"
+        if map_age_state != "fresh":
             return False, "map_stale"
         width = int(self._map.width)
         height = int(self._map.height)
@@ -546,6 +597,14 @@ class NavigationMissionManager:
                 "route_complete": snapshot.route_complete,
                 "route_active_decision_seq":
                     snapshot.route_active_decision_seq,
+                "post_delivery_route_revision":
+                    snapshot.post_delivery_route_revision,
+                "post_delivery_route_index":
+                    snapshot.post_delivery_route_index,
+                "post_delivery_route_size":
+                    snapshot.post_delivery_route_size,
+                "post_delivery_route_complete":
+                    snapshot.post_delivery_route_complete,
                 "committed_slots": snapshot.committed_slots,
                 "mission_failed": snapshot.mission_failed,
                 "slot_status": [slot.status.value for slot in core.slots],

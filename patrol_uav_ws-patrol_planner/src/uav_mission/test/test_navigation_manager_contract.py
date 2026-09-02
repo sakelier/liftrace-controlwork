@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import ast
+import copy
+import math
 from pathlib import Path
 import stat
 import unittest
@@ -13,6 +15,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = PACKAGE_ROOT / "scripts" / "navigation_mission_manager.py"
 LAUNCH = PACKAGE_ROOT / "launch" / "navigation_mission_manager.launch"
 CONFIG = PACKAGE_ROOT / "config" / "vcl06_runtime.yaml"
+FORMAL_CONFIG = PACKAGE_ROOT / "config" / "vcl06_random_field_runtime.yaml"
 PACKAGE_XML = PACKAGE_ROOT / "package.xml"
 
 
@@ -22,6 +25,8 @@ class NavigationManagerContractTest(unittest.TestCase):
         cls.source = SCRIPT.read_text(encoding="utf-8")
         cls.tree = ast.parse(cls.source)
         cls.config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+        cls.formal_config = yaml.safe_load(
+            FORMAL_CONFIG.read_text(encoding="utf-8"))
         cls.launch = ET.parse(str(LAUNCH)).getroot()
         cls.package = ET.parse(str(PACKAGE_XML)).getroot()
 
@@ -66,6 +71,36 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["return_altitude"], 2.2)
         self.assertNotIn("classes", self.config)
 
+    def test_formal_runtime_has_ordered_three_door_route_to_final_h(self):
+        mission = self.formal_config["mission"]
+        route = mission["post_delivery_route"]
+        self.assertEqual(mission["frame"], "camera_init")
+        self.assertEqual(mission["forced_return_at"], 420.0)
+        self.assertEqual(mission["return_land_reserve"], 180.0)
+        self.assertEqual(
+            mission["post_delivery_route_revision"],
+            "toudi3-random-three-door-h-r1",
+        )
+        self.assertEqual(len(route), 11)
+        self.assertEqual(route[1], [-2.386703, 6.072270, 1.0])
+        self.assertEqual(route[5], [-0.112003, 8.053133, 1.2])
+        self.assertEqual(route[8], [2.123022, 8.009650, 1.2])
+        self.assertEqual(route[-1][:2], mission["landing_xy"])
+        self.assertLessEqual(max(point[2] for point in route), 4.0)
+        self.assertIn("GoalSnapshot", self.source)
+        self.assertIn("post_delivery_route_index", self.source)
+
+        search = self.formal_config["search"]
+        self.assertEqual(
+            [search["min_x"], search["max_x"],
+             search["min_y"], search["max_y"]],
+            [-2.007, 1.993, 0.273, 6.273],
+        )
+        self.assertEqual(
+            search["route_revision"],
+            "toudi3-random-spawn-envelope-r2",
+        )
+
     def test_launch_exposes_only_contract_topics(self):
         nodes = self.launch.findall(".//node")
         self.assertEqual(len(nodes), 1)
@@ -84,6 +119,14 @@ class NavigationManagerContractTest(unittest.TestCase):
 
     def test_r2026_readiness_and_callbacks_fail_closed(self):
         self.assertTrue(self.config["readiness"]["require_map"])
+        for config in (self.config, self.formal_config):
+            readiness = config["readiness"]
+            self.assertEqual(readiness["pose_max_age"], 0.5)
+            self.assertEqual(readiness["stamp_future_tolerance"], 0.05)
+        self.assertIn('return "future"', self.source)
+        self.assertIn('return False, "pose_stamp_in_future"', self.source)
+        self.assertIn('return False, "map_stamp_in_future"', self.source)
+        self.assertIn('self._stamp_future_tolerance > 0.1', self.source)
         self.assertIn("r2026 requires map readiness", self.source)
         self.assertIn('return False, "map_empty"', self.source)
         self.assertIn('return False, "map_layout_invalid"', self.source)
@@ -95,6 +138,38 @@ class NavigationManagerContractTest(unittest.TestCase):
                 self.source,
             )
         self.assertNotIn('abort("executor_changed"', self.source)
+
+    def test_readiness_accepts_only_bounded_future_stamp_jitter(self):
+        manager = next(
+            node for node in self.tree.body
+            if isinstance(node, ast.ClassDef) and
+            node.name == "NavigationMissionManager"
+        )
+        function = copy.deepcopy(next(
+            node for node in manager.body
+            if isinstance(node, ast.FunctionDef) and
+            node.name == "_age_state"
+        ))
+        function.decorator_list = []
+        module = ast.fix_missing_locations(
+            ast.Module(body=[function], type_ignores=[]))
+        namespace = {"math": math}
+        exec(compile(module, str(SCRIPT), "exec"), namespace)
+
+        class Stamp:
+            def __init__(self, seconds):
+                self._seconds = seconds
+
+            def to_sec(self):
+                return self._seconds
+
+        age_state = namespace["_age_state"]
+        self.assertEqual(age_state(Stamp(10.001), 10.0, 0.5, 0.05),
+                         "fresh")
+        self.assertEqual(age_state(Stamp(10.051), 10.0, 0.5, 0.05),
+                         "future")
+        self.assertEqual(age_state(Stamp(9.499), 10.0, 0.5, 0.05),
+                         "stale")
 
     def test_runtime_declares_yaml_dependency(self):
         dependencies = {
