@@ -141,3 +141,10 @@ adapter 或并行任务 manager。正式图中 clean manager 是唯一 raw decis
 `map_missing/map_stale`，合同错误、碰撞和越界均为 0；但仍因 `wall_timeout` FAIL，仅产生
 3 个 decision/5 个 result，没有 selected/APPROACH/投递/返航/LAND。地图 readiness 成立不等于
 `P_interrupt` 或完整任务 PASS，后续仍必须使用真实地图合同，不能由视觉伪造或放宽年龄阈值。
+
+## 8. 2026-09-02 上游合入与后继状态
+
+导航上游 `main@a182ca9` 已包含 PR #1～#6，PR #6 头 `d95377c` 已成为主干祖先。完整任务后继分支
+`Qinling-Melon-Farmers:feat/vcl06-local-full-mission` 已同步该主干，并以非草稿 PR #8 提交到上游：
+`https://github.com/sakelier/liftrace-controlwork/pull/8`。该 PR 不改变本合同的消息编号、profile 或
+发布者所有权；其完整运行边界与 r9 阻塞以 `导航组本地完整任务联调HANDOFF_20260902.md` 为准。
