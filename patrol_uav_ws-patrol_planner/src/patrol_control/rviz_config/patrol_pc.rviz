@@ -218,7 +218,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.029999999329447746
           Style: Squares
-          Topic: /freedom/static_pointcloud_viz
+          Topic: /freedom/static_pointcloud
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
