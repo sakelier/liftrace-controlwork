@@ -46,4 +46,3 @@ readiness:
 runtime:
   tick_hz: 10.0
   mission_id_prefix: vcl06
-

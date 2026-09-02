@@ -10,6 +10,8 @@ project(uav_mission)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   message_generation
+  nav_msgs
+  plan_manage
   roscpp
   rospy
   sensor_msgs
@@ -121,6 +123,8 @@ catkin_package(
     rospy
     std_msgs
     geometry_msgs
+    nav_msgs
+    plan_manage
     sensor_msgs
     std_srvs
     tf2_ros
@@ -186,6 +190,7 @@ target_link_libraries(target_search_manager_cpp
 
 catkin_install_python(PROGRAMS
   scripts/navigation_mission_manager.py
+  scripts/navigation_planner_bridge.py
   scripts/target_search_manager_py.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
@@ -246,6 +251,9 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_mission_core.py)
   catkin_add_nosetests(test/test_mission_runtime.py)
   catkin_add_nosetests(test/test_navigation_manager_contract.py)
+  catkin_add_nosetests(test/test_planner_execution.py)
+  catkin_add_nosetests(test/test_planner_mission_contract.py)
+  catkin_add_nosetests(test/test_navigation_planner_bridge_contract.py)
 endif()
 
 ## Add gtest based cpp test target and link libraries
