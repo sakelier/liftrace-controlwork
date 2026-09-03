@@ -144,7 +144,8 @@ adapter 或并行任务 manager。正式图中 clean manager 是唯一 raw decis
 
 ## 8. 2026-09-02 上游合入与后继状态
 
-导航上游 `main@a182ca9` 已包含 PR #1～#6，PR #6 头 `d95377c` 已成为主干祖先。完整任务后继分支
-`Qinling-Melon-Farmers:feat/vcl06-local-full-mission` 已同步该主干，并以非草稿 PR #8 提交到上游：
-`https://github.com/sakelier/liftrace-controlwork/pull/8`。该 PR 不改变本合同的消息编号、profile 或
-发布者所有权；其完整运行边界与 r9 阻塞以 `导航组本地完整任务联调HANDOFF_20260902.md` 为准。
+导航上游 `main@a182ca9` 已包含 PR #1～#6，PR #6 头 `d95377c` 已成为主干祖先。完整任务后继成果
+现直接维护在上游 `sakelier/liftrace-controlwork:feat/vcl06-local-full-mission`。原跨 fork PR #8 因
+改动面过大关闭为 superseded，后续先在该上游 feature 内收口运行 Gate，再按职责拆分审阅。本次
+协作方式变化不改变本合同的消息编号、profile 或发布者所有权；完整运行边界与 r9 阻塞仍以
+`导航组本地完整任务联调HANDOFF_20260902.md` 为准。

@@ -75,10 +75,11 @@ uav_vision/ReleaseEvidenceContext
 ## 当前验收边界
 
 同步导航上游 PR #1～#6 后，`freedom;plan_manage;patrol_control;uav_mission` Catkin 定向构建和
-237 项测试通过；使用上述视觉 overlay 时完整 launch 可递归解析。后继成果已提交为上游非草稿
-PR #8，但尚未在导航 fork 分支重跑完整 SITL。最近一次 r9 实跑只完成 panzer 首投与恢复，随后在
-red_cross 接近前遇到 planner 目标接受竞态，并以高度 `4.002849 m` 触发硬 Gate；第二/第三投、
-完整三门走廊和 H/LAND 仍需联合仿真验证。
+237 项测试通过；使用上述视觉 overlay 时完整 launch 可递归解析。后继成果曾提交为跨 fork PR #8，
+现按仓库 owner 安排关闭该大 PR，并直接维护上游 `feat/vcl06-local-full-mission`。该分支尚未重跑
+完整 SITL；最近一次 r9 实跑只完成 panzer 首投与恢复，随后在 red_cross 接近前遇到 planner 目标
+接受竞态，并以高度 `4.002849 m` 触发硬 Gate；第二/第三投、完整三门走廊和 H/LAND 仍需联合仿真
+验证。
 
 上述结果不是全工作区构建 PASS。全量 Catkin 配置仍会报告仓内 `tool/cv_bridge/src` 缺少
 `CMakeLists.txt`，以及 `local_sensing` 的 `cmake_modules` 依赖在当前环境不可用；这两项属于独立的
