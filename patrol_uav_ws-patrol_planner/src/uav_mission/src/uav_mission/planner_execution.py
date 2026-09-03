@@ -234,6 +234,7 @@ class PlannerMotionConfig:
     max_effective_goal_offset_m: float = 1.10
     max_planning_attempts: int = 20
     arrival_distance_m: float = 0.30
+    approach_arrival_distance_m: float = 0.35
     arrival_speed_mps: float = 0.20
     arrival_dwell_ns: int = 500_000_000
     odom_max_age_ns: int = 200_000_000
@@ -261,10 +262,16 @@ class PlannerMotionConfig:
         object.__setattr__(self, "max_planning_attempts", _integer(
             "max_planning_attempts", self.max_planning_attempts, 1))
         distance = _finite("arrival_distance_m", self.arrival_distance_m)
+        approach_distance = _finite(
+            "approach_arrival_distance_m",
+            self.approach_arrival_distance_m)
         speed = _finite("arrival_speed_mps", self.arrival_speed_mps)
-        if distance <= 0.0 or speed < 0.0:
+        if (distance <= 0.0 or approach_distance <= 0.0 or
+                approach_distance > 0.50 or speed < 0.0):
             raise ValueError("arrival thresholds are invalid")
         object.__setattr__(self, "arrival_distance_m", distance)
+        object.__setattr__(
+            self, "approach_arrival_distance_m", approach_distance)
         object.__setattr__(self, "arrival_speed_mps", speed)
         object.__setattr__(self, "arrival_dwell_ns", _integer(
             "arrival_dwell_ns", self.arrival_dwell_ns, 1))
@@ -971,7 +978,12 @@ class PlannerMotionExecutor:
             (sample.z - goal.z) ** 2
         )
         speed = math.sqrt(sample.vx ** 2 + sample.vy ** 2 + sample.vz ** 2)
-        if (distance > self.config.arrival_distance_m or
+        arrival_distance = (
+            self.config.approach_arrival_distance_m
+            if state.decision.command == "APPROACH"
+            else self.config.arrival_distance_m
+        )
+        if (distance > arrival_distance or
                 speed > self.config.arrival_speed_mps):
             self._reset_dwell(state)
             return self._outcome(True, "arrival_threshold_not_met")

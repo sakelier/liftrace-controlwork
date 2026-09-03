@@ -28,6 +28,9 @@ Servo/PWM、不解锁、不分配槽位、不实现任务队列或重试，也�
 - raw decision 的 `issued_at` 原样复制到 planner goal `header.stamp`，并由 planner 在嵌套目标中
   回传；bridge 以该时间戳恢复 `decision_seq`。`header.seq` 会被 ROS 发布层改写，只做单条遥测
   的传输一致性检查，不再承担任务代际。
+- `NavigationDecision/NavigationResult` 顶层 `header.seq` 同样仅是 ROS 传输计数，业务栅栏使用消息
+  内显式 `decision_seq/event_seq`；旧 `MissionCommand` 没有显式业务序号，联调 Gate 使用其嵌套
+  `goal.header.seq` 关联原 decision。
 - planner goal 成功发布后，才发布同一 executor 的非终态 `ACCEPTED/DISPATCH`，使 Mission
   Manager 尽早冻结唯一 `executor_id`；目标阶段后续结果也必须由同一协调器代理。
 - decision receipt 与 source stamp 均采用排他 deadline；等于 deadline 即过期。
@@ -38,7 +41,7 @@ Servo/PWM、不解锁、不分配槽位、不实现任务队列或重试，也�
   当前 decision/goal 的身份或生命周期冲突只终止当前 action，不锁死 bridge 进程。
 - 只有当前目标先后见到 `ACCEPTED`、`TRAJECTORY_READY`、`TRAJECTORY_FINISHED`，且同
   mission frame 的新鲜 odom 对 effective goal 同时满足 3D 距离、速度和连续驻留，才产生
-  motion success。
+  motion success。普通搜索/返航维持 0.30 m；APPROACH 允许 0.35 m 后交给视觉末端闭环精确对齐。
 - planner `ACCEPTED` 映射为 `STARTED/PLANNER`；`TRAJECTORY_READY` 与
   `FAILED_ATTEMPT` 映射为非终态 `PROGRESS/PLANNER`，timer 不周期制造结果事件。
 - SEARCH、RESUME、RETURN_HOME 到达产生终态 `SUCCEEDED/PLANNER`。

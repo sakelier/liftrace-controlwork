@@ -21,6 +21,10 @@ execution:
   source_future_tolerance: 0.1
   odom_max_age: 0.5
   arrival_position_tolerance: 0.30
+  # APPROACH hands off to the visual aligner, which performs the precise
+  # centering/descent.  Keep search/return strict while allowing the observed
+  # Fast-Planner terminal offset plus tracking error at the handoff boundary.
+  approach_arrival_position_tolerance: 0.35
   arrival_speed_tolerance: 0.20
   arrival_dwell: 0.50
   effective_goal_max_offset: 1.10

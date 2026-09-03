@@ -73,7 +73,7 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
 
     def test_raw_decision_and_planner_identity_are_checked(self):
         for token in (
-                "message.header.seq", "message.decision_seq",
+                "message.decision_seq",
                 "nested goal sequence mismatch", "nested goal stamp mismatch",
                 "decision goal flag does not match command",
                 "decision target flag does not match command",
@@ -85,6 +85,10 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertIn(
             'raise ValueError("ALIGN requires the target transaction executor")',
             self.source)
+        decision_parser = self.source[
+            self.source.index("def _decision_from_message"):
+            self.source.index("def _sequenced_goal_from_status")]
+        self.assertNotIn("message.header.seq", decision_parser)
 
     def test_planner_event_sequence_is_not_coupled_to_transport_header(self):
         parser = self.source[
@@ -106,6 +110,8 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertNotIn("allowed_target_classes", execution)
         self.assertEqual(execution["effective_goal_max_offset"], 1.10)
         self.assertEqual(execution["planner_accept_timeout"], 5.0)
+        self.assertEqual(
+            execution["approach_arrival_position_tolerance"], 0.35)
 
     def test_planner_generation_uses_preserved_stamp_not_transport_sequence(self):
         parser = self.source[

@@ -49,8 +49,9 @@ launch 中的 `/mavros/local_position/pose` 只是可覆盖的接线默认值。
 - `tent、pillbox` 仅在路线结束或时间预算兜底时参与排序。
 - 三个槽位提交后立即 RETURN_HOME；510 s 强制返航，600 s 任务上限，所有 goal 高度不超过
   4 m。
-- raw decision 的 `header.seq`、`decision_seq` 与 `deadline` 一起构成 execution fencing；
-  execution bridge 必须拒绝旧序号或过期 decision，但真实 guarded release ACK 必须回报。
+- raw decision 以显式 `decision_seq`、`header.stamp` 与 `deadline` 构成 execution fencing；
+  顶层 `header.seq` 由 ROS publisher 管理，只是传输计数，不作为业务身份。execution bridge
+  必须拒绝旧业务序号或过期 decision，但真实 guarded release ACK 必须回报。
 
 ## 启动（只生成 raw decision）
 

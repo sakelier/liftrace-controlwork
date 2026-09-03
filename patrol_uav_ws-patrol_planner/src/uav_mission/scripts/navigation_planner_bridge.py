@@ -252,6 +252,8 @@ class NavigationPlannerBridge:
                 "~execution/max_planning_attempts", 20)),
             arrival_distance_m=float(rospy.get_param(
                 "~execution/arrival_position_tolerance", 0.30)),
+            approach_arrival_distance_m=float(rospy.get_param(
+                "~execution/approach_arrival_position_tolerance", 0.35)),
             arrival_speed_mps=float(rospy.get_param(
                 "~execution/arrival_speed_tolerance", 0.20)),
             arrival_dwell_ns=_seconds_to_ns(
@@ -366,8 +368,6 @@ class NavigationPlannerBridge:
         if int(message.schema_version) != NavigationDecision.SCHEMA_VERSION:
             raise ValueError("navigation decision schema mismatch")
         decision_seq = int(message.decision_seq)
-        if int(message.header.seq) != decision_seq:
-            raise ValueError("decision header sequence mismatch")
         issued_ns = _stamp_to_ns(message.header.stamp)
         if issued_ns <= 0:
             raise ValueError("decision source stamp must be positive")

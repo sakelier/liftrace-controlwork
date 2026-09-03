@@ -725,7 +725,7 @@ class Vcl06GateReducerTest(unittest.TestCase):
                       reducer.errors)
         self.assertEqual(reducer._bound_command_keys(), set())
 
-    def test_ros_shell_forwards_mission_command_header_sequence(self):
+    def test_ros_shell_uses_nested_goal_business_sequence(self):
         calls = []
 
         class Recorder:
@@ -743,10 +743,24 @@ class Vcl06GateReducerTest(unittest.TestCase):
             target_id=11,
             target_class="tent",
             header=SimpleNamespace(
-                seq=7, stamp=SimpleNamespace(secs=20, nsecs=30)))
+                seq=99, stamp=SimpleNamespace(secs=19, nsecs=0)),
+            goal=SimpleNamespace(header=SimpleNamespace(
+                seq=7, stamp=SimpleNamespace(secs=20, nsecs=30))))
         node._on_mission_command(message)
         self.assertEqual(calls, [(
             MODULE.APPROACH, 7, 11, "tent", 20_000_000_030)])
+
+    def test_transport_header_sequences_are_not_business_identity(self):
+        item = decision(7, MODULE.SEARCH, 20.0, 80.0)
+        item["header_seq"] = 99
+        parsed = MODULE.Vcl06GateReducer._decision_from_dict(item)
+        self.assertEqual(parsed.decision_seq, 7)
+
+        event = result(8, item, MODULE.SUCCEEDED, MODULE.PLANNER,
+                       30.0, terminal=True)
+        event["header_seq"] = 100
+        parsed_event = MODULE.Vcl06GateReducer._result_from_dict(event)
+        self.assertEqual(parsed_event.event_seq, 8)
 
     def test_ros_shell_preserves_decision_goal_and_reason(self):
         stamp = SimpleNamespace(secs=20, nsecs=30)

@@ -343,8 +343,6 @@ class Vcl06GateReducer:
             raise ValueError("decision_mission_id_empty")
         if not _positive_int(value["decision_seq"]):
             raise ValueError("decision_sequence_invalid")
-        if value["header_seq"] != value["decision_seq"]:
-            raise ValueError("decision_header_sequence_mismatch")
         if value["command"] not in COMMANDS:
             raise ValueError("decision_command_invalid")
         if not _positive_int(value["issued_ns"]):
@@ -415,8 +413,6 @@ class Vcl06GateReducer:
             raise ValueError("result_source_identity_empty")
         if not _positive_int(value["event_seq"]):
             raise ValueError("result_event_sequence_invalid")
-        if value["header_seq"] != value["event_seq"]:
-            raise ValueError("result_header_sequence_mismatch")
         if not _positive_int(value["decision_seq"]):
             raise ValueError("result_decision_sequence_invalid")
         if (value["command"] not in COMMANDS or
@@ -1292,9 +1288,9 @@ class NavigationVcl06AssertionNode:
     def _on_mission_command(self, message):
         with self._lock:
             self.reducer.observe_mission_command(
-                int(message.command), int(message.header.seq),
+                int(message.command), int(message.goal.header.seq),
                 int(message.target_id), message.target_class,
-                _stamp_ns(message.header.stamp))
+                _stamp_ns(message.goal.header.stamp))
             self._check_terminal()
 
     def _status_callback(self, name):

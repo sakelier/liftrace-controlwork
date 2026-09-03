@@ -148,6 +148,26 @@ class PlannerMotionExecutorTest(unittest.TestCase):
                                       finished+100_000_010)
         self.assertEqual(arrived.events[0].status, "SUCCEEDED")
 
+    def test_approach_has_a_bounded_visual_handoff_tolerance(self):
+        executor = self.make()
+        self.dispatch(executor, decision(8, "APPROACH"))
+        finished = self.finish(executor)
+        first = OdomSample(
+            finished+10, "camera_init", 1.34, 2.0, 2.2,
+            0.0, 0.0, 0.0)
+        dwell = executor.apply_odom(first, finished+10)
+        self.assertEqual(dwell.reason, "arrival_dwell_pending")
+        second = replace(first, stamp_ns=finished+100_000_010)
+        arrived = executor.apply_odom(second, second.stamp_ns)
+        self.assertEqual(arrived.handoff, "TARGET_TRANSACTION")
+
+        search = self.make()
+        self.dispatch(search)
+        search_finished = self.finish(search)
+        outside = replace(first, stamp_ns=search_finished+10)
+        rejected = search.apply_odom(outside, outside.stamp_ns)
+        self.assertEqual(rejected.reason, "arrival_threshold_not_met")
+
     def test_approach_handoff_is_nonterminal(self):
         executor = self.make(); self.dispatch(executor, decision(8, "APPROACH"))
         finished = self.finish(executor)
