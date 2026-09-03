@@ -17,7 +17,8 @@
 
 话题类型为 `plan_manage/PlannerStatus`：
 
-- `goal_seq` 原样取自 `/fastplanner/goal` 的 `PoseStamped.header.seq`。
+- 原始 `goal_seq` 取自 `/fastplanner/goal` 的 `PoseStamped.header.seq`，只表示该 ROS
+  publisher 的传输序号；rospy/roscpp 都可能在序列化时重写它，不能直接作为任务代际。
 - `event_seq` 是当前 planner 进程内单调递增的遥测事件序号；进程重启后从 1 开始。
 - 顶层 `header.seq` 是 roscpp 管理的发布传输序号，发布时会被重写，不要求与
   `event_seq` 相等，也不得用于任务层排序或去重。
@@ -26,12 +27,13 @@
 - `distance_to_goal` 使用最新 odom 到 `effective_goal` 的欧氏距离；尚无 odom 时为 NaN。
 - `FAILED_ATTEMPT` 只表示一次规划调用失败，明确为非终态；原 FSM 仍按既有逻辑重试。
 - `TRAJECTORY_FINISHED` 只表示当前局部轨迹时间走完，不等价于任务层的速度/驻留到达判定。
-- 活跃目标被新目标覆盖时，旧 `goal_seq` 先发布 `CANCELLED`，随后新目标发布 `ACCEPTED`。
+- 活跃目标被新目标覆盖时，旧传输目标先发布 `CANCELLED`，随后新目标发布 `ACCEPTED`。
 
-唯一受支持的跨节点关联方式是：执行桥把导航决策的 `decision_seq` 原样写入
-`/fastplanner/goal` 的 `PoseStamped.header.seq`，planner 再把它回传为 `goal_seq`。
-旧发布者通常写入 0 或非唯一序号，不满足该关联契约；在执行桥完成适配前，消费方不得
-把旧发布者产生的 `goal_seq` 当作唯一任务标识。
+执行桥把导航决策的 `issued_at` 原样保存在 `/fastplanner/goal.header.stamp`；planner 在
+`requested_goal/effective_goal` 中回传该时间戳。live bridge 以这个保留时间戳映射回当前或
+待取消的 `decision_seq`，再进入任务生命周期归约。嵌套 `header.seq` 与原始 `goal_seq` 仍需
+彼此一致，用于检查单条遥测内部没有撕裂，但不再承担任务身份。未知时间戳的旧 publisher
+遥测按 foreign goal 忽略；从未收到 `ACCEPTED` 便超时的目标也不建立无法兑现的取消栅栏。
 
 状态序列通常为：
 

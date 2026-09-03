@@ -245,7 +245,7 @@ class NavigationPlannerBridge:
                 allow_zero=True),
             planner_accept_timeout_ns=_seconds_to_ns(
                 "planner_accept_timeout",
-                rospy.get_param("~execution/planner_accept_timeout", 2.0)),
+                rospy.get_param("~execution/planner_accept_timeout", 5.0)),
             max_effective_goal_offset_m=float(rospy.get_param(
                 "~execution/effective_goal_max_offset", 1.10)),
             max_planning_attempts=int(rospy.get_param(
@@ -438,8 +438,9 @@ class NavigationPlannerBridge:
             target=target,
         )
 
-    def _sequenced_goal_from_status(self, stamped, goal_seq):
-        if int(stamped.header.seq) != int(goal_seq):
+    def _sequenced_goal_from_status(
+            self, stamped, transport_goal_seq, decision_seq):
+        if int(stamped.header.seq) != int(transport_goal_seq):
             raise ValueError("planner nested goal sequence mismatch")
         if stamped.header.frame_id != self._mission_frame:
             raise ValueError("planner nested goal frame mismatch")
@@ -448,7 +449,7 @@ class NavigationPlannerBridge:
         position = stamped.pose.position
         orientation = stamped.pose.orientation
         return SequencedMotionGoal(
-            goal_seq,
+            decision_seq,
             MotionGoal(stamped.header.frame_id,
                        position.x, position.y, position.z,
                        orientation.x, orientation.y,
@@ -462,14 +463,24 @@ class NavigationPlannerBridge:
         event_seq = int(message.event_seq)
         if message.header.frame_id != self._mission_frame:
             raise ValueError("planner status frame mismatch")
-        goal_seq = int(message.goal_seq)
-        requested = self._sequenced_goal_from_status(
-            message.requested_goal, goal_seq)
-        effective = self._sequenced_goal_from_status(
-            message.effective_goal, goal_seq)
-        if (_stamp_to_ns(message.requested_goal.header.stamp) !=
-                _stamp_to_ns(message.effective_goal.header.stamp)):
+        transport_goal_seq = int(message.goal_seq)
+        requested_stamp_ns = _stamp_to_ns(
+            message.requested_goal.header.stamp)
+        effective_stamp_ns = _stamp_to_ns(
+            message.effective_goal.header.stamp)
+        if requested_stamp_ns != effective_stamp_ns:
             raise ValueError("planner nested goal stamps differ")
+        # rospy/roscpp own Header.seq and may rewrite it independently of the
+        # mission decision.  Resolve the echoed, preserved source stamp back
+        # to the retained decision generation before applying lifecycle facts.
+        goal_seq = self._executor.resolve_goal_seq_by_stamp(
+            requested_stamp_ns)
+        if goal_seq == 0:
+            return None
+        requested = self._sequenced_goal_from_status(
+            message.requested_goal, transport_goal_seq, goal_seq)
+        effective = self._sequenced_goal_from_status(
+            message.effective_goal, transport_goal_seq, goal_seq)
         status = PLANNER_STATUS_NAMES.get(int(message.status))
         if status is None:
             raise ValueError("unknown planner status value")
@@ -1071,6 +1082,10 @@ class NavigationPlannerBridge:
             try:
                 now_ns = self._now_ns()
                 event = self._planner_status_from_message(message)
+                if event is None:
+                    self._last_reason = "foreign_planner_goal_stamp_ignored"
+                    self._publish_status(force=True)
+                    return
                 outcome = self._executor.apply_planner_status(event, now_ns)
                 self._apply_outcome(outcome)
                 self._publish_status(force=True)

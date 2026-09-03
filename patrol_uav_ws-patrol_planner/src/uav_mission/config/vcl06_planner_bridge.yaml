@@ -11,7 +11,10 @@ execution:
   # the independent patrol_control setpoint guard enforces the 3.5 m hard
   # execution ceiling below the competition's 4.0 m limit.
   max_goal_z: 2.5
-  planner_accept_timeout: 2.0
+  # Fast-Planner uses a single callback queue and may not consume a new goal
+  # until the current replan callback returns.  Five seconds covers the
+  # observed loaded-map latency without masking the 60/90 s action deadline.
+  planner_accept_timeout: 5.0
   # Compatibility name: this limits explicit FAILED_ATTEMPT events.  Normal
   # receding-horizon REPLANNING cycles must not consume the failure budget.
   max_planning_attempts: 20

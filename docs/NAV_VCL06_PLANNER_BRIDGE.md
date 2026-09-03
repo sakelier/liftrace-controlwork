@@ -25,10 +25,15 @@ Servo/PWM、不解锁、不分配槽位、不实现任务队列或重试，也�
 
 - 冷启动接受任意仍在 deadline 内的当前 decision，支持 manager latched 决策后的晚启动；
   同 mission 的旧序号只作为 stale 忽略，不要求 bridge 观察到中间所有序号。
-- raw decision 的 `decision_seq` 原样复制到 planner goal `header.seq`；不生成第二套目标序号。
+- raw decision 的 `issued_at` 原样复制到 planner goal `header.stamp`，并由 planner 在嵌套目标中
+  回传；bridge 以该时间戳恢复 `decision_seq`。`header.seq` 会被 ROS 发布层改写，只做单条遥测
+  的传输一致性检查，不再承担任务代际。
 - planner goal 成功发布后，才发布同一 executor 的非终态 `ACCEPTED/DISPATCH`，使 Mission
   Manager 尽早冻结唯一 `executor_id`；目标阶段后续结果也必须由同一协调器代理。
 - decision receipt 与 source stamp 均采用排他 deadline；等于 deadline 即过期。
+- planner 接收窗口为 5 秒，以覆盖单线程重规划回调造成的目标消费延迟；只有已被 planner
+  接收且尚未结束的旧目标才建立取消栅栏。从未接收便超时的目标不会等待不存在的取消 ACK，
+  其迟到遥测按未知/退役代际忽略，不得改写当前目标或触发路线跳点。
 - 旧 decision、未知旧 goal telemetry、planner event 回退和幂等重复均无副作用；仅当前
   当前 decision/goal 的身份或生命周期冲突只终止当前 action，不锁死 bridge 进程。
 - 只有当前目标先后见到 `ACCEPTED`、`TRAJECTORY_READY`、`TRAJECTORY_FINISHED`，且同

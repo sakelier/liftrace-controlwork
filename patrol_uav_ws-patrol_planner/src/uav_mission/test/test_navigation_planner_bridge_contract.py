@@ -105,7 +105,16 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertNotIn("payload_slots", execution)
         self.assertNotIn("allowed_target_classes", execution)
         self.assertEqual(execution["effective_goal_max_offset"], 1.10)
-        self.assertEqual(execution["planner_accept_timeout"], 2.0)
+        self.assertEqual(execution["planner_accept_timeout"], 5.0)
+
+    def test_planner_generation_uses_preserved_stamp_not_transport_sequence(self):
+        parser = self.source[
+            self.source.index("def _planner_status_from_message"):
+            self.source.index("def _odom_from_message")]
+        self.assertIn("transport_goal_seq = int(message.goal_seq)", parser)
+        self.assertIn("resolve_goal_seq_by_stamp", parser)
+        self.assertIn("requested_stamp_ns", parser)
+        self.assertIn("foreign_planner_goal_stamp_ignored", self.source)
 
     def test_launch_defaults_to_disabled_isolated_output(self):
         arguments = {

@@ -1187,6 +1187,21 @@ void LLController::cmdCallback(const ros::TimerEvent& event) {
         ROS_INFO_THROTTLE(2, "Target point adjusted to max distance limit.");
     }
 
+    // The distance limiter interpolates from the current vehicle pose.  When
+    // the vehicle is already above the configured ceiling, that interpolation
+    // can raise a previously capped planner command above the ceiling again.
+    // Enforce the invariant on the final command sent to MAVROS as well.
+    if (external_mission_mode_ &&
+        mavros_point_cmd.pose.position.z > external_planner_max_command_z_) {
+        ROS_WARN_THROTTLE(
+            1.0,
+            "[ExternalPlanner] enforcing final command height=%.3f to %.3f "
+            "after distance interpolation",
+            mavros_point_cmd.pose.position.z,
+            external_planner_max_command_z_);
+        mavros_point_cmd.pose.position.z = external_planner_max_command_z_;
+    }
+
     // 提取当前 yaw 和目标 yaw
     double current_yaw = tf::getYaw(uav_pose.pose.orientation);
     double target_yaw = tf::getYaw(mavros_point_cmd.pose.orientation);

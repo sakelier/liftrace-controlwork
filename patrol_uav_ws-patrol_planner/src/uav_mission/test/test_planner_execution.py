@@ -21,10 +21,10 @@ def decision(seq=8, command="SEARCH", issued=BASE, deadline=None):
         command, "r2026", goal() if motion else None,
         target() if command == "APPROACH" else None)
 
-def status(event_seq, goal_seq, name, stamp, attempt=None):
+def status(event_seq, goal_seq, name, stamp, attempt=None, motion_goal=None):
     attempt = (0 if name in ("ACCEPTED", "CANCELLED") else 1) \
         if attempt is None else attempt
-    item = SequencedMotionGoal(goal_seq, goal())
+    item = SequencedMotionGoal(goal_seq, motion_goal or goal())
     return PlannerStatusEvent(event_seq, goal_seq, name, stamp, item, item,
                               0.0, attempt, "test")
 
@@ -78,18 +78,54 @@ class PlannerMotionExecutorTest(unittest.TestCase):
 
     def test_replacement_cancel_fence(self):
         executor = self.make(); self.dispatch(executor)
+        accepted_old = executor.apply_planner_status(
+            status(1, 8, "ACCEPTED", BASE+1), BASE+1)
+        self.assertTrue(accepted_old.accepted, accepted_old.reason)
         self.dispatch(executor, decision(20, "APPROACH", BASE+1), BASE+1)
         early = executor.apply_planner_status(
-            status(1, 20, "ACCEPTED", BASE+2), BASE+2)
+            status(2, 20, "ACCEPTED", BASE+2), BASE+2)
         self.assertFalse(early.accepted)
         executor = self.make(); self.dispatch(executor)
+        accepted_old = executor.apply_planner_status(
+            status(1, 8, "ACCEPTED", BASE+1), BASE+1)
+        self.assertTrue(accepted_old.accepted, accepted_old.reason)
         self.dispatch(executor, decision(20, "APPROACH", BASE+1), BASE+1)
         cancel = executor.apply_planner_status(
-            status(1, 8, "CANCELLED", BASE+2), BASE+2)
+            status(2, 8, "CANCELLED", BASE+2), BASE+2)
         self.assertEqual(cancel.reason, "replacement_cancel_confirmed")
         accepted = executor.apply_planner_status(
-            status(2, 20, "ACCEPTED", BASE+3), BASE+3)
+            status(3, 20, "ACCEPTED", BASE+3), BASE+3)
         self.assertTrue(accepted.accepted, accepted.reason)
+
+    def test_timeout_replacement_resolves_and_ignores_late_generation(self):
+        executor = self.make()
+        first = decision(deadline=BASE+20*NSEC)
+        self.dispatch(executor, first)
+        self.assertEqual(executor.resolve_goal_seq_by_stamp(BASE), 8)
+
+        timed_out = executor.tick(BASE+5*NSEC)
+        self.assertEqual(timed_out.reason, "planner_accept_timed_out")
+        replacement_time = BASE+5*NSEC+1
+        replacement = replace(
+            decision(20, "SEARCH", replacement_time,
+                     replacement_time+20*NSEC),
+            goal=goal(2.0),
+        )
+        self.dispatch(executor, replacement, replacement_time)
+        # The first goal was never accepted by the planner, so no CANCELLED
+        # fact can be required.  Its retained stamp is dropped and any late
+        # transport telemetry is ignored by the ROS adapter.
+        self.assertEqual(executor.resolve_goal_seq_by_stamp(BASE), 0)
+        self.assertEqual(
+            executor.resolve_goal_seq_by_stamp(replacement_time), 20)
+        self.assertEqual(
+            executor.resolve_goal_seq_by_stamp(replacement_time+1), 0)
+        accepted = executor.apply_planner_status(
+            status(3, 20, "ACCEPTED", replacement_time+3,
+                   motion_goal=goal(2.0)),
+            replacement_time+3)
+        self.assertTrue(accepted.accepted, accepted.reason)
+        self.assertEqual(accepted.reason, "planner_goal_accepted")
 
     def test_unknown_and_stale_telemetry_ignored(self):
         executor = self.make(); self.dispatch(executor)
@@ -255,8 +291,11 @@ class PlannerMotionExecutorTest(unittest.TestCase):
         out = executor.tick(BASE+100)
         self.assertEqual(out.events[0].status, "TIMED_OUT")
         self.assertEqual(out.handoff, "CANCEL_REQUIRED")
-        executor = self.make(); self.dispatch(executor)
+        executor = self.make()
+        self.dispatch(executor, decision(deadline=BASE+10*NSEC))
         self.assertEqual(executor.tick(BASE+2*NSEC).reason,
+                         "executor_pending")
+        self.assertEqual(executor.tick(BASE+5*NSEC).reason,
                          "planner_accept_timed_out")
 
     def test_land_is_handoff_and_hold_is_rejected(self):

@@ -230,7 +230,7 @@ class PlannerMotionConfig:
     mission_frame: str = "camera_init"
     max_z_m: float = 4.0
     source_future_tolerance_ns: int = 100_000_000
-    planner_accept_timeout_ns: int = 2_000_000_000
+    planner_accept_timeout_ns: int = 5_000_000_000
     max_effective_goal_offset_m: float = 1.10
     max_planning_attempts: int = 20
     arrival_distance_m: float = 0.30
@@ -386,6 +386,27 @@ class PlannerMotionExecutor:
             executor_event_seq=self._executor_event_seq,
             awaiting_cancel_goal_seq=self._awaiting_cancel_goal_seq,
         )
+
+    def resolve_goal_seq_by_stamp(self, requested_stamp_ns: int) -> int:
+        """Resolve planner transport telemetry to a retained mission goal.
+
+        ROS publishers overwrite ``Header.seq`` on ``PoseStamped`` messages,
+        so the planner's echoed sequence is a transport counter rather than
+        the navigation ``decision_seq``.  The bridge preserves
+        ``decision.issued_at_ns`` in the goal stamp; that stamp is therefore
+        the cross-node generation key.  Unknown retired generations are
+        intentionally returned as zero so callers can ignore their telemetry.
+        """
+
+        stamp_ns = _integer(
+            "planner requested goal stamp", requested_stamp_ns, 1)
+        matches = [
+            goal_seq for goal_seq, state in self._goals.items()
+            if state.decision.issued_at_ns == stamp_ns
+        ]
+        if len(matches) > 1:
+            raise RuntimeError("planner_goal_stamp_ambiguous")
+        return matches[0] if matches else 0
 
     def _outcome(self, accepted: bool, reason: str,
                  events: Tuple[ExecutionEvent, ...] = (),
@@ -562,11 +583,18 @@ class PlannerMotionExecutor:
         if int(now_ns) >= decision.deadline_ns:
             return self._fail_closed("decision_received_after_deadline")
 
+        if any(
+                state.decision.decision_seq != decision.decision_seq and
+                state.decision.issued_at_ns == decision.issued_at_ns
+                for state in self._goals.values()):
+            return self._fail_closed("decision_issue_stamp_conflict")
+
         active = self._active
         replacement_requires_cancel = (
             active is not None and
             active.decision.command in MOTION_COMMANDS and
             active.decision.decision_seq != decision.decision_seq and
+            active.planner_accepted and
             not active.trajectory_finished
         )
         if replacement_requires_cancel:
