@@ -340,6 +340,8 @@ class _GoalLifecycle:
     failed_attempt_count: int = 0
     planner_accepted: bool = False
     trajectory_ready: bool = False
+    trajectory_ever_ready: bool = False
+    trajectory_ready_stamp_ns: int = 0
     trajectory_finished: bool = False
     finished_stamp_ns: int = 0
     dwell_start_ns: int = 0
@@ -585,7 +587,8 @@ class PlannerMotionExecutor:
         if (prior is not None and prior.mission_id == decision.mission_id and
                 decision.decision_seq < prior.decision_seq):
             return self._outcome(False, "stale_decision_ignored")
-        if int(now_ns) < decision.issued_at_ns:
+        if (decision.issued_at_ns > int(now_ns) +
+                self.config.source_future_tolerance_ns):
             return self._fail_closed("decision_from_future")
         if int(now_ns) >= decision.deadline_ns:
             return self._fail_closed("decision_received_after_deadline")
@@ -729,8 +732,6 @@ class PlannerMotionExecutor:
                 return self._fail_closed("planner_attempt_not_monotonic")
             state.planning_attempt = event.planning_attempt
             state.trajectory_ready = False
-            state.dwell_start_ns = 0
-            state.last_qualified_odom_ns = 0
             state.effective_goal = effective.goal
         elif (event.planning_attempt != state.planning_attempt or
               event.planning_attempt < 1):
@@ -743,12 +744,26 @@ class PlannerMotionExecutor:
             return self._outcome(True, "planner_replanning")
         if status == "TRAJECTORY_READY":
             state.trajectory_ready = True
+            state.trajectory_ever_ready = True
+            state.trajectory_ready_stamp_ns = event.stamp_ns
             return self._outcome(True, "planner_trajectory_ready", events=(
                 self._result(state, int(now_ns), "PROGRESS", "PLANNER",
                              False, False, "planner_trajectory_ready"),))
         if status == "FAILED_ATTEMPT":
             state.failed_attempt_count += 1
             if state.failed_attempt_count > self.config.max_planning_attempts:
+                qualified_dwell_fresh = (
+                    state.trajectory_ever_ready and
+                    state.dwell_start_ns > 0 and
+                    state.last_qualified_odom_ns > 0 and
+                    max(0, int(now_ns) - state.last_qualified_odom_ns) <=
+                    self.config.odom_max_age_ns
+                )
+                if qualified_dwell_fresh:
+                    return self._outcome(
+                        True,
+                        "planner_attempt_limit_deferred_for_arrival_dwell",
+                    )
                 return self._fail_closed("planner_attempt_limit_exceeded")
             return self._outcome(True, "planner_attempt_failed_nonterminal",
                 events=(self._result(
@@ -958,12 +973,17 @@ class PlannerMotionExecutor:
                 self.config.odom_max_age_ns):
             self._reset_dwell(state)
             return self._outcome(False, "odom_stale")
-        if not state.trajectory_finished:
+        if not state.trajectory_finished and not state.trajectory_ever_ready:
             self._reset_dwell(state)
             return self._outcome(True, "waiting_for_trajectory_finished")
-        if sample.stamp_ns < state.finished_stamp_ns:
+        if (state.trajectory_finished and
+                sample.stamp_ns < state.finished_stamp_ns):
             self._reset_dwell(state)
             return self._outcome(False, "odom_precedes_trajectory_finish")
+        if (not state.trajectory_finished and
+                sample.stamp_ns < state.trajectory_ready_stamp_ns):
+            self._reset_dwell(state)
+            return self._outcome(False, "odom_precedes_trajectory_ready")
 
         goal = state.effective_goal
         if goal is None:
