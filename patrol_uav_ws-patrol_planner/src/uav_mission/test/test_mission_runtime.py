@@ -230,43 +230,6 @@ class MissionRuntimeTest(unittest.TestCase):
             runtime.start_post_delivery_validation(
                 "mission-runtime", 100.0, (0.0, 0.0))
 
-    def test_landing_validation_starts_only_the_final_h_waypoint(self):
-        route = (
-            GoalSnapshot("camera_init", -2.0, 6.0, 1.0),
-            GoalSnapshot("camera_init", 0.0, 8.0, 1.2),
-            GoalSnapshot("camera_init", 3.0, 8.0, 0.75),
-        )
-        runtime = MissionRuntime(
-            MissionCore(profile(), MissionConfig(
-                post_delivery_route=route,
-                post_delivery_route_revision="landing-stage-r1",
-                landing_xy=(3.0, 8.0),
-            )),
-            CoverageRoute((Waypoint(0.0, 0.0, 2.2),),
-                          "unused-coverage-r1", 2),
-        )
-
-        started = runtime.start_landing_validation(
-            "mission-runtime", 100.0, (0.0, 0.0))
-
-        self.assertTrue(started.accepted, started.reason)
-        self.assertEqual(started.reason, "landing_validation_started")
-        self.assertEqual(started.action.command, "RETURN_HOME")
-        self.assertEqual(started.action.goal, route[-1])
-        self.assertIn("post_delivery_route:3/3", started.action.reason)
-        self.assertTrue(started.action.reason.endswith(
-            ":landing_validation_start"))
-        self.assertEqual(started.snapshot.post_delivery_route_index, 2)
-        self.assertEqual(started.snapshot.committed_slots, 0)
-
-        land = runtime.apply_result(
-            result_for(
-                started.action, 1, status="SUCCEEDED", stage="PLANNER",
-                terminal=True, reason="h_waypoint_reached"),
-            101.0, (3.0, 8.0))
-        self.assertEqual(land.action.command, "LAND")
-        self.assertEqual(land.snapshot.post_delivery_route_index, 3)
-
     def test_high_weight_interrupt_resumes_same_waypoint(self):
         runtime = self.make_runtime()
         search = self.start(runtime)

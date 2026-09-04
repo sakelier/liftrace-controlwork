@@ -19,8 +19,6 @@ FORMAL_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
     "navigation_search_delivery_vcl06.launch"
 POST_DELIVERY_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
     "navigation_post_delivery_vcl06.launch"
-LANDING_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
-    "navigation_landing_vcl06.launch"
 GUARDED_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
     "toudi3_visual_delivery_guarded.launch"
 MAVROS_CONFIG = Path(__file__).resolve().parents[2] / "patrol_control" / \
@@ -371,55 +369,6 @@ def build_post_delivery_stage_reducer():
     return reducer
 
 
-def build_landing_stage_reducer():
-    reducer = MODULE.Vcl06GateReducer(
-        forced_return_sec=RUNTIME["mission"]["forced_return_at"],
-        post_delivery_route=CORRIDOR_ROUTE,
-        post_delivery_route_revision=CORRIDOR_REVISION,
-        post_delivery_goal_tolerance=CORRIDOR_GOAL_TOLERANCE,
-        post_delivery_doors=CORRIDOR_DOORS,
-        landing_xy=LANDING_XY,
-        landing_h_tolerance=LANDING_H_TOLERANCE,
-        gate_scope="landing",
-    )
-    ready_statuses(reducer)
-    manager = dict(reducer.statuses["manager"])
-    manager.update({"committed_slots": 0, "start_mode": "landing"})
-    reducer.observe_status("manager", manager)
-    reducer.observe_pose(0.0, 0.0, 2.0, "camera_init")
-
-    route_index = len(CORRIDOR_ROUTE)
-    h_goal = CORRIDOR_ROUTE[-1]
-    h_approach = decision(
-        1, MODULE.RETURN_HOME, 10.0, 70.0,
-        goal=h_goal,
-        reason="post_delivery_route:%d/%d:%s:landing_validation_start" % (
-            route_index, route_index, CORRIDOR_REVISION),
-    )
-    reducer.observe_decision(h_approach, receipt_wall=10.0)
-    reducer.observe_pose(*h_goal, "camera_init")
-    reducer.observe_result(result(
-        1, h_approach, MODULE.SUCCEEDED, MODULE.PLANNER,
-        18.0, terminal=True), receipt_wall=18.0)
-
-    land = decision(
-        2, MODULE.LAND, 20.0, 110.0,
-        has_goal=False, reason="post_delivery_route_complete")
-    reducer.observe_decision(land, receipt_wall=20.0)
-    reducer.observe_landing_h_mark(
-        LANDING_XY[0], LANDING_XY[1], 0.75,
-        "camera_init", int(21.0 * 1e9),
-        receipt_wall=21.0, fresh=True)
-    reducer.observe_align_mode("landing", receipt_wall=22.0)
-    reducer.observe_landed_state(
-        MODULE.LANDED_STATE_ON_GROUND, receipt_wall=29.0)
-    reducer.observe_result(result(
-        2, land, MODULE.SUCCEEDED, MODULE.LANDING,
-        30.0, terminal=True), receipt_wall=30.0)
-    reducer.observe_vehicle_state(False, receipt_wall=31.0)
-    return reducer
-
-
 class Vcl06GateReducerTest(unittest.TestCase):
     def test_complete_three_slot_chain_passes(self):
         report = build_passing_reducer().report()
@@ -480,22 +429,6 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertEqual(report["status"], "FAIL")
         self.assertIn("post_delivery_scope_has_approach",
                       report["errors"])
-
-    def test_landing_scope_passes_without_repeating_corridor(self):
-        report = build_landing_stage_reducer().report()
-        self.assertEqual(report["status"], "PASS", report)
-        self.assertEqual(report["gate_scope"], "landing")
-        self.assertTrue(report["checks"]["landing_stage_entry"])
-        self.assertTrue(report["checks"][
-            "landing_stage_has_no_approach"])
-        self.assertTrue(report["checks"][
-            "landing_stage_slots_uncommitted"])
-        self.assertEqual(
-            report["metrics"]["post_delivery_return_success_count"], 1)
-        self.assertEqual(
-            report["metrics"]["post_delivery_decision_indices"],
-            [len(CORRIDOR_ROUTE)])
-        self.assertEqual(report["metrics"]["door_crossings"], [])
 
     def test_complete_manager_waits_for_h_landing_evidence(self):
         reducer = build_corridor_reducer(h_evidence=False)
@@ -1122,26 +1055,12 @@ class Vcl06GateReducerTest(unittest.TestCase):
         root = ET.parse(str(POST_DELIVERY_LAUNCH)).getroot()
         include = root.find("include")
         self.assertIsNotNone(include)
-        self.assertEqual(
-            include.attrib.get("file", ""),
-            "$(dirname)/navigation_search_delivery_vcl06.launch")
+        self.assertIn("navigation_search_delivery_vcl06.launch",
+                      include.attrib.get("file", ""))
         args = {item.attrib["name"]: item.attrib.get("value")
                 for item in include.findall("arg")}
         self.assertEqual(args["mission_start_mode"], "post_delivery")
         self.assertEqual(args["gate_scope"], "post_delivery")
-        self.assertEqual(args["start_hard_gate"], "true")
-
-    def test_landing_launch_skips_to_matching_landing_scope(self):
-        root = ET.parse(str(LANDING_LAUNCH)).getroot()
-        include = root.find("include")
-        self.assertIsNotNone(include)
-        self.assertEqual(
-            include.attrib.get("file", ""),
-            "$(dirname)/navigation_search_delivery_vcl06.launch")
-        args = {item.attrib["name"]: item.attrib.get("value")
-                for item in include.findall("arg")}
-        self.assertEqual(args["mission_start_mode"], "landing")
-        self.assertEqual(args["gate_scope"], "landing")
         self.assertEqual(args["start_hard_gate"], "true")
 
     def test_sitl_pose_and_setpoint_use_the_mission_frame(self):

@@ -620,25 +620,6 @@ class MissionCore:
         return self._post_delivery_route_action(
             "stage_validation_start", now, start=True)
 
-    def start_landing_validation(self, mission_id: str,
-                                 now: float) -> CoreAction:
-        """Start at only the final H waypoint of the configured route.
-
-        This segmented entry keeps payload slots untouched and deliberately
-        skips every corridor waypoint.  It is only for validating the final
-        planner approach, visual H alignment and LAND transaction after an
-        upstream stage has already established corridor capability.
-        """
-
-        route = self.config.post_delivery_route
-        if not route:
-            raise RuntimeError(
-                "landing validation requires a configured route")
-        self.start(mission_id, now)
-        self.post_delivery_route_index = len(route) - 1
-        return self._post_delivery_route_action(
-            "landing_validation_start", now)
-
     @property
     def committed_slots(self) -> int:
         return sum(slot.status == SlotStatus.COMMITTED for slot in self.slots)

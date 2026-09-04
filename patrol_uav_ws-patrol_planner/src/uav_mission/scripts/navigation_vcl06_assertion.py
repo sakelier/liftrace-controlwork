@@ -257,9 +257,8 @@ class Vcl06GateReducer:
         self.nav_feature_profile = str(nav_feature_profile)
         self.mission_frame = str(mission_frame)
         self.gate_scope = str(gate_scope).strip()
-        if self.gate_scope not in ("full", "post_delivery", "landing"):
-            raise ValueError(
-                "gate_scope must be full, post_delivery or landing")
+        if self.gate_scope not in ("full", "post_delivery"):
+            raise ValueError("gate_scope must be full or post_delivery")
         self.field_bounds = dict(field_bounds or {
             "min_x": -3.992, "max_x": 4.008,
             "min_y": -1.132, "max_y": 8.718,
@@ -275,8 +274,6 @@ class Vcl06GateReducer:
             tolerance_sec * 1_000_000_000))
         self.expected_goal_publisher = str(expected_goal_publisher)
         self.post_delivery_route = _normalize_route(post_delivery_route)
-        if self.gate_scope == "landing" and not self.post_delivery_route:
-            raise ValueError("landing scope requires a post_delivery_route")
         self.post_delivery_route_revision = str(
             post_delivery_route_revision)
         self.post_delivery_goal_tolerance = float(
@@ -483,7 +480,7 @@ class Vcl06GateReducer:
         is_new = previous is None
         self.decisions[decision.key] = decision
         if is_new:
-            if (self.gate_scope in ("post_delivery", "landing") and
+            if (self.gate_scope == "post_delivery" and
                     decision.command == APPROACH):
                 self._error("post_delivery_scope_has_approach")
             reason_info = self._post_delivery_reason_info(decision.reason)
@@ -509,13 +506,9 @@ class Vcl06GateReducer:
                 else:
                     self.active_post_delivery_route_index = route_index
                     self.post_delivery_decision_indices.append(route_index)
-                    first_expected_index = (
-                        len(self.post_delivery_route)
-                        if self.gate_scope == "landing" else 1)
                     if self.post_delivery_decision_indices != list(range(
-                            first_expected_index,
-                            first_expected_index +
-                            len(self.post_delivery_decision_indices))):
+                            1,
+                            len(self.post_delivery_decision_indices) + 1)):
                         self._error("post_delivery_route_sequence_invalid")
             else:
                 self.active_post_delivery_route_index = None
@@ -530,7 +523,6 @@ class Vcl06GateReducer:
                 self.latest_landed_state = None
                 self.latest_armed = None
             if (decision.command == LAND and self.post_delivery_route and
-                    self.gate_scope != "landing" and
                     tuple(item["name"] for item in self.door_crossings) !=
                     tuple(item.name for item in self.post_delivery_doors)):
                 self._error("post_delivery_door_sequence_incomplete")
@@ -626,9 +618,8 @@ class Vcl06GateReducer:
                 self._error("duplicate_land_success")
             self.land_success.add(key)
             expected_returns = (
-                1 if self.gate_scope == "landing" else
-                (len(self.post_delivery_route)
-                 if self.post_delivery_route else 1))
+                len(self.post_delivery_route)
+                if self.post_delivery_route else 1)
             if len(self.return_success) != expected_returns:
                 self._error("return_home_success_count_mismatch")
             if receipt_wall is not None:
@@ -927,31 +918,26 @@ class Vcl06GateReducer:
         anchor = self.statuses.get("anchor") or {}
         contact = self.statuses.get("contact") or {}
         bridge = self.statuses.get("bridge") or {}
-        expected_route = self.post_delivery_route
-        expected_route_start_index = 1
-        if self.gate_scope == "landing" and self.post_delivery_route:
-            expected_route = self.post_delivery_route[-1:]
-            expected_route_start_index = len(self.post_delivery_route)
-        expected_return_count = len(expected_route) if expected_route else 1
+        expected_return_count = (
+            len(self.post_delivery_route)
+            if self.post_delivery_route else 1)
         route_sequence_matches = True
         route_goals_match = True
-        if expected_route:
+        if self.post_delivery_route:
             route_sequence_matches = (
-                len(return_decisions) == len(expected_route) and
+                len(return_decisions) == len(self.post_delivery_route) and
                 all(
                     self._post_delivery_reason_info(item.reason) == (
                         index,
                         len(self.post_delivery_route),
                         self.post_delivery_route_revision,
                     )
-                    for index, item in enumerate(
-                        return_decisions,
-                        start=expected_route_start_index)))
+                    for index, item in enumerate(return_decisions, start=1)))
             route_goals_match = (
-                len(return_decisions) == len(expected_route) and
+                len(return_decisions) == len(self.post_delivery_route) and
                 all(self._route_goal_matches(item, expected)
                     for item, expected in zip(
-                        return_decisions, expected_route)))
+                        return_decisions, self.post_delivery_route)))
         door_names = tuple(item["name"] for item in self.door_crossings)
         expected_door_names = tuple(
             item.name for item in self.post_delivery_doors)
@@ -959,9 +945,11 @@ class Vcl06GateReducer:
         ordered_decisions = sorted(
             self.decisions.values(), key=lambda item: item.decision_seq)
         first_decision = ordered_decisions[0] if ordered_decisions else None
-        expected_start_mode = self.gate_scope
+        expected_start_mode = (
+            "post_delivery" if self.gate_scope == "post_delivery"
+            else "full")
         expected_committed_slots = (
-            3 if self.gate_scope == "full" else 0)
+            0 if self.gate_scope == "post_delivery" else 3)
         checks = {
             "required_statuses_seen": all(
                 name in self.statuses for name in self.REQUIRED_STATUSES),
@@ -1005,7 +993,6 @@ class Vcl06GateReducer:
             "manager_post_delivery_route_matches":
                 self._manager_route_matches(manager),
             "doors_crossed_in_order": (
-                self.gate_scope == "landing" or
                 not self.post_delivery_route or
                 door_names == expected_door_names),
             "landing_h_mark_valid": (
@@ -1072,7 +1059,7 @@ class Vcl06GateReducer:
                 "tank_accepted_zero": (
                     "tank" not in self.accepted_classes),
             })
-        elif self.gate_scope == "post_delivery":
+        else:
             first_reason = (
                 self._post_delivery_reason_info(first_decision.reason)
                 if first_decision is not None else None)
@@ -1091,28 +1078,6 @@ class Vcl06GateReducer:
                     not self.release_commits and
                     not self.recovery_success),
                 "post_delivery_stage_slots_uncommitted": (
-                    _int_or(manager.get("committed_slots"), -1) == 0),
-            })
-        else:
-            first_reason = (
-                self._post_delivery_reason_info(first_decision.reason)
-                if first_decision is not None else None)
-            checks.update({
-                "landing_stage_entry": (
-                    first_decision is not None and
-                    first_decision.command == RETURN_HOME and
-                    first_reason == (
-                        len(self.post_delivery_route),
-                        len(self.post_delivery_route),
-                        self.post_delivery_route_revision) and
-                    first_decision.reason.endswith(
-                        ":landing_validation_start")),
-                "landing_stage_has_no_approach": (
-                    not any(item.command == APPROACH
-                            for item in ordered_decisions) and
-                    not self.release_commits and
-                    not self.recovery_success),
-                "landing_stage_slots_uncommitted": (
                     _int_or(manager.get("committed_slots"), -1) == 0),
             })
         metrics = {
