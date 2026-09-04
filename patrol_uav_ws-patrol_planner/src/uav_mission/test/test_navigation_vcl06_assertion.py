@@ -242,7 +242,7 @@ def build_corridor_reducer(crossing_names=MODULE.EXPECTED_DOOR_ORDER,
         "Wall_22": ((1.90, 8.009650, 1.2),
                     (2.30, 8.009650, 1.2)),
     }
-    crossing_route_index = {"Wall_15": 2, "Wall_20": 6, "Wall_22": 9}
+    crossing_route_index = {"Wall_15": 2, "Wall_20": 5, "Wall_22": 7}
     goal_override = dict(goal_override or {})
     for route_index, configured_goal in enumerate(CORRIDOR_ROUTE, start=1):
         issued = 320.0 + (route_index - 1) * 12.0

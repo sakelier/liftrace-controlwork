@@ -61,8 +61,11 @@
     <arg name="require_release_evidence_context" value="true" />
     <arg name="planner_max_vel" value="1.0" />
     <arg name="planner_max_acc" value="1.0" />
-    <arg name="planner_obstacles_inflation" value="0.25" />
-    <arg name="planner_clearance_threshold" value="0.35" />
+    <!-- A 0.8 m scoring opening is represented on a 0.1 m voxel grid.  Two
+         inflated cells plus the physical Gazebo contact envelope preserve a
+         measurable corridor while the contact Gate still rejects collision. -->
+    <arg name="planner_obstacles_inflation" value="0.20" />
+    <arg name="planner_clearance_threshold" value="0.20" />
     <arg name="px4_max_distance" value="0.2" />
     <arg name="external_planner_max_command_z"
          value="$(arg external_planner_max_command_z)" />

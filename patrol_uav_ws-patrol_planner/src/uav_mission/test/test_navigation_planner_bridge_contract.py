@@ -108,7 +108,7 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertNotIn("class_profile", execution)
         self.assertNotIn("payload_slots", execution)
         self.assertNotIn("allowed_target_classes", execution)
-        self.assertEqual(execution["effective_goal_max_offset"], 1.10)
+        self.assertEqual(execution["effective_goal_max_offset"], 0.35)
         self.assertEqual(execution["planner_accept_timeout"], 5.0)
         self.assertEqual(
             execution["approach_arrival_position_tolerance"], 0.35)

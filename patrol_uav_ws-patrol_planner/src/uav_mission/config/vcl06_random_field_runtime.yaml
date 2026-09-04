@@ -30,19 +30,19 @@ mission:
   # All points are camera_init coordinates derived from toudi3_random.world.
   # The route first crosses the low Wall_15 opening south-to-north, then the
   # Wall_20 and Wall_22 scoring doors west-to-east, and ends above the final H.
-  post_delivery_route_revision: toudi3-random-three-door-h-r1
+  post_delivery_route_revision: toudi3-random-three-door-h-r2
   landing_xy: [3.274292, 8.057220]
   landing_anchor_tolerance: 0.05
   post_delivery_route:
-    - [-2.386703, 5.672270, 1.00]  # Wall_15 south approach
-    - [-2.386703, 6.072270, 1.00]  # Wall_15 opening center
-    - [-2.386703, 6.472270, 1.00]  # Wall_15 north clear
+    # Do not stop on a wall plane: the occupancy grid can mark the plane voxel
+    # occupied even when the continuous vehicle path fits through the opening.
+    # The 2025 route likewise used bracketing points on the two sides.
+    - [-2.386703, 5.672270, 0.90]  # Wall_15 south approach
+    - [-2.386703, 6.472270, 0.90]  # Wall_15 north clear
     - [-2.386703, 7.652690, 1.20]  # north corridor entry
     - [-0.512003, 8.053133, 1.20]  # Wall_20 west approach
-    - [-0.112003, 8.053133, 1.20]  # Wall_20 opening center
     - [ 0.287997, 8.053133, 1.20]  # Wall_20 east clear
     - [ 1.723022, 8.009650, 1.20]  # Wall_22 west approach
-    - [ 2.123022, 8.009650, 1.20]  # Wall_22 opening center
     - [ 2.523022, 8.009650, 1.20]  # Wall_22 east clear
     - [ 3.274292, 8.057220, 0.75]  # final landing_h_clone capture
 
@@ -57,7 +57,7 @@ post_delivery_gate:
       axis: y
       coordinate: 6.072270
       direction: positive
-      route_indices: [2, 3]
+      route_indices: [2]
       lateral_min: -2.786588
       lateral_max: -1.986588
       z_min: 0.50
@@ -66,7 +66,7 @@ post_delivery_gate:
       axis: x
       coordinate: -0.112003
       direction: positive
-      route_indices: [6, 7]
+      route_indices: [5]
       lateral_min: 7.602690
       lateral_max: 8.502690
       z_min: 0.00
@@ -75,7 +75,7 @@ post_delivery_gate:
       axis: x
       coordinate: 2.123022
       direction: positive
-      route_indices: [9, 10]
+      route_indices: [7]
       lateral_min: 7.559690
       lateral_max: 8.459690
       z_min: 0.00

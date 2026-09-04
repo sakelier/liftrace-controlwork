@@ -27,7 +27,10 @@ execution:
   approach_arrival_position_tolerance: 0.35
   arrival_speed_tolerance: 0.20
   arrival_dwell: 0.50
-  effective_goal_max_offset: 1.10
+  # A larger adjustment can make a wall-side surrogate look "arrived" while
+  # the commanded door-clear point was never reached.  0.35 m still covers
+  # one inflated-map correction plus tracking error without skipping a gate.
+  effective_goal_max_offset: 0.35
   tick_hz: 20.0
 
 # These parameters only describe observations for the active decision. Queue,
