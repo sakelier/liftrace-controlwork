@@ -64,7 +64,9 @@ switch:
   # New visual fixed-route validation must use the obstacle-aware planner.
   flag_planner_px4: 0
   flag_landing_detect: 1
-  auto_land: 1
+  # patrol_control reads this parameter as bool; use a YAML boolean so ROS
+  # does not reject the XmlRpc integer and silently fall back to false.
+  auto_land: true
 
 drop_system:
   precision_threshold: 20.0

@@ -251,6 +251,7 @@ class ExternalMissionContractTest(unittest.TestCase):
                 self.assertLessEqual(landing["mark_max_age_sec"], 0.5)
                 self.assertGreaterEqual(landing["stable_frames"], 1)
                 self.assertGreater(landing["timeout_sec"], 0.0)
+                self.assertIs(config["switch"]["auto_land"], True)
 
 
 if __name__ == "__main__":
