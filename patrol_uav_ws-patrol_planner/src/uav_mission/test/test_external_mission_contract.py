@@ -213,6 +213,17 @@ class ExternalMissionContractTest(unittest.TestCase):
         self.assertIn("anchor_error > external_landing_max_mark_offset_",
                       source)
         self.assertIn("external_landing_stable_frames_", source)
+        self.assertIn(
+            "if (!mark_fresh && !external_landing_alignment_complete_)",
+            source)
+        self.assertIn(
+            "mark_fresh && !external_landing_alignment_complete_", source)
+        self.assertIn("fresh H alignment latched", source)
+        self.assertNotIn(
+            "if (!mark_fresh) {\n"
+            "        external_landing_stable_count_ = 0;\n"
+            "        external_landing_alignment_complete_ = false;",
+            source)
         self.assertIn("h_alignment_or_auto_land_timeout", source)
         self.assertIn("failed closed and holding position", source)
         self.assertIn("if (external_mission_mode_ && !mode_accepted)", source)

@@ -368,31 +368,40 @@ void LLController::externalLandingTick() {
     }
 
     const bool mark_fresh = externalLandingMarkFresh(now);
-    if (!mark_fresh) {
+    // A short detector gap must not revoke an alignment that already passed
+    // the stable-frame gate.  Reverting to capture height here made the
+    // setpoint alternate between land_height and capture_height whenever the
+    // H detector paused for more than mark_max_age_sec, so the vehicle could
+    // never reach the AUTO.LAND handoff altitude.  Freshness remains mandatory
+    // while acquiring the H; after acquisition the verified map anchor is
+    // latched for the remainder of this LAND transaction.
+    if (!mark_fresh && !external_landing_alignment_complete_) {
         external_landing_stable_count_ = 0;
-        external_landing_alignment_complete_ = false;
     }
 
-    if (mark_fresh && external_landing_new_mark_) {
-        const double horizontal_error = std::hypot(
-            uav_pose.pose.position.x - land_mark_point.pose.position.x,
-            uav_pose.pose.position.y - land_mark_point.pose.position.y);
-        if (horizontal_error <= external_landing_alignment_tolerance_) {
-            ++external_landing_stable_count_;
-        } else {
-            external_landing_stable_count_ = 0;
+    if (external_landing_new_mark_) {
+        if (mark_fresh && !external_landing_alignment_complete_) {
+            const double horizontal_error = std::hypot(
+                uav_pose.pose.position.x - land_mark_point.pose.position.x,
+                uav_pose.pose.position.y - land_mark_point.pose.position.y);
+            if (horizontal_error <= external_landing_alignment_tolerance_) {
+                ++external_landing_stable_count_;
+            } else {
+                external_landing_stable_count_ = 0;
+            }
+            if (external_landing_stable_count_ >=
+                external_landing_stable_frames_) {
+                external_landing_alignment_complete_ = true;
+                external_landing_aligned_goal_ = land_mark_point;
+                external_landing_aligned_goal_.pose.position.z = land_height;
+                external_landing_aligned_goal_.pose.orientation =
+                    external_landing_goal_.pose.orientation;
+                ROS_INFO(
+                    "[ExternalLanding] fresh H alignment latched with %d frames",
+                    external_landing_stable_count_);
+            }
         }
         external_landing_new_mark_ = false;
-        if (external_landing_stable_count_ >=
-            external_landing_stable_frames_) {
-            external_landing_alignment_complete_ = true;
-            external_landing_aligned_goal_ = land_mark_point;
-            external_landing_aligned_goal_.pose.position.z = land_height;
-            external_landing_aligned_goal_.pose.orientation =
-                external_landing_goal_.pose.orientation;
-            ROS_INFO("[ExternalLanding] fresh H alignment completed with %d frames",
-                     external_landing_stable_count_);
-        }
     }
 
     const geometry_msgs::PoseStamped& target =
