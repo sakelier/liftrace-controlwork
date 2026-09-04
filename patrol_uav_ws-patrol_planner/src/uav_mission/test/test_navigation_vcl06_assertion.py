@@ -1122,8 +1122,9 @@ class Vcl06GateReducerTest(unittest.TestCase):
         root = ET.parse(str(POST_DELIVERY_LAUNCH)).getroot()
         include = root.find("include")
         self.assertIsNotNone(include)
-        self.assertIn("navigation_search_delivery_vcl06.launch",
-                      include.attrib.get("file", ""))
+        self.assertEqual(
+            include.attrib.get("file", ""),
+            "$(dirname)/navigation_search_delivery_vcl06.launch")
         args = {item.attrib["name"]: item.attrib.get("value")
                 for item in include.findall("arg")}
         self.assertEqual(args["mission_start_mode"], "post_delivery")
@@ -1134,8 +1135,9 @@ class Vcl06GateReducerTest(unittest.TestCase):
         root = ET.parse(str(LANDING_LAUNCH)).getroot()
         include = root.find("include")
         self.assertIsNotNone(include)
-        self.assertIn("navigation_search_delivery_vcl06.launch",
-                      include.attrib.get("file", ""))
+        self.assertEqual(
+            include.attrib.get("file", ""),
+            "$(dirname)/navigation_search_delivery_vcl06.launch")
         args = {item.attrib["name"]: item.attrib.get("value")
                 for item in include.findall("arg")}
         self.assertEqual(args["mission_start_mode"], "landing")
