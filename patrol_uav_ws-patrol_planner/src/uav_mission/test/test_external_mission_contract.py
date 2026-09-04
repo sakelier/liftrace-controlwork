@@ -9,6 +9,11 @@ import yaml
 PACKAGE = pathlib.Path(__file__).resolve().parents[1]
 WORKSPACE_SRC = PACKAGE.parent
 PATROL = WORKSPACE_SRC / "patrol_control"
+FORMAL_LAUNCH = PACKAGE / "launch" / "navigation_search_delivery_vcl06.launch"
+MANAGER_LAUNCH = PACKAGE / "launch" / "navigation_mission_manager.launch"
+KS2A543_MODEL = PATROL / "models" / "iris_mid360_downward_camera" / \
+    "model_ks2a543.sdf"
+RVIZ_CONFIG = PATROL / "rviz_config" / "patrol_pc.rviz"
 
 
 class ExternalMissionContractTest(unittest.TestCase):
@@ -82,9 +87,11 @@ class ExternalMissionContractTest(unittest.TestCase):
         self.assertIn("if (external_mission_mode_)", ready_window)
 
     def test_external_gate_enables_mode_and_manager_owns_goal(self):
-        launch = ET.parse(str(
-            PACKAGE / "launch" /
-            "navigation_search_delivery_vcl06.launch")).getroot()
+        launch = ET.parse(str(FORMAL_LAUNCH)).getroot()
+        arguments = {
+            element.attrib["name"]: element.attrib.get("default")
+            for element in launch.findall("arg")
+        }
         includes = {
             element.attrib["file"]: {
                 arg.attrib["name"]: arg.attrib.get("value")
@@ -98,8 +105,17 @@ class ExternalMissionContractTest(unittest.TestCase):
         bridge_args = next(
             args for filename, args in includes.items()
             if filename.endswith("navigation_planner_bridge.launch"))
+        manager_args = next(
+            args for filename, args in includes.items()
+            if filename.endswith("navigation_mission_manager.launch"))
         self.assertEqual(patrol_args["external_mission_mode"], "true")
         self.assertEqual(patrol_args["waypoint_mode"], "false")
+        self.assertEqual(patrol_args["vehicle_sdf"], "$(arg vehicle_sdf)")
+        self.assertTrue(arguments["vehicle_sdf"].endswith(
+            "model_ks2a543.sdf"))
+        self.assertEqual(arguments["search_altitude"], "2.4")
+        self.assertEqual(manager_args["search_altitude"],
+                         "$(arg search_altitude)")
         self.assertEqual(bridge_args["planner_goal_topic"],
                          "/fastplanner/goal")
         self.assertEqual(bridge_args["execution_enabled"], "true")
@@ -107,6 +123,65 @@ class ExternalMissionContractTest(unittest.TestCase):
         node_types = {node.attrib.get("type")
                       for node in launch.findall("node")}
         self.assertNotIn("coverage_search_manager.py", node_types)
+
+    def test_ks2a543_full_vehicle_preserves_topics_and_calibration(self):
+        root = ET.parse(str(KS2A543_MODEL)).getroot()
+        camera_link = root.find(".//link[@name='downward_camera_link']")
+        self.assertIsNotNone(camera_link)
+        self.assertEqual(camera_link.findtext("pose"),
+                         "0 0 -0.05 0 1.57079632679 0")
+        sensor = camera_link.find("sensor[@name='downward_camera']")
+        self.assertIsNotNone(sensor)
+        camera = sensor.find("camera")
+        self.assertAlmostEqual(float(camera.findtext("horizontal_fov")),
+                               1.44593453190313)
+        self.assertEqual(camera.findtext("image/width"), "1280")
+        self.assertEqual(camera.findtext("image/height"), "720")
+        self.assertEqual(camera.findtext("image/format"), "RGB_INT8")
+        expected_distortion = {
+            "k1": 0.0058668600963917095,
+            "k2": 0.017910549546758369,
+            "p1": -0.0010064115869294274,
+            "p2": 0.0014715593681005204,
+            "k3": -0.026485100937585344,
+        }
+        for name, expected in expected_distortion.items():
+            self.assertAlmostEqual(
+                float(camera.findtext("distortion/%s" % name)), expected)
+        plugin = sensor.find("plugin")
+        self.assertEqual(plugin.findtext("cameraName"), "downward_camera")
+        self.assertEqual(plugin.findtext("imageTopicName"), "image_raw")
+        self.assertEqual(plugin.findtext("cameraInfoTopicName"),
+                         "camera_info")
+        self.assertEqual(plugin.findtext("frameName"),
+                         "downward_camera_optical_frame")
+        self.assertAlmostEqual(float(plugin.findtext("focalLength")),
+                               725.3510059644434)
+        self.assertEqual(plugin.findtext("autoDistortion"), "true")
+
+    def test_formal_search_altitude_and_rviz_observability(self):
+        manager = ET.parse(str(MANAGER_LAUNCH)).getroot()
+        arguments = {
+            element.attrib["name"]: element.attrib.get("default")
+            for element in manager.findall("arg")
+        }
+        self.assertEqual(arguments["search_altitude"], "2.2")
+        node = manager.find(".//node[@type='navigation_mission_manager.py']")
+        altitude = next(
+            item for item in node.findall("param")
+            if item.attrib.get("name") == "search/altitude")
+        self.assertEqual(altitude.attrib["value"], "$(arg search_altitude)")
+
+        rviz = RVIZ_CONFIG.read_text(encoding="utf-8")
+        for topic in (
+                "/downward_camera/image_raw",
+                "/uav_vision/debug_image",
+                "/uav_vision/circle_debug",
+                "/freedom/static_pointcloud_viz",
+                "/sdf_map/occupancy_inflate",
+                "/planning_vis/trajectory",
+                "/fastplanner/goal"):
+            self.assertIn(topic, rviz)
 
     def test_legacy_coverage_policy_is_not_a_formal_policy_source(self):
         self.assertFalse((PACKAGE / "scripts" / "coverage_policy.py").exists())

@@ -14,9 +14,12 @@
   <arg name="gate_wall_timeout" default="2700.0" />
   <arg name="record_debug" default="false" />
   <arg name="external_planner_max_command_z" default="3.5" />
+  <arg name="search_altitude" default="2.4" />
 
   <arg name="world"
        default="$(find patrol_control)/../../../toudi3_random.world" />
+  <arg name="vehicle_sdf"
+       default="$(find patrol_control)/models/iris_mid360_downward_camera/model_ks2a543.sdf" />
   <arg name="camera_optical_frame"
        default="downward_camera_optical_frame" />
   <arg name="camera_image_topic" default="/downward_camera/image_raw" />
@@ -51,6 +54,7 @@
     <arg name="external_mission_mode" value="true" />
     <arg name="waypoint_mode" value="false" />
     <arg name="world" value="$(arg world)" />
+    <arg name="vehicle_sdf" value="$(arg vehicle_sdf)" />
     <arg name="camera_image_topic" value="$(arg camera_image_topic)" />
     <arg name="camera_info_topic" value="$(arg camera_info_topic)" />
     <arg name="map_frame" value="camera_init" />
@@ -101,6 +105,7 @@
 
   <include file="$(find uav_mission)/launch/navigation_mission_manager.launch">
     <arg name="runtime_config" value="$(arg runtime_config)" />
+    <arg name="search_altitude" value="$(arg search_altitude)" />
     <arg name="candidate_topic" value="/uav_vision/targets" />
     <arg name="pose_topic" value="/mavros/local_position/pose" />
     <arg name="map_topic" value="/freedom/static_pointcloud" />
