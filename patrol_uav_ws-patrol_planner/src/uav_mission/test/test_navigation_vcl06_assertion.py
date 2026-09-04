@@ -17,6 +17,8 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / \
     "navigation_vcl06_assertion.py"
 FORMAL_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
     "navigation_search_delivery_vcl06.launch"
+POST_DELIVERY_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
+    "navigation_post_delivery_vcl06.launch"
 GUARDED_LAUNCH = Path(__file__).resolve().parents[1] / "launch" / \
     "toudi3_visual_delivery_guarded.launch"
 MAVROS_CONFIG = Path(__file__).resolve().parents[2] / "patrol_control" / \
@@ -295,6 +297,78 @@ def build_corridor_reducer(crossing_names=MODULE.EXPECTED_DOOR_ORDER,
     return reducer
 
 
+def build_post_delivery_stage_reducer():
+    reducer = MODULE.Vcl06GateReducer(
+        forced_return_sec=RUNTIME["mission"]["forced_return_at"],
+        post_delivery_route=CORRIDOR_ROUTE,
+        post_delivery_route_revision=CORRIDOR_REVISION,
+        post_delivery_goal_tolerance=CORRIDOR_GOAL_TOLERANCE,
+        post_delivery_doors=CORRIDOR_DOORS,
+        landing_xy=LANDING_XY,
+        landing_h_tolerance=LANDING_H_TOLERANCE,
+        gate_scope="post_delivery",
+    )
+    ready_statuses(reducer)
+    manager = dict(reducer.statuses["manager"])
+    manager.update({"committed_slots": 0,
+                    "start_mode": "post_delivery"})
+    reducer.observe_status("manager", manager)
+    reducer.observe_pose(0.0, 0.0, 2.0, "camera_init")
+    crossing_samples = {
+        "Wall_15": ((-2.386703, 5.90, 1.0),
+                    (-2.386703, 6.20, 1.0)),
+        "Wall_20": ((-0.30, 8.053133, 1.2),
+                    (0.05, 8.053133, 1.2)),
+        "Wall_22": ((1.90, 8.009650, 1.2),
+                    (2.30, 8.009650, 1.2)),
+    }
+    crossing_route_index = {"Wall_15": 2, "Wall_20": 5, "Wall_22": 7}
+    event_sequence = 1
+    for route_index, configured_goal in enumerate(CORRIDOR_ROUTE, start=1):
+        issued = 10.0 + (route_index - 1) * 12.0
+        suffix = ("stage_validation_start" if route_index == 1
+                  else "segment_complete")
+        route_decision = decision(
+            route_index, MODULE.RETURN_HOME, issued, issued + 60.0,
+            goal=configured_goal,
+            reason="post_delivery_route:%d/%d:%s:%s" % (
+                route_index, len(CORRIDOR_ROUTE), CORRIDOR_REVISION,
+                suffix),
+        )
+        reducer.observe_decision(route_decision, receipt_wall=issued)
+        for door_name, armed_index in crossing_route_index.items():
+            if route_index == armed_index - 1:
+                reducer.observe_pose(
+                    *crossing_samples[door_name][0], "camera_init")
+            elif route_index == armed_index:
+                reducer.observe_pose(
+                    *crossing_samples[door_name][1], "camera_init")
+        reducer.observe_result(result(
+            event_sequence, route_decision,
+            MODULE.SUCCEEDED, MODULE.PLANNER,
+            issued + 8.0, terminal=True), receipt_wall=issued + 8.0)
+        event_sequence += 1
+
+    land_issued = 110.0
+    land = decision(
+        len(CORRIDOR_ROUTE) + 1, MODULE.LAND,
+        land_issued, land_issued + 90.0,
+        has_goal=False, reason="post_delivery_route_complete")
+    reducer.observe_decision(land, receipt_wall=land_issued)
+    reducer.observe_landing_h_mark(
+        LANDING_XY[0], LANDING_XY[1], 0.75,
+        "camera_init", int((land_issued + 1.0) * 1e9),
+        receipt_wall=land_issued + 1.0, fresh=True)
+    reducer.observe_align_mode("landing", receipt_wall=land_issued + 2.0)
+    reducer.observe_landed_state(
+        MODULE.LANDED_STATE_ON_GROUND, receipt_wall=119.0)
+    reducer.observe_result(result(
+        event_sequence, land, MODULE.SUCCEEDED, MODULE.LANDING,
+        120.0, terminal=True), receipt_wall=120.0)
+    reducer.observe_vehicle_state(False, receipt_wall=121.0)
+    return reducer
+
+
 class Vcl06GateReducerTest(unittest.TestCase):
     def test_complete_three_slot_chain_passes(self):
         report = build_passing_reducer().report()
@@ -333,6 +407,28 @@ class Vcl06GateReducerTest(unittest.TestCase):
             (route_fence["goal_x"], route_fence["goal_y"],
              route_fence["goal_z"]),
             CORRIDOR_ROUTE[0])
+
+    def test_post_delivery_scope_passes_without_fake_deliveries(self):
+        report = build_post_delivery_stage_reducer().report()
+        self.assertEqual(report["status"], "PASS", report)
+        self.assertEqual(report["gate_scope"], "post_delivery")
+        self.assertTrue(report["checks"]["post_delivery_stage_entry"])
+        self.assertTrue(report["checks"][
+            "post_delivery_stage_has_no_approach"])
+        self.assertTrue(report["checks"][
+            "post_delivery_stage_slots_uncommitted"])
+        self.assertNotIn("three_release_commits", report["checks"])
+        self.assertEqual(report["metrics"]["release_commit_count"], 0)
+
+    def test_post_delivery_scope_rejects_approach(self):
+        reducer = MODULE.Vcl06GateReducer(gate_scope="post_delivery")
+        reducer.observe_decision(decision(
+            1, MODULE.APPROACH, 10.0, 100.0,
+            1, 11, 101, "bridge"))
+        report = reducer.report()
+        self.assertEqual(report["status"], "FAIL")
+        self.assertIn("post_delivery_scope_has_approach",
+                      report["errors"])
 
     def test_complete_manager_waits_for_h_landing_evidence(self):
         reducer = build_corridor_reducer(h_evidence=False)
@@ -925,6 +1021,8 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertEqual(arguments["field_seed"], "11")
         self.assertEqual(arguments["standard_classes"],
                          "tent,pillbox,bridge,panzer")
+        self.assertEqual(arguments["mission_start_mode"], "full")
+        self.assertEqual(arguments["gate_scope"], "full")
         guarded = next(item for item in root.findall("include")
                        if "toudi3_visual_delivery_guarded.launch" in
                        item.attrib.get("file", ""))
@@ -935,6 +1033,7 @@ class Vcl06GateReducerTest(unittest.TestCase):
             guarded_args["external_planner_max_command_z"],
             "$(arg external_planner_max_command_z)")
         self.assertEqual(params["mission_frame"], "camera_init")
+        self.assertEqual(params["gate_scope"], "$(arg gate_scope)")
 
         guarded_root = ET.parse(str(GUARDED_LAUNCH)).getroot()
         guarded_defaults = {
@@ -951,6 +1050,18 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertEqual(
             nested_args["external_planner_max_command_z"],
             "$(arg external_planner_max_command_z)")
+
+    def test_post_delivery_launch_locks_matching_start_and_gate_scope(self):
+        root = ET.parse(str(POST_DELIVERY_LAUNCH)).getroot()
+        include = root.find("include")
+        self.assertIsNotNone(include)
+        self.assertIn("navigation_search_delivery_vcl06.launch",
+                      include.attrib.get("file", ""))
+        args = {item.attrib["name"]: item.attrib.get("value")
+                for item in include.findall("arg")}
+        self.assertEqual(args["mission_start_mode"], "post_delivery")
+        self.assertEqual(args["gate_scope"], "post_delivery")
+        self.assertEqual(args["start_hard_gate"], "true")
 
     def test_sitl_pose_and_setpoint_use_the_mission_frame(self):
         config = yaml.safe_load(MAVROS_CONFIG.read_text(encoding="utf-8"))

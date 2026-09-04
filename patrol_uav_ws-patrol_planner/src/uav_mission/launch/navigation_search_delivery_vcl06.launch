@@ -15,6 +15,10 @@
   <arg name="record_debug" default="false" />
   <arg name="external_planner_max_command_z" default="3.5" />
   <arg name="search_altitude" default="2.4" />
+  <!-- full is the competition path. post_delivery is an explicit segmented
+       validation entry and must be paired with the matching Gate scope. -->
+  <arg name="mission_start_mode" default="full" />
+  <arg name="gate_scope" default="full" />
 
   <arg name="world"
        default="$(find patrol_control)/../../../toudi3_random.world" />
@@ -106,6 +110,7 @@
   <include file="$(find uav_mission)/launch/navigation_mission_manager.launch">
     <arg name="runtime_config" value="$(arg runtime_config)" />
     <arg name="search_altitude" value="$(arg search_altitude)" />
+    <arg name="start_mode" value="$(arg mission_start_mode)" />
     <arg name="candidate_topic" value="/uav_vision/targets" />
     <arg name="pose_topic" value="/mavros/local_position/pose" />
     <arg name="map_topic" value="/freedom/static_pointcloud" />
@@ -146,6 +151,7 @@
     <param name="wall_timeout" value="$(arg gate_wall_timeout)" />
     <param name="class_profile" value="$(arg class_profile)" />
     <param name="nav_feature_profile" value="$(arg nav_feature_profile)" />
+    <param name="gate_scope" value="$(arg gate_scope)" />
     <param name="mission_frame" value="camera_init" />
     <param name="planner_goal_topic" value="/fastplanner/goal" />
     <param name="expected_planner_goal_publisher"

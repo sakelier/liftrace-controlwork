@@ -131,6 +131,23 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertNotIn("goal", remaps)
         self.assertNotIn(
             "/fastplanner/goal", LAUNCH.read_text(encoding="utf-8"))
+        launch_args = {
+            item.attrib["name"]: item.attrib.get("default")
+            for item in self.launch.findall("arg")}
+        self.assertEqual(launch_args["start_mode"], "full")
+        params = {
+            item.attrib["name"]: item.attrib.get("value")
+            for item in nodes[0].findall("param")}
+        self.assertEqual(params["runtime/start_mode"],
+                         "$(arg start_mode)")
+
+    def test_post_delivery_start_is_explicit_and_reported(self):
+        self.assertIn(
+            'self._start_mode not in ("full", "post_delivery")',
+            self.source)
+        self.assertIn("runtime.start_post_delivery_validation(",
+                      self.source)
+        self.assertIn('"start_mode": self._start_mode', self.source)
 
     def test_r2026_readiness_and_callbacks_fail_closed(self):
         self.assertTrue(self.config["readiness"]["require_map"])

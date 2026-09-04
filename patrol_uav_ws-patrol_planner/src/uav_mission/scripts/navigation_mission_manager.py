@@ -110,6 +110,8 @@ class NavigationMissionManager:
         self._tick_hz = float(rospy.get_param("~runtime/tick_hz", 10.0))
         self._mission_id_prefix = str(
             rospy.get_param("~runtime/mission_id_prefix", "vcl06"))
+        self._start_mode = str(
+            rospy.get_param("~runtime/start_mode", "full")).strip()
         self._validate_shell_parameters()
 
         self._decision_pub = rospy.Publisher(
@@ -137,8 +139,9 @@ class NavigationMissionManager:
             rospy.Duration.from_sec(1.0 / self._tick_hz), self._on_timer)
         self._publish_status(force=True)
         rospy.loginfo(
-            "VCL06 mission manager ready; manual start required, profile=%s",
-            self._profile_name,
+            "VCL06 mission manager ready; manual start required, "
+            "profile=%s start_mode=%s",
+            self._profile_name, self._start_mode,
         )
 
     def _validate_shell_parameters(self):
@@ -161,6 +164,9 @@ class NavigationMissionManager:
             raise ValueError("r2026 requires map readiness")
         if not self._mission_id_prefix.strip():
             raise ValueError("runtime/mission_id_prefix must not be empty")
+        if self._start_mode not in ("full", "post_delivery"):
+            raise ValueError(
+                "runtime/start_mode must be full or post_delivery")
 
     def _mission_config(self):
         mission_frame = rospy.get_param("~mission/frame", "camera_init")
@@ -471,7 +477,12 @@ class NavigationMissionManager:
                     now_stamp.nsecs,
                     self._mission_counter,
                 )
-                outcome = runtime.start(mission_id, now, self._current_xy())
+                if self._start_mode == "post_delivery":
+                    outcome = runtime.start_post_delivery_validation(
+                        mission_id, now, self._current_xy())
+                else:
+                    outcome = runtime.start(
+                        mission_id, now, self._current_xy())
             except Exception as exc:  # pylint: disable=broad-except
                 self._runtime = None
                 self._last_reason = "start_rejected:%s" % exc
@@ -582,6 +593,7 @@ class NavigationMissionManager:
             "last_reason": self._last_reason,
             "manual_start_required": True,
             "profile": self._profile_name,
+            "start_mode": self._start_mode,
         }
         if self._runtime is None:
             payload.update({"mission_id": "", "phase": "IDLE"})

@@ -17,6 +17,19 @@ APPROACH/CAPTURE/ALIGN/RELEASE/RECOVERY 事务、三次投递、三门走廊路�
 旧 `coverage_search_manager.py`、视觉侧临时 manager 和
 `navigation_visual_delivery_adapter.py` 均不在正式图中。
 
+为隔离前段搜索/投递波动，提供只用于 SITL 联调的后段入口：
+
+```text
+navigation_post_delivery_vcl06.launch
+  -> MissionCore post_delivery 显式启动模式（payload commit 仍为 0）
+  -> 同一版本化走廊路线、Fast-Planner、H 视觉和 LAND executor
+  -> gate_scope=post_delivery 专用断言
+```
+
+该 Gate 只验收“走廊首段 → 三门 → H 新鲜证据 → 对齐 → 落地并上锁”，并拒绝任何
+APPROACH/投递动作；其 PASS 不能替代正式入口的三投整场 PASS。正式入口的
+`mission_start_mode` 和 `gate_scope` 默认值均为 `full`。
+
 ## 比赛 profile
 
 正式 profile 固定为 `r2026`：
@@ -75,11 +88,10 @@ uav_vision/ReleaseEvidenceContext
 ## 当前验收边界
 
 同步导航上游 PR #1～#6 后，`freedom;plan_manage;patrol_control;uav_mission` Catkin 定向构建和
-237 项测试通过；使用上述视觉 overlay 时完整 launch 可递归解析。后继成果曾提交为跨 fork PR #8，
-现按仓库 owner 安排关闭该大 PR，并直接维护上游 `feat/vcl06-local-full-mission`。该分支尚未重跑
-完整 SITL；最近一次 r9 实跑只完成 panzer 首投与恢复，随后在 red_cross 接近前遇到 planner 目标
-接受竞态，并以高度 `4.002849 m` 触发硬 Gate；第二/第三投、完整三门走廊和 H/LAND 仍需联合仿真
-验证。
+209 项当前包测试通过；使用上述视觉 overlay 时完整 launch 与分段 launch 均可递归解析。后继成果曾提交为跨 fork PR #8，
+现按仓库 owner 安排关闭该大 PR，并直接维护上游 `feat/vcl06-local-full-mission`。r19b 已在
+KS2A543 新相机基线上完成前两投，第三个 bridge 接近因 Fast-Planner 连续重规划极限环在 120 秒
+事务截止时退出；完整三门走廊和 H/LAND 尚未被该轮触达，下一步先用上述分段入口独立验收。
 
 上述结果不是全工作区构建 PASS。全量 Catkin 配置仍会报告仓内 `tool/cv_bridge/src` 缺少
 `CMakeLists.txt`，以及 `local_sensing` 的 `cmake_modules` 依赖在当前环境不可用；这两项属于独立的

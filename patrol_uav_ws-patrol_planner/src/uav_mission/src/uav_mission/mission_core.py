@@ -603,6 +603,23 @@ class MissionCore:
         self.started_at = float(now)
         self.phase = MissionPhase.SEARCH
 
+    def start_post_delivery_validation(self, mission_id: str,
+                                       now: float) -> CoreAction:
+        """Start the explicit post-delivery integration stage.
+
+        This entry point deliberately does not mark payload slots committed.
+        It exists so corridor, landing-marker and LAND behavior can be tested
+        independently without manufacturing delivery evidence.  The normal
+        :meth:`start` path remains the only full-mission entry point.
+        """
+
+        if not self.config.post_delivery_route:
+            raise RuntimeError(
+                "post-delivery validation requires a configured route")
+        self.start(mission_id, now)
+        return self._post_delivery_route_action(
+            "stage_validation_start", now, start=True)
+
     @property
     def committed_slots(self) -> int:
         return sum(slot.status == SlotStatus.COMMITTED for slot in self.slots)

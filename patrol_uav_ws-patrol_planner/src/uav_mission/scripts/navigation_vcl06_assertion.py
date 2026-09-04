@@ -252,10 +252,13 @@ class Vcl06GateReducer:
                  post_delivery_route_revision="direct-home-v1",
                  post_delivery_goal_tolerance=0.18,
                  post_delivery_doors=(), landing_xy=(0.0, 0.0),
-                 landing_h_tolerance=0.35):
+                 landing_h_tolerance=0.35, gate_scope="full"):
         self.profile = str(profile)
         self.nav_feature_profile = str(nav_feature_profile)
         self.mission_frame = str(mission_frame)
+        self.gate_scope = str(gate_scope).strip()
+        if self.gate_scope not in ("full", "post_delivery"):
+            raise ValueError("gate_scope must be full or post_delivery")
         self.field_bounds = dict(field_bounds or {
             "min_x": -3.992, "max_x": 4.008,
             "min_y": -1.132, "max_y": 8.718,
@@ -477,6 +480,9 @@ class Vcl06GateReducer:
         is_new = previous is None
         self.decisions[decision.key] = decision
         if is_new:
+            if (self.gate_scope == "post_delivery" and
+                    decision.command == APPROACH):
+                self._error("post_delivery_scope_has_approach")
             reason_info = self._post_delivery_reason_info(decision.reason)
             if (decision.reason.startswith("post_delivery_route:") and
                     reason_info is None):
@@ -936,6 +942,14 @@ class Vcl06GateReducer:
         expected_door_names = tuple(
             item.name for item in self.post_delivery_doors)
         h_landing_required = bool(self.post_delivery_route)
+        ordered_decisions = sorted(
+            self.decisions.values(), key=lambda item: item.decision_seq)
+        first_decision = ordered_decisions[0] if ordered_decisions else None
+        expected_start_mode = (
+            "post_delivery" if self.gate_scope == "post_delivery"
+            else "full")
+        expected_committed_slots = (
+            0 if self.gate_scope == "post_delivery" else 3)
         checks = {
             "required_statuses_seen": all(
                 name in self.statuses for name in self.REQUIRED_STATUSES),
@@ -943,7 +957,10 @@ class Vcl06GateReducer:
             "manager_complete": (
                 manager.get("phase") == "COMPLETE" and
                 manager.get("mission_failed") is False and
-                _int_or(manager.get("committed_slots"), -1) == 3),
+                _int_or(manager.get("committed_slots"), -1) ==
+                expected_committed_slots and
+                manager.get("start_mode", "full") ==
+                expected_start_mode),
             "manager_identity_matches": (
                 len(mission_ids) == 1 and
                 manager.get("mission_id") in mission_ids),
@@ -969,19 +986,6 @@ class Vcl06GateReducer:
             "single_planner_goal_publisher": (
                 self.planner_goal_publishers ==
                 (self.expected_goal_publisher,)),
-            "three_release_commits": three_release_commits,
-            "three_recovery_successes": (
-                len(self.recovery_success) == 3 and
-                committed_keys == self.recovery_success),
-            "three_capture_started": (
-                three_release_commits and
-                committed_keys.issubset(self.capture_started)),
-            "real_approach_commands": (
-                three_release_commits and
-                committed_keys.issubset(bound_commands)),
-            "committed_targets_were_selected": (
-                three_release_commits and
-                target_instances.issubset(self.selected_instances)),
             "return_home_success": (
                 len(self.return_success) == expected_return_count),
             "post_delivery_return_sequence": route_sequence_matches,
@@ -1009,25 +1013,12 @@ class Vcl06GateReducer:
                 len(land_decisions) == 1 and bool(return_decisions) and
                 return_decisions[-1].decision_seq <
                 land_decisions[0].decision_seq),
-            "return_after_deliveries": (
-                len(return_decisions) == expected_return_count and
-                bool(committed) and
-                all(item.mission_id in committed_mission_ids
-                    for item in return_decisions) and
-                return_decisions[0].decision_seq >
-                max(item.decision_seq for item in committed)),
-            "forced_return_within_limit": (
-                first_issued is not None and return_issued is not None and
-                0.0 <= (return_issued - first_issued) / 1e9 <=
-                self.forced_return_sec),
             "mission_ros_within_limit": (
                 mission_ros_sec is not None and
                 0.0 <= mission_ros_sec <= self.max_mission_sec),
             "mission_wall_within_limit": (
                 mission_wall_sec is not None and
                 0.0 <= mission_wall_sec <= self.max_mission_sec),
-            "tank_selected_zero": "tank" not in self.selected_classes,
-            "tank_accepted_zero": "tank" not in self.accepted_classes,
             "pose_seen": self.pose_samples > 0,
             "zero_boundary_violations": self.boundary_violations == 0,
             "zero_height_violations": self.height_violations == 0,
@@ -1036,6 +1027,59 @@ class Vcl06GateReducer:
             "unmatched_results_zero": not self.unmatched_results,
             "contract_errors_zero": not self.errors,
         }
+        if self.gate_scope == "full":
+            checks.update({
+                "three_release_commits": three_release_commits,
+                "three_recovery_successes": (
+                    len(self.recovery_success) == 3 and
+                    committed_keys == self.recovery_success),
+                "three_capture_started": (
+                    three_release_commits and
+                    committed_keys.issubset(self.capture_started)),
+                "real_approach_commands": (
+                    three_release_commits and
+                    committed_keys.issubset(bound_commands)),
+                "committed_targets_were_selected": (
+                    three_release_commits and
+                    target_instances.issubset(self.selected_instances)),
+                "return_after_deliveries": (
+                    len(return_decisions) == expected_return_count and
+                    bool(committed) and
+                    all(item.mission_id in committed_mission_ids
+                        for item in return_decisions) and
+                    return_decisions[0].decision_seq >
+                    max(item.decision_seq for item in committed)),
+                "forced_return_within_limit": (
+                    first_issued is not None and
+                    return_issued is not None and
+                    0.0 <= (return_issued - first_issued) / 1e9 <=
+                    self.forced_return_sec),
+                "tank_selected_zero": (
+                    "tank" not in self.selected_classes),
+                "tank_accepted_zero": (
+                    "tank" not in self.accepted_classes),
+            })
+        else:
+            first_reason = (
+                self._post_delivery_reason_info(first_decision.reason)
+                if first_decision is not None else None)
+            checks.update({
+                "post_delivery_stage_entry": (
+                    first_decision is not None and
+                    first_decision.command == RETURN_HOME and
+                    first_reason == (
+                        1, len(self.post_delivery_route),
+                        self.post_delivery_route_revision) and
+                    first_decision.reason.endswith(
+                        ":stage_validation_start")),
+                "post_delivery_stage_has_no_approach": (
+                    not any(item.command == APPROACH
+                            for item in ordered_decisions) and
+                    not self.release_commits and
+                    not self.recovery_success),
+                "post_delivery_stage_slots_uncommitted": (
+                    _int_or(manager.get("committed_slots"), -1) == 0),
+            })
         metrics = {
             "decision_count": len(self.decisions),
             "result_count": len(self.results),
@@ -1094,6 +1138,7 @@ class Vcl06GateReducer:
             "profile": self.profile,
             "nav_feature_profile": self.nav_feature_profile,
             "mission_frame": self.mission_frame,
+            "gate_scope": self.gate_scope,
             "decision_fences": [
                 asdict(item) for item in sorted(
                     self.decisions.values(),
@@ -1173,6 +1218,7 @@ class NavigationVcl06AssertionNode:
             landing_xy=rospy.get_param("~mission/landing_xy", [0.0, 0.0]),
             landing_h_tolerance=float(rospy.get_param(
                 "~post_delivery_gate/final_h_tolerance", 0.35)),
+            gate_scope=rospy.get_param("~gate_scope", "full"),
         )
 
         topics = {

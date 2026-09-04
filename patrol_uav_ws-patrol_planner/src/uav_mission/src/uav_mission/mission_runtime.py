@@ -315,6 +315,27 @@ class MissionRuntime:
             self._started = True
             return self._dispatch_route("SEARCH", "coverage_start", now)
 
+    def start_post_delivery_validation(
+            self, mission_id: str, now: float, current_xy
+            ) -> RuntimeOutcome:
+        """Start an isolated corridor-to-LAND integration stage.
+
+        Coverage and payload accounting are intentionally left untouched; a
+        scope-aware assertion must be used for this stage so its result can
+        never be reported as a complete three-delivery mission.
+        """
+
+        with self._lock:
+            if self._started:
+                raise RuntimeError("mission runtime has already started")
+            now = self._validate_now(now)
+            self._set_current_xy(current_xy)
+            action = self.core.start_post_delivery_validation(
+                mission_id, now)
+            self._started = True
+            return self._outcome(
+                True, "post_delivery_validation_started", action=action)
+
     def ingest(self, candidates: Sequence[CandidateSnapshot],
                now: float) -> RuntimeOutcome:
         """Atomically ingest candidates; tick performs scheduling."""
