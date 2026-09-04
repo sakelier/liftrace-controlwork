@@ -77,6 +77,7 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["frame"], "camera_init")
         self.assertEqual(mission["forced_return_at"], 420.0)
         self.assertEqual(mission["return_land_reserve"], 180.0)
+        self.assertEqual(mission["target_action_timeout"], 120.0)
         self.assertEqual(
             mission["post_delivery_route_revision"],
             "toudi3-random-three-door-h-r2",

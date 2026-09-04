@@ -22,7 +22,9 @@ mission:
   decision_guard: 15.0
   approach_altitude: 1.2
   return_altitude: 2.2
-  target_action_timeout: 90.0
+  # r17 的 KS2A543 实跑中，复杂地图接近 + 低空视觉对准在 90 s 截止后约
+  # 1 s 才满足释放高度；给完整目标事务保留适度调度余量，但不放宽证据或 Gate。
+  target_action_timeout: 120.0
   motion_action_timeout: 60.0
   landing_action_timeout: 90.0
   result_future_tolerance: 0.1
