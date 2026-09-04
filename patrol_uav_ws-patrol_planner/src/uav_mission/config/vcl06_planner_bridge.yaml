@@ -40,13 +40,17 @@ target:
   context_max_age: 0.5
   max_association_distance: 0.8
   recovery_height: 0.95
-  recovery_speed: 0.25
+  # Recovery is a physical position dwell, not a single noisy odom twist
+  # sample.  Restart the dwell only after moving outside this 3-D radius.
+  recovery_settle_radius: 0.15
   recovery_dwell: 0.5
 
 landing:
   # patrol_control requests disarm at z <= 0.02 m; success additionally
-  # requires a fresh MAVROS ON_GROUND state and this horizontal radius.
+  # requires a post-command MAVROS ON_GROUND state and this horizontal radius.
   height: 0.05
-  speed: 0.15
   radius: 0.25
+  # Once the post-command ON_GROUND fact is observed, require bounded pose
+  # motion for the full dwell instead of a separate instantaneous speed gate.
+  settle_radius: 0.15
   dwell: 1.0

@@ -12,6 +12,8 @@ import yaml
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = PACKAGE_ROOT / "scripts" / "navigation_planner_bridge.py"
 LAUNCH = PACKAGE_ROOT / "launch" / "navigation_planner_bridge.launch"
+MISSION_LAUNCH = (
+    PACKAGE_ROOT / "launch" / "navigation_search_delivery_vcl06.launch")
 CONFIG = PACKAGE_ROOT / "config" / "vcl06_planner_bridge.yaml"
 PACKAGE_XML = PACKAGE_ROOT / "package.xml"
 
@@ -23,6 +25,7 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         cls.tree = ast.parse(cls.source)
         cls.config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
         cls.launch = ET.parse(str(LAUNCH)).getroot()
+        cls.mission_launch = ET.parse(str(MISSION_LAUNCH)).getroot()
         cls.package = ET.parse(str(PACKAGE_XML)).getroot()
 
     def test_script_has_only_fenced_output_types(self):
@@ -196,6 +199,35 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertIn("def _mark_alignment_started", self.source)
         self.assertIn("alignment_accepted_before_release_ack", self.source)
 
+    def test_terminal_state_confirmation_uses_position_dwell(self):
+        target = self.config["target"]
+        landing = self.config["landing"]
+        self.assertEqual(target["recovery_settle_radius"], 0.15)
+        self.assertEqual(landing["settle_radius"], 0.15)
+        self.assertNotIn("recovery_speed", target)
+        self.assertNotIn("speed", landing)
+        self.assertIn("PositionSettleWindow", self.source)
+        self.assertNotIn("self._recovery_speed", self.source)
+        self.assertNotIn("self._landing_speed", self.source)
+        self.assertIn('"control_state_predates_release"', self.source)
+        self.assertIn('"landed_state_predates_land_command"', self.source)
+        self.assertIn('"recovery_settle"', self.source)
+        self.assertIn('"landing_settle"', self.source)
+        self.assertNotIn(
+            "now_ns - self._control_state_receipt_ns", self.source)
+        self.assertNotIn(
+            "now_ns - self._align_mode_receipt_ns", self.source)
+        self.assertNotIn(
+            "now_ns - self._landed_state_receipt_ns", self.source)
+
+    def test_debug_recording_includes_odom_used_by_terminal_gates(self):
+        recorder = next(
+            node for node in self.mission_launch.findall("node")
+            if node.attrib.get("name") == "navigation_vcl06_debug_recorder")
+        self.assertIn(
+            "/mavros/local_position/odom", recorder.attrib["args"])
+        self.assertIn("/detect/point_class", recorder.attrib["args"])
+
     def test_abort_reuses_planner_goal_and_hold_is_not_advertised(self):
         self.assertIn('elif command == "ABORT"', self.source)
         self.assertIn('raise ValueError("HOLD is not supported', self.source)
@@ -206,7 +238,7 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertIn("x=sample.x", self.source)
         self.assertIn("y=sample.y", self.source)
         self.assertIn('z=0.0', self.source)
-        self.assertIn("horizontal_error <= self._landing_radius", self.source)
+        self.assertIn("horizontal_error > self._landing_radius", self.source)
         self.assertIn("ExtendedState.LANDED_STATE_ON_GROUND", self.source)
         self.assertIn("self._control_state == 3", self.source)
         self.assertIn(

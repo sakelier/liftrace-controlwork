@@ -35,6 +35,7 @@ from uav_mission.planner_execution import (
     SequencedMotionGoal,
     TargetIdentity,
 )
+from uav_mission.position_settle import PositionSettleWindow
 from uav_vision.msg import (
     AlignmentTargetContext, ReleaseEvidenceContext, TargetCandidateArray,
 )
@@ -125,8 +126,6 @@ class TargetTransaction:
     strict_evidence_stamp_ns: int = 0
     release_execution_id: int = 0
     release_ack_ns: int = 0
-    recovery_dwell_start_ns: int = 0
-    recovery_last_odom_ns: int = 0
 
 
 @dataclass
@@ -135,8 +134,6 @@ class LandingTransaction:
     target_pose: SemanticTargetPose
     command_sent_ns: int
     started: bool = False
-    dwell_start_ns: int = 0
-    last_odom_ns: int = 0
 
 
 def _stamp_to_ns(stamp):
@@ -201,17 +198,17 @@ class NavigationPlannerBridge:
             "~target/max_association_distance", 0.8))
         self._recovery_height = float(rospy.get_param(
             "~target/recovery_height", 0.95))
-        self._recovery_speed = float(rospy.get_param(
-            "~target/recovery_speed", 0.25))
+        self._recovery_settle_radius = float(rospy.get_param(
+            "~target/recovery_settle_radius", 0.15))
         self._recovery_dwell_ns = _seconds_to_ns(
             "target/recovery_dwell",
             rospy.get_param("~target/recovery_dwell", 0.5))
         self._landing_height = float(rospy.get_param(
             "~landing/height", 0.05))
-        self._landing_speed = float(rospy.get_param(
-            "~landing/speed", 0.15))
         self._landing_radius = float(rospy.get_param(
             "~landing/radius", 0.25))
+        self._landing_settle_radius = float(rospy.get_param(
+            "~landing/settle_radius", 0.15))
         self._landing_dwell_ns = _seconds_to_ns(
             "landing/dwell", rospy.get_param("~landing/dwell", 1.0))
         for name, value in (
@@ -219,14 +216,18 @@ class NavigationPlannerBridge:
                 ("target/max_association_distance",
                  self._association_distance),
                 ("target/recovery_height", self._recovery_height),
-                ("target/recovery_speed", self._recovery_speed),
+                ("target/recovery_settle_radius",
+                 self._recovery_settle_radius),
                 ("landing/height", self._landing_height),
-                ("landing/speed", self._landing_speed),
-                ("landing/radius", self._landing_radius)):
+                ("landing/radius", self._landing_radius),
+                ("landing/settle_radius", self._landing_settle_radius)):
             if not math.isfinite(value) or value < 0.0:
                 raise ValueError("%s must be finite and non-negative" % name)
-        if self._association_distance == 0.0 or self._landing_radius == 0.0:
-            raise ValueError("association and landing radii must be positive")
+        if (self._association_distance == 0.0 or
+                self._recovery_settle_radius == 0.0 or
+                self._landing_radius == 0.0 or
+                self._landing_settle_radius == 0.0):
+            raise ValueError("association and settle radii must be positive")
 
         prefix = str(rospy.get_param(
             "~execution/executor_id_prefix", "vcl06-planner-bridge"))
@@ -264,6 +265,16 @@ class NavigationPlannerBridge:
                 rospy.get_param("~execution/odom_max_age", 0.50)),
         )
         self._executor = PlannerMotionExecutor(config)
+        self._recovery_settle = PositionSettleWindow(
+            self._recovery_dwell_ns,
+            self._recovery_settle_radius,
+            config.odom_max_age_ns,
+        )
+        self._landing_settle = PositionSettleWindow(
+            self._landing_dwell_ns,
+            self._landing_settle_radius,
+            config.odom_max_age_ns,
+        )
         self._executor_id = executor_id
         self._latest_candidates = ()
         self._transaction = None
@@ -345,6 +356,18 @@ class NavigationPlannerBridge:
             raise ValueError("ROS time is not initialized")
         return value
 
+    def _odom_rejection_reason(self, sample, now_ns):
+        if sample is None:
+            return "odom_unavailable"
+        if sample.frame_id != self._mission_frame:
+            return "odom_frame_mismatch"
+        age_ns = int(now_ns) - sample.stamp_ns
+        if age_ns < -self._executor.config.source_future_tolerance_ns:
+            return "odom_from_future"
+        if age_ns > self._executor.config.odom_max_age_ns:
+            return "odom_stale"
+        return ""
+
     def _validate_pose_contract(self, stamped, seq, issued_ns):
         if int(stamped.header.seq) != int(seq):
             raise ValueError("nested goal sequence mismatch")
@@ -403,12 +426,7 @@ class NavigationPlannerBridge:
                 message.goal.pose.orientation.w)
         elif command == "ABORT":
             sample = self._last_odom
-            fresh = (
-                sample is not None and
-                sample.frame_id == self._mission_frame and
-                0 <= int(now_ns) - sample.stamp_ns <=
-                self._executor.config.odom_max_age_ns)
-            if not fresh:
+            if self._odom_rejection_reason(sample, now_ns):
                 raise RuntimeError("abort_hold_odom_unavailable")
             motion_goal = MotionGoal(
                 self._mission_frame, sample.x, sample.y, sample.z)
@@ -668,6 +686,8 @@ class NavigationPlannerBridge:
             self._pending_release = transaction
         self._transaction = None
         self._landing = None
+        self._recovery_settle.reset()
+        self._landing_settle.reset()
 
     def _report_target_stage(self, status, stage, now_ns, terminal=False,
                              retryable=False, payload_committed=False,
@@ -854,13 +874,7 @@ class NavigationPlannerBridge:
         self._clear_handoffs()
         if outcome.handoff == "LAND":
             sample = self._last_odom
-            fresh = (
-                sample is not None and
-                sample.frame_id == self._mission_frame and
-                0 <= now_ns - sample.stamp_ns <=
-                self._executor.config.odom_max_age_ns
-            )
-            if not fresh:
+            if self._odom_rejection_reason(sample, now_ns):
                 rejected = self._executor.report_landing(
                     decision.decision_seq,
                     now_ns,
@@ -884,6 +898,7 @@ class NavigationPlannerBridge:
                 target_pose=target_pose,
                 command_sent_ns=now_ns,
             )
+            self._landing_settle.reset("awaiting_control_acceptance")
             self._publish_mission_command(
                 decision, "LAND", target_pose=target_pose)
 
@@ -891,34 +906,26 @@ class NavigationPlannerBridge:
         transaction = self._transaction
         if transaction is None or transaction.phase != "RECOVERY":
             return
-        speed = math.sqrt(sample.vx ** 2 + sample.vy ** 2 + sample.vz ** 2)
-        fresh = (
-            sample.frame_id == self._mission_frame and
-            0 <= now_ns - sample.stamp_ns <=
-            self._executor.config.odom_max_age_ns)
-        qualified = (
-            fresh and sample.z >= self._recovery_height and
-            speed <= self._recovery_speed and self._control_state == 1 and
-            self._align_mode == "disabled" and
-            self._control_state_receipt_ns >= transaction.release_ack_ns and
-            self._align_mode_receipt_ns >= transaction.release_ack_ns and
-            now_ns - self._control_state_receipt_ns <=
-            self._executor.config.odom_max_age_ns and
-            now_ns - self._align_mode_receipt_ns <=
-            self._executor.config.odom_max_age_ns)
-        if not qualified:
-            transaction.recovery_dwell_start_ns = 0
-            transaction.recovery_last_odom_ns = 0
+        reason = self._odom_rejection_reason(sample, now_ns)
+        if not reason and sample.z < self._recovery_height:
+            reason = "recovery_height_not_reached"
+        if not reason and self._control_state != 1:
+            reason = "control_state_not_run"
+        if (not reason and
+                self._control_state_receipt_ns < transaction.release_ack_ns):
+            reason = "control_state_predates_release"
+        if not reason and self._align_mode != "disabled":
+            reason = "alignment_still_active"
+        if (not reason and
+                self._align_mode_receipt_ns < transaction.release_ack_ns):
+            reason = "align_mode_predates_release"
+        if reason:
+            self._recovery_settle.reset(reason)
             return
-        if (transaction.recovery_last_odom_ns and
-                sample.stamp_ns - transaction.recovery_last_odom_ns >
-                self._executor.config.odom_max_age_ns):
-            transaction.recovery_dwell_start_ns = 0
-        if transaction.recovery_dwell_start_ns == 0:
-            transaction.recovery_dwell_start_ns = sample.stamp_ns
-        transaction.recovery_last_odom_ns = sample.stamp_ns
-        if (sample.stamp_ns - transaction.recovery_dwell_start_ns <
-                self._recovery_dwell_ns):
+
+        settle = self._recovery_settle.update(
+            sample.stamp_ns, sample.x, sample.y, sample.z)
+        if not settle.ready:
             return
         self._report_target_stage(
             "SUCCEEDED", "RECOVERY", now_ns,
@@ -933,39 +940,31 @@ class NavigationPlannerBridge:
         if landing is None or not landing.started:
             return
         target = landing.target_pose
-        speed = math.sqrt(sample.vx ** 2 + sample.vy ** 2 + sample.vz ** 2)
         horizontal_error = math.hypot(
             sample.x - target.x, sample.y - target.y)
-        fresh = (
-            sample.frame_id == self._mission_frame and
-            0 <= now_ns - sample.stamp_ns <=
-            self._executor.config.odom_max_age_ns)
-        control_accepted = (
-            self._control_state == 3 and
-            self._control_state_receipt_ns >= landing.command_sent_ns and
-            now_ns - self._control_state_receipt_ns <=
-            self._executor.config.odom_max_age_ns)
-        landed = (
-            self._landed_state == ExtendedState.LANDED_STATE_ON_GROUND and
-            self._landed_state_receipt_ns >= landing.command_sent_ns and
-            now_ns - self._landed_state_receipt_ns <=
-            self._executor.config.odom_max_age_ns)
-        if not (fresh and control_accepted and landed and
-                horizontal_error <= self._landing_radius and
-                sample.z <= self._landing_height and
-                speed <= self._landing_speed):
-            landing.dwell_start_ns = 0
-            landing.last_odom_ns = 0
+        reason = self._odom_rejection_reason(sample, now_ns)
+        if not reason and self._control_state != 3:
+            reason = "control_state_not_landing"
+        if (not reason and
+                self._control_state_receipt_ns < landing.command_sent_ns):
+            reason = "control_state_predates_land_command"
+        if (not reason and self._landed_state !=
+                ExtendedState.LANDED_STATE_ON_GROUND):
+            reason = "landed_state_not_on_ground"
+        if (not reason and
+                self._landed_state_receipt_ns < landing.command_sent_ns):
+            reason = "landed_state_predates_land_command"
+        if not reason and horizontal_error > self._landing_radius:
+            reason = "landing_radius_not_met"
+        if not reason and sample.z > self._landing_height:
+            reason = "landing_height_not_met"
+        if reason:
+            self._landing_settle.reset(reason)
             return
-        if (landing.last_odom_ns and
-                sample.stamp_ns - landing.last_odom_ns >
-                self._executor.config.odom_max_age_ns):
-            landing.dwell_start_ns = 0
-        if landing.dwell_start_ns == 0:
-            landing.dwell_start_ns = sample.stamp_ns
-        landing.last_odom_ns = sample.stamp_ns
-        if (sample.stamp_ns - landing.dwell_start_ns <
-                self._landing_dwell_ns):
+
+        settle = self._landing_settle.update(
+            sample.stamp_ns, sample.x, sample.y, sample.z)
+        if not settle.ready:
             return
         outcome = self._executor.report_landing(
             landing.decision.decision_seq,
@@ -1183,8 +1182,8 @@ class NavigationPlannerBridge:
                         return
                     transaction.phase = "RECOVERY"
                     transaction.release_ack_ns = now_ns
-                    transaction.recovery_dwell_start_ns = 0
-                    transaction.recovery_last_odom_ns = 0
+                    self._recovery_settle.reset(
+                        "awaiting_post_release_state")
                 else:
                     if transaction is self._pending_release:
                         transaction.phase = "TERMINAL"
@@ -1236,6 +1235,7 @@ class NavigationPlannerBridge:
                         raise RuntimeError(outcome.reason)
                     self._apply_outcome(outcome)
                     landing.started = True
+                    self._landing_settle.reset("awaiting_landed_state")
             except Exception as error:  # pylint: disable=broad-except
                 self._handle_callback_exception("control_state", error)
 
@@ -1296,10 +1296,24 @@ class NavigationPlannerBridge:
                 "strict_context_observed": bool(
                     self._transaction is not None and
                     self._transaction.strict_evidence_stamp_ns > 0),
+                "recovery_settle": {
+                    "reason": self._recovery_settle.result.reason,
+                    "elapsed_sec": round(
+                        self._recovery_settle.result.elapsed_ns / 1e9, 3),
+                    "displacement_m": round(
+                        self._recovery_settle.result.displacement_m, 4),
+                },
             },
             "landing_decision_seq": (
                 self._landing.decision.decision_seq
                 if self._landing is not None else 0),
+            "landing_settle": {
+                "reason": self._landing_settle.result.reason,
+                "elapsed_sec": round(
+                    self._landing_settle.result.elapsed_ns / 1e9, 3),
+                "displacement_m": round(
+                    self._landing_settle.result.displacement_m, 4),
+            },
             "executor": {
                 "faulted": snapshot.faulted,
                 "fault_reason": snapshot.fault_reason,
