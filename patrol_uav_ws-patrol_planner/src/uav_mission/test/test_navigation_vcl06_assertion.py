@@ -725,6 +725,25 @@ class Vcl06GateReducerTest(unittest.TestCase):
                       reducer.errors)
         self.assertEqual(reducer._bound_command_keys(), set())
 
+    def test_approach_command_allows_bounded_source_clock_jitter(self):
+        reducer = MODULE.Vcl06GateReducer(
+            command_stamp_future_tolerance_sec=0.05)
+        item = decision(
+            1, MODULE.APPROACH, 10.0, 100.0, 1, 11, 101, "tent")
+        reducer.observe_decision(item)
+        reducer.observe_mission_command(
+            MODULE.APPROACH, 1, 11, "tent", int(9.96e9))
+        self.assertEqual(reducer.errors, [])
+        self.assertEqual(reducer._bound_command_keys(), {("mission-1", 1)})
+
+        too_early = MODULE.Vcl06GateReducer(
+            command_stamp_future_tolerance_sec=0.05)
+        too_early.observe_decision(item)
+        too_early.observe_mission_command(
+            MODULE.APPROACH, 1, 11, "tent", int(9.949e9))
+        self.assertIn("mission_command_approach_stamp_out_of_range",
+                      too_early.errors)
+
     def test_ros_shell_uses_nested_goal_business_sequence(self):
         calls = []
 

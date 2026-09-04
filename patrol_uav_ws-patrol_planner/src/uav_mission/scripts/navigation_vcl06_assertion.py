@@ -246,6 +246,7 @@ class Vcl06GateReducer:
                  mission_frame="camera_init", field_bounds=None,
                  max_height=4.0, max_mission_sec=600.0,
                  forced_return_sec=510.0,
+                 command_stamp_future_tolerance_sec=0.05,
                  expected_goal_publisher="/navigation/planner_bridge",
                  post_delivery_route=(),
                  post_delivery_route_revision="direct-home-v1",
@@ -262,6 +263,12 @@ class Vcl06GateReducer:
         self.max_height = float(max_height)
         self.max_mission_sec = float(max_mission_sec)
         self.forced_return_sec = float(forced_return_sec)
+        tolerance_sec = float(command_stamp_future_tolerance_sec)
+        if (not _finite(tolerance_sec) or tolerance_sec < 0.0 or
+                tolerance_sec > 1.0):
+            raise ValueError("command stamp future tolerance invalid")
+        self.command_stamp_future_tolerance_ns = int(round(
+            tolerance_sec * 1_000_000_000))
         self.expected_goal_publisher = str(expected_goal_publisher)
         self.post_delivery_route = _normalize_route(post_delivery_route)
         self.post_delivery_route_revision = str(
@@ -647,8 +654,10 @@ class Vcl06GateReducer:
                 if (decision.target_id != command.target_id or
                         decision.target_class != command.target_class):
                     self._error("mission_command_approach_fence_mismatch")
-                elif not (decision.issued_ns <= command.stamp_ns <
-                          decision.deadline_ns):
+                elif not (
+                        decision.issued_ns -
+                        self.command_stamp_future_tolerance_ns <=
+                        command.stamp_ns < decision.deadline_ns):
                     self._error("mission_command_approach_stamp_out_of_range")
                 else:
                     self.approach_command_bindings[index] = decision.key
@@ -1150,6 +1159,8 @@ class NavigationVcl06AssertionNode:
                 "~max_mission_sec", 600.0)),
             forced_return_sec=float(rospy.get_param(
                 "~mission/forced_return_at", 420.0)),
+            command_stamp_future_tolerance_sec=float(rospy.get_param(
+                "~readiness/stamp_future_tolerance", 0.05)),
             expected_goal_publisher=self._expected_goal_publisher,
             post_delivery_route=rospy.get_param(
                 "~mission/post_delivery_route", []),
