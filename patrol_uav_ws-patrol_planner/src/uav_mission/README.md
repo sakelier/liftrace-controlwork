@@ -30,6 +30,17 @@ navigation_post_delivery_vcl06.launch
 APPROACH/投递动作；其 PASS 不能替代正式入口的三投整场 PASS。正式入口的
 `mission_start_mode` 和 `gate_scope` 默认值均为 `full`。
 
+已经有三门实跑证据、只需复测降落修复时，使用更窄的专项入口：
+
+```text
+navigation_landing_vcl06.launch
+  -> 仅发送版本化路线的最后一个 H 航点
+  -> H 新鲜证据 → 对齐 → LAND → 落地并上锁
+  -> gate_scope=landing，拒绝投递动作且不重复三门路线
+```
+
+该入口同样保留 0 个 payload commit，PASS 只代表降落环节通过。
+
 ## 比赛 profile
 
 正式 profile 固定为 `r2026`：

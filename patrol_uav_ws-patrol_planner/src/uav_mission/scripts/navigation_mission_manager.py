@@ -164,9 +164,9 @@ class NavigationMissionManager:
             raise ValueError("r2026 requires map readiness")
         if not self._mission_id_prefix.strip():
             raise ValueError("runtime/mission_id_prefix must not be empty")
-        if self._start_mode not in ("full", "post_delivery"):
+        if self._start_mode not in ("full", "post_delivery", "landing"):
             raise ValueError(
-                "runtime/start_mode must be full or post_delivery")
+                "runtime/start_mode must be full, post_delivery or landing")
 
     def _mission_config(self):
         mission_frame = rospy.get_param("~mission/frame", "camera_init")
@@ -479,6 +479,9 @@ class NavigationMissionManager:
                 )
                 if self._start_mode == "post_delivery":
                     outcome = runtime.start_post_delivery_validation(
+                        mission_id, now, self._current_xy())
+                elif self._start_mode == "landing":
+                    outcome = runtime.start_landing_validation(
                         mission_id, now, self._current_xy())
                 else:
                     outcome = runtime.start(

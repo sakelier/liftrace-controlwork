@@ -336,6 +336,21 @@ class MissionRuntime:
             return self._outcome(
                 True, "post_delivery_validation_started", action=action)
 
+    def start_landing_validation(
+            self, mission_id: str, now: float, current_xy
+            ) -> RuntimeOutcome:
+        """Start only the final H approach and LAND integration stage."""
+
+        with self._lock:
+            if self._started:
+                raise RuntimeError("mission runtime has already started")
+            now = self._validate_now(now)
+            self._set_current_xy(current_xy)
+            action = self.core.start_landing_validation(mission_id, now)
+            self._started = True
+            return self._outcome(
+                True, "landing_validation_started", action=action)
+
     def ingest(self, candidates: Sequence[CandidateSnapshot],
                now: float) -> RuntimeOutcome:
         """Atomically ingest candidates; tick performs scheduling."""

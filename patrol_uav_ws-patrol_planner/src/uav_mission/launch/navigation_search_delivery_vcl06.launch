@@ -15,8 +15,8 @@
   <arg name="record_debug" default="false" />
   <arg name="external_planner_max_command_z" default="3.5" />
   <arg name="search_altitude" default="2.4" />
-  <!-- full is the competition path. post_delivery is an explicit segmented
-       validation entry and must be paired with the matching Gate scope. -->
+  <!-- full is the competition path. post_delivery and landing are explicit
+       segmented entries and must be paired with matching Gate scopes. -->
   <arg name="mission_start_mode" default="full" />
   <arg name="gate_scope" default="full" />
 

@@ -143,10 +143,11 @@ class NavigationManagerContractTest(unittest.TestCase):
 
     def test_post_delivery_start_is_explicit_and_reported(self):
         self.assertIn(
-            'self._start_mode not in ("full", "post_delivery")',
+            'self._start_mode not in ("full", "post_delivery", "landing")',
             self.source)
         self.assertIn("runtime.start_post_delivery_validation(",
                       self.source)
+        self.assertIn("runtime.start_landing_validation(", self.source)
         self.assertIn('"start_mode": self._start_mode', self.source)
 
     def test_r2026_readiness_and_callbacks_fail_closed(self):
