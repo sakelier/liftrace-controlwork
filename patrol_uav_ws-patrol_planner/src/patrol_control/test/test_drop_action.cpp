@@ -42,6 +42,17 @@ TEST(DropActionTest, VisionModeRequiresFreshMissionPermission) {
   EXPECT_TRUE(patrol_control::canRequestDrop(true, gate));
 }
 
+TEST(DropActionTest, LegacyAlignmentKeepsHistoricalTimeout) {
+  EXPECT_TRUE(patrol_control::alignmentWindowOpen(false, 29.9, 30.0));
+  EXPECT_TRUE(patrol_control::alignmentWindowOpen(false, 30.0, 30.0));
+  EXPECT_FALSE(patrol_control::alignmentWindowOpen(false, 30.1, 30.0));
+}
+
+TEST(DropActionTest, ExternalAlignmentUsesMissionManagerDeadline) {
+  EXPECT_TRUE(patrol_control::alignmentWindowOpen(true, 30.1, 30.0));
+  EXPECT_TRUE(patrol_control::alignmentWindowOpen(true, 120.0, 30.0));
+}
+
 TEST(DropActionTest, ProjectsPixelOffsetThroughConfiguredCameraAxes) {
   const std::array<double, 4> downward_camera_axes{{-1.0, 0.0, 0.0, 1.0}};
   const std::array<double, 2> body_offset =

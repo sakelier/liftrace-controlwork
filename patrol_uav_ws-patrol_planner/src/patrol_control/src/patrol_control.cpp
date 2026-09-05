@@ -2912,7 +2912,10 @@ bool LLController::CrossDetectionDone() {
     dis_to_next_position = distance3d(uav_pose.pose.position.x, uav_pose.pose.position.y, uav_pose.pose.position.z,
         adjust_target_position[0], adjust_target_position[1],uav_pose.pose.position.z);
     ROS_INFO("[crossdetectiondone]dis_to yes or no %.2f",dis_to_next_position);
-    if (elapsed_time <= 30) {
+    // External missions already have one authoritative action deadline in the
+    // Mission Manager. Keep the historical 30 s limit only for legacy mode.
+    if (patrol_control::alignmentWindowOpen(
+            external_mission_mode_, elapsed_time, 30.0)) {
         if(have_cross_mark &&
            count_aligning < 50 &&
            (dis_to_next_position <= 0.07 || (current_align_mode_ == "drop_cross" && uav_drop_ready_))){

@@ -42,6 +42,13 @@ inline bool canRequestDrop(bool require_mission_permission,
             gate.mission_permission_fresh);
 }
 
+inline bool alignmentWindowOpen(bool external_mission_mode,
+                                double elapsed_seconds,
+                                double legacy_timeout_seconds) {
+    return external_mission_mode ||
+           elapsed_seconds <= legacy_timeout_seconds;
+}
+
 inline std::array<double, 2> projectPixelOffsetToBody(
     double dx_px, double dy_px, double pixel_to_meter_ratio,
     const std::array<double, 4>& pixel_to_body_matrix) {
