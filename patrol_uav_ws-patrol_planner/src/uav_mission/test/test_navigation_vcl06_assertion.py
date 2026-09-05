@@ -393,6 +393,20 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertLessEqual(report["metrics"]["mission_ros_sec"], 600.0)
         self.assertAlmostEqual(report["metrics"]["mission_ros_sec"], 490.0)
 
+    def test_slow_simulation_wall_clock_is_diagnostic_only(self):
+        reducer = build_passing_reducer()
+        reducer.first_decision_receipt_wall = 100.0
+        reducer.land_success_receipt_wall = 1900.0
+        report = reducer.report()
+
+        self.assertEqual(report["status"], "PASS", report)
+        self.assertNotIn("mission_wall_within_limit", report["checks"])
+        self.assertEqual(report["metrics"]["mission_wall_sec"], 1800.0)
+        self.assertAlmostEqual(
+            report["metrics"]["simulation_realtime_factor"],
+            report["metrics"]["mission_ros_sec"] / 1800.0,
+        )
+
     def test_complete_corridor_route_and_three_doors_pass(self):
         reducer = build_corridor_reducer()
         report = reducer.report()

@@ -29,7 +29,8 @@ mission:
   # 绕障先爬升后下降，60 s 时仍在持续收敛。统一留 90 s 运动 lease，
   # 但继续服从 420 s 强制返航与 600 s 整场硬限。
   motion_action_timeout: 90.0
-  landing_action_timeout: 90.0
+  # LAND 是最终阶段，只服从从任务开始计的 600 s 全场时限；不再额外
+  # 设置会把正常 H 对齐/下降误判成“需要重捕”的短事务超时。
   result_future_tolerance: 0.1
   home_xy: [0.0, 0.0]
   # All points are camera_init coordinates derived from toudi3_random.world.

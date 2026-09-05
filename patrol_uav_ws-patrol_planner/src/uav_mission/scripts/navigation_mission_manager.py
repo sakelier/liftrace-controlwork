@@ -222,8 +222,6 @@ class NavigationMissionManager:
                 "~mission/target_action_timeout", 90.0),
             motion_action_timeout=rospy.get_param(
                 "~mission/motion_action_timeout", 90.0),
-            landing_action_timeout=rospy.get_param(
-                "~mission/landing_action_timeout", 90.0),
             result_future_tolerance=rospy.get_param(
                 "~mission/result_future_tolerance", 0.1),
             home_xy=rospy.get_param("~mission/home_xy", [0.0, 0.0]),

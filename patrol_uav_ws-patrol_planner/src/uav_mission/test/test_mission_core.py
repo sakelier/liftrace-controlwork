@@ -999,6 +999,10 @@ class MissionCoreTest(unittest.TestCase):
 
         self.assertEqual(next_action.command, "LAND")
         self.assertEqual(next_action.reason, "post_delivery_route_complete")
+        self.assertEqual(
+            next_action.deadline_at,
+            core.started_at + core.config.mission_timeout,
+        )
         self.assertEqual(core.post_delivery_route_index, len(route))
         self.assertEqual(core.phase, MissionPhase.LAND)
 

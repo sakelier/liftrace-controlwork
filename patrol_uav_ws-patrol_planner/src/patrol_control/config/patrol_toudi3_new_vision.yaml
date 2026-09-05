@@ -34,8 +34,8 @@ external_landing:
   mark_max_age_sec: 0.50
   stable_frames: 10
   auto_land_retry_sec: 1.0
-  # Mission Manager 的 LAND deadline 为 90 s；本项只处理控制进程失联，
-  # 必须更晚，不能与任务层竞争终态所有权。
+  # 本项只处理控制进程失联；LAND 业务阶段只服从任务开始后 600 s
+  # 的全场时限，不再另设“重捕”事务截止。
   watchdog_timeout_sec: 120.0
 
 progressive_descent:

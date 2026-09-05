@@ -213,7 +213,6 @@ class MissionConfig:
     return_altitude: float = 2.2
     target_action_timeout: float = 90.0
     motion_action_timeout: float = 90.0
-    landing_action_timeout: float = 90.0
     result_future_tolerance: float = 0.1
     home_xy: Tuple[float, float] = (0.0, 0.0)
     post_delivery_route: Tuple[GoalSnapshot, ...] = ()
@@ -238,7 +237,6 @@ class MissionConfig:
             "return_altitude": self.return_altitude,
             "target_action_timeout": self.target_action_timeout,
             "motion_action_timeout": self.motion_action_timeout,
-            "landing_action_timeout": self.landing_action_timeout,
             "landing_anchor_tolerance": self.landing_anchor_tolerance,
         }
         for name, value in positive.items():
@@ -1070,11 +1068,14 @@ class MissionCore:
                 self.phase = MissionPhase.LAND
                 return True, "post_delivery_route_complete", self._new_action(
                     "LAND", "post_delivery_route_complete", now,
-                    timeout=self.config.landing_action_timeout)
+                    # LAND is the terminal mission stage.  It consumes the
+                    # remaining competition-time budget instead of inventing
+                    # a second, shorter recapture deadline.
+                    timeout=self.config.mission_timeout)
             self.phase = MissionPhase.LAND
             return True, "return_home_complete", self._new_action(
                 "LAND", "return_home_complete", now,
-                timeout=self.config.landing_action_timeout)
+                timeout=self.config.mission_timeout)
         if action.command == "LAND":
             if event.status != "SUCCEEDED":
                 return True, "landing_failed", self._abort_action(

@@ -320,10 +320,8 @@ class ExternalMissionContractTest(unittest.TestCase):
                 self.assertGreater(landing["watchdog_timeout_sec"], 0.0)
                 runtime = yaml.safe_load(
                     RUNTIME_CONFIG.read_text(encoding="utf-8"))
-                self.assertGreater(
-                    landing["watchdog_timeout_sec"],
-                    runtime["mission"]["landing_action_timeout"],
-                )
+                self.assertNotIn(
+                    "landing_action_timeout", runtime["mission"])
                 self.assertIs(config["switch"]["auto_land"], True)
 
 
