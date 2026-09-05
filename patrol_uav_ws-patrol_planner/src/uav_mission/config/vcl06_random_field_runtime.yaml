@@ -35,14 +35,15 @@ mission:
   # All points are camera_init coordinates derived from toudi3_random.world.
   # The route first crosses the low Wall_15 opening south-to-north, then the
   # Wall_20 and Wall_22 scoring doors west-to-east, and ends above the final H.
-  post_delivery_route_revision: toudi3-random-three-door-h-r3
+  post_delivery_route_revision: toudi3-random-three-door-h-r4
   landing_xy: [3.274292, 8.057220]
   landing_anchor_tolerance: 0.05
   post_delivery_route:
-    # 三次投递的终点随靶标随机位置变化。先在 Wall_15 南侧锚点正上方
-    # 建立 2.2 m 高空过渡（高于 1.5 m 隔离墙），再原地下降进入门洞高度；
-    # 避免把“随机区退出、水平绕障、低空窄点收敛”塞进同一个规划动作。
-    - [-2.386703, 5.672270, 2.20]  # random field -> corridor overhead staging
+    # 三次投递的终点随靶标随机位置变化。先在 Wall_15 南侧 1 m 建立
+    # 2.2 m 高空过渡（高于 1.5 m 隔离墙），再沿 +y 下降到已由
+    # r20/r26/r33 验证的门前点。这保留 r33 进门时的接近方向，不再原地
+    # 下降至悬停后要求 Fast-Planner 从静止状态突然穿过窄门。
+    - [-2.386703, 4.672270, 2.20]  # random field -> south overhead staging
     # Do not stop on a wall plane: the occupancy grid can mark the plane voxel
     # occupied even when the continuous vehicle path fits through the opening.
     # Keep the r20/r26 proven brackets around the 2025 competition waypoints;

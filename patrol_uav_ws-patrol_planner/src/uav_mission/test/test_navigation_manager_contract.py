@@ -84,10 +84,10 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["motion_action_timeout"], 90.0)
         self.assertEqual(
             mission["post_delivery_route_revision"],
-            "toudi3-random-three-door-h-r3",
+            "toudi3-random-three-door-h-r4",
         )
         self.assertEqual(len(route), 9)
-        self.assertEqual(route[0], [-2.386703, 5.672270, 2.2])
+        self.assertEqual(route[0], [-2.386703, 4.672270, 2.2])
         self.assertEqual(route[1], [-2.386703, 5.672270, 0.9])
         self.assertEqual(route[2], [-2.386703, 6.472270, 0.9])
         self.assertEqual(route[4], [-0.512003, 8.053133, 1.2])
@@ -97,7 +97,9 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(route[-1][:2], mission["landing_xy"])
         self.assertLessEqual(max(point[2] for point in route), 4.0)
         self.assertGreater(route[0][2], 1.5)
-        self.assertEqual(route[0][:2], route[1][:2])
+        self.assertEqual(route[0][0], route[1][0])
+        self.assertLess(route[0][1], route[1][1])
+        self.assertAlmostEqual(route[1][1] - route[0][1], 1.0)
         doors = self.formal_config["post_delivery_gate"]["doors"]
         self.assertEqual(
             [door["route_indices"] for door in doors], [[3], [6], [8]])

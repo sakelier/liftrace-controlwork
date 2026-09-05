@@ -87,6 +87,46 @@ class ExternalMissionContractTest(unittest.TestCase):
         self.assertIn("have_cross_mark = true", align_body)
         self.assertIn("have_waypoint_mark = true", align_body)
 
+    def test_external_mode_has_one_control_tick_and_no_legacy_subscription(self):
+        source = (PATROL / "src" / "patrol_control.cpp").read_text(
+            encoding="utf-8")
+        position_start = source.index("void LLController::positionCallback")
+        position_end = source.index(
+            "void LLController::publishControlReady", position_start)
+        position_body = source[position_start:position_end]
+        self.assertNotIn("externalMissionTick();", position_body)
+        self.assertEqual(source.count("externalMissionTick();"), 1)
+
+        timer_start = source.index("void LLController::cmdCallback")
+        timer_end = source.index("void LLController::Lock", timer_start)
+        timer_body = source[timer_start:timer_end]
+        self.assertIn("externalMissionTick();", timer_body)
+        self.assertIn(
+            "if (external_mission_mode_) {\n"
+            "                ROS_INFO_THROTTLE(\n"
+            "                    5, \"[PatrolControl] Forwarding external alignment setpoint\");\n"
+            "                break;",
+            timer_body,
+        )
+        external_run = timer_body[
+            timer_body.index("if (external_mission_mode_)"):
+            timer_body.index("if (current_task_type == MAIN_MISSION)")]
+        self.assertIn("hasValidExternalPlannerCommand", external_run)
+        self.assertNotIn("if (!flag_planner_px4)", external_run)
+        self.assertNotIn("mavros_point_cmd = patrol_cmd;", external_run)
+
+        init_start = source.index("void LLController::initializeNode")
+        init_end = source.index("void LLController::positionCallback", init_start)
+        init_body = source[init_start:init_end]
+        for topic in (
+                "/detect/waypoint_mark_point", "/detect/cross_mark_point",
+                "/yolo_detect", "/detect/tank_status",
+                "/detect/cross_status", "/uav_vision/selected_target"):
+            topic_index = init_body.index(topic)
+            guard_index = init_body.rfind(
+                "if (!external_mission_mode_)", 0, topic_index)
+            self.assertNotEqual(guard_index, -1, topic)
+
     def test_control_readiness_is_latched_after_takeoff(self):
         header = (PATROL / "include" / "patrol_control" /
                   "patrol_control.h").read_text(encoding="utf-8")

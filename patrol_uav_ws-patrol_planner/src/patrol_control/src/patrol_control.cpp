@@ -120,11 +120,22 @@ void LLController::initializeNode() {
     pose_sub_ = nh_.subscribe("/mavros/local_position/pose", 1,&LLController::positionCallback, this);
     fastplanner_cmd_sub_ = nh_.subscribe("/fastplanner/setpoint_position/local", 1,&LLController::plannercmdCallback, this);
     mavros_point_cmd_pub = nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 50);//px4 直接接收
-    detect_sub_ = nh_.subscribe("/detect/waypoint_mark_point", 1,&LLController::waypointMarkCallback, this);
-    cross_mark_sub_ = nh_.subscribe("/detect/cross_mark_point", 1,&LLController::crossMarkCallback, this);
-    class_sub_ = nh_.subscribe("/yolo_detect", 1,&LLController::ClassCallback, this);
+    if (!external_mission_mode_) {
+        detect_sub_ = nh_.subscribe(
+            "/detect/waypoint_mark_point", 1,
+            &LLController::waypointMarkCallback, this);
+        cross_mark_sub_ = nh_.subscribe(
+            "/detect/cross_mark_point", 1,
+            &LLController::crossMarkCallback, this);
+        class_sub_ = nh_.subscribe(
+            "/yolo_detect", 1, &LLController::ClassCallback, this);
+    }
     land_client = nh_.serviceClient<mavros_msgs::CommandLong>("/mavros/cmd/command");
-    servo_marky_sub_ = nh_.subscribe("/detect/servo_complete", 1,&LLController::servoMarkyCallback, this);
+    if (!external_mission_mode_) {
+        servo_marky_sub_ = nh_.subscribe(
+            "/detect/servo_complete", 1,
+            &LLController::servoMarkyCallback, this);
+    }
     servo_status_pub_ = nh_.advertise<std_msgs::Bool>("/detect/servo_status", 1);
     land_mark_sub_ = nh_.subscribe("/detect/land_mark_point", 1,&LLController::landMarkCallback, this);
     //send goal to planner
@@ -138,7 +149,11 @@ void LLController::initializeNode() {
     servo_complete_sub_ = nh_.subscribe("/servo/complete", 1,&LLController::servoCompleteCallback, this);
     class_control_pub_ = nh_.advertise<std_msgs::Bool>("/detect/class_control", 1);
     tank_control_pub_ = nh_.advertise<std_msgs::Bool>("/detect/tank_control",1);
-    tank_status_sub_ = nh_.subscribe("/detect/tank_status", 1,&LLController::TankStatusCallback,this);
+    if (!external_mission_mode_) {
+        tank_status_sub_ = nh_.subscribe(
+            "/detect/tank_status", 1,
+            &LLController::TankStatusCallback, this);
+    }
     // detection_status_sub_ = nh_.subscribe<const std_msgs::Bool&>("/detect/cross_status", 1,&LLController::CrossStatusCallback, this);
     // 设置px4工作模式 land
     set_mode_client = nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
@@ -165,10 +180,21 @@ void LLController::initializeNode() {
     // 十字检测相关订阅者和发布者
     // cross_pixel_offset_sub_ = nh_.subscribe("/detect/cross_pixel_offset", 1, &LLController::crossPixelOffsetCallback, this);
     // cross_center_sub_ = nh_.subscribe("/detect/cross_center", 1, &LLController::crossCenterCallback, this);
-    cross_status_sub_ = nh_.subscribe("/detect/cross_status", 1, &LLController::crossStatusCallback, this);
+    if (!external_mission_mode_) {
+        cross_status_sub_ = nh_.subscribe(
+            "/detect/cross_status", 1,
+            &LLController::crossStatusCallback, this);
+    }
     cross_control_pub_ = nh_.advertise<std_msgs::Bool>("/cross/control", 1);
-    selected_target_sub_ = nh_.subscribe("/uav_vision/selected_target", 1,
-                                         &LLController::selectedTargetCallback, this);
+    if (!external_mission_mode_) {
+        selected_target_sub_ = nh_.subscribe(
+            "/uav_vision/selected_target", 1,
+            &LLController::selectedTargetCallback, this);
+    } else {
+        ROS_INFO(
+            "[PatrolControl] External mission mode uses only MissionCommand "
+            "for target identity; legacy policy subscriptions are disabled");
+    }
     drop_offset_sub_ = nh_.subscribe("/uav_vision/drop_offset", 1,
                                      &LLController::dropOffsetCallback, this);
     drop_ready_sub_ = nh_.subscribe("/uav_vision/drop_ready", 1,
@@ -243,12 +269,8 @@ void LLController::positionCallback(const geometry_msgs::PoseStamped& msg) {
             }
         }
     }
-    else {
-        if (external_mission_mode_) {
-            externalMissionTick();
-        } else {
-            patrol();
-        }
+    else if (!external_mission_mode_) {
+        patrol();
     }
 }
 
@@ -292,6 +314,14 @@ void LLController::externalMissionTick() {
     if (align_done) {
         detect_enable_msg.data = false;
         detect_control_pub_.publish(detect_enable_msg);
+        // Do not resume the still-fresh approach trajectory while Mission
+        // Manager is preparing the next RESUME/RETURN_HOME transaction.
+        // Hold the measured pose until a new planner command arrives.
+        patrol_cmd = uav_pose;
+        patrol_cmd.header.frame_id = "camera_init";
+        mavros_point_cmd = patrol_cmd;
+        last_mavros_point_cmd = patrol_cmd;
+        have_planner_cmd = false;
         Drone_mode = Run_point;
         ROS_INFO("[PatrolControl] External ALIGN completed; waiting for RESUME command");
     }
@@ -894,6 +924,13 @@ void LLController::cmdCallback(const ros::TimerEvent& event) {
         have_drop_offset_ = false;
         uav_drop_ready_ = false;
     }
+    // External mission state advances from this single 20 Hz control clock.
+    // Pose callbacks only update state; they must not run alignment/release a
+    // second time at the sensor publication rate.
+    if (external_mission_mode_ &&
+        (Drone_mode == Aligning || Drone_mode == Land)) {
+        externalMissionTick();
+    }
     publishAlignMode(desiredAlignMode());
     std_msgs::Int8 point_class_msg;
     point_class_msg.data = Drone_mode;
@@ -921,25 +958,24 @@ void LLController::cmdCallback(const ros::TimerEvent& event) {
             adjust_target_position[2] = uav_pose.pose.position.z;
             detect_control_pub_.publish(detect_enable_msg_temp);
             if (external_mission_mode_) {
-                if (!flag_planner_px4) {
-                    if (hasValidExternalPlannerCommand()) {
-                        mavros_point_cmd = planner_cmd;
-                        if (mavros_point_cmd.pose.position.z >
-                                external_planner_max_command_z_) {
-                            ROS_WARN_THROTTLE(
-                                1.0,
-                                "[ExternalPlanner] capping command height=%.3f "
-                                "to %.3f while preserving horizontal progress",
-                                mavros_point_cmd.pose.position.z,
-                                external_planner_max_command_z_);
-                            mavros_point_cmd.pose.position.z =
-                                external_planner_max_command_z_;
-                        }
-                    } else {
-                        mavros_point_cmd = last_mavros_point_cmd;
+                // The external task chain has exactly one motion source:
+                // Planner Bridge -> Fast-Planner -> planner_cmd.  The 2025
+                // flag_planner_px4 switch remains a legacy-mode option only.
+                if (hasValidExternalPlannerCommand()) {
+                    mavros_point_cmd = planner_cmd;
+                    if (mavros_point_cmd.pose.position.z >
+                            external_planner_max_command_z_) {
+                        ROS_WARN_THROTTLE(
+                            1.0,
+                            "[ExternalPlanner] capping command height=%.3f "
+                            "to %.3f while preserving horizontal progress",
+                            mavros_point_cmd.pose.position.z,
+                            external_planner_max_command_z_);
+                        mavros_point_cmd.pose.position.z =
+                            external_planner_max_command_z_;
                     }
                 } else {
-                    mavros_point_cmd = patrol_cmd;
+                    mavros_point_cmd = last_mavros_point_cmd;
                 }
                 ROS_INFO_THROTTLE(5, "[PatrolControl] Forwarding external planner trajectory");
                 break;
@@ -1131,6 +1167,11 @@ void LLController::cmdCallback(const ros::TimerEvent& event) {
         case Aligning: { // 位置调整
             have_planner_cmd = false;
             mavros_point_cmd = patrol_cmd;
+            if (external_mission_mode_) {
+                ROS_INFO_THROTTLE(
+                    5, "[PatrolControl] Forwarding external alignment setpoint");
+                break;
+            }
             // std::cout<<"mavros_point_cmd.pose.position.x, mavros_point_cmd.pose.position.y, mavros_point_cmd.pose.position.z = "<<mavros_point_cmd.pose.position.x<<", "<<mavros_point_cmd.pose.position.y<<", "<<mavros_point_cmd.pose.position.z<<std::endl;
 
             if (current_task_type == MAIN_MISSION) {
