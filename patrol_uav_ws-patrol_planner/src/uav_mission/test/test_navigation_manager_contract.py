@@ -179,6 +179,12 @@ class NavigationManagerContractTest(unittest.TestCase):
             self.source,
         )
 
+    def test_readiness_enforces_ceiling_not_local_frame_floor(self):
+        self.assertIn("if position.z > 4.0:", self.source)
+        self.assertNotIn("position.z < 0.0", self.source)
+        self.assertIn(
+            'return False, "pose_altitude_out_of_bounds"', self.source)
+
     def test_readiness_accepts_only_bounded_future_stamp_jitter(self):
         manager = next(
             node for node in self.tree.body

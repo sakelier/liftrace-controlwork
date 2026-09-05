@@ -292,7 +292,9 @@ class NavigationMissionManager:
         if not all(math.isfinite(value) for value in
                    (position.x, position.y, position.z)):
             return False, "pose_non_finite"
-        if position.z < 0.0 or position.z > 4.0:
+        # camera_init is a local estimator frame, not a ground-clearance
+        # datum.  A small negative z during touchdown is therefore valid.
+        if position.z > 4.0:
             return False, "pose_altitude_out_of_bounds"
         if not self._require_map:
             return True, "ready"
