@@ -569,7 +569,7 @@ class MissionCoreTest(unittest.TestCase):
             timer_action.deadline_at,
         )
         self.assertFalse(accepted)
-        self.assertEqual(reason, "result_precedes_decision")
+        self.assertEqual(reason, "decision_mismatch")
         self.assertTrue(timer_first.mission_failed)
         self.assertEqual(
             result_first.active_action.command,
@@ -628,7 +628,7 @@ class MissionCoreTest(unittest.TestCase):
             timer_land.deadline_at,
         )
         self.assertFalse(accepted)
-        self.assertEqual(reason, "result_precedes_decision")
+        self.assertEqual(reason, "decision_mismatch")
         self.assertEqual(
             result_first.active_action.command,
             timer_first.active_action.command,
@@ -856,13 +856,22 @@ class MissionCoreTest(unittest.TestCase):
         core = self.make_core()
         action = self.dispatch(core, candidate(now=101.0), now=101.0)
         progress = replace(
-            result_for(action, 1), event_stamp_ns=int(100.9 * NSEC))
+            result_for(action, 1), event_stamp_ns=int(100.899 * NSEC))
         accepted, reason, _ = core.apply_result(progress, 101.1)
         self.assertFalse(accepted)
         self.assertEqual(reason, "result_precedes_decision")
         corrected = replace(
             progress, event_stamp_ns=int(101.01 * NSEC))
         self.assertTrue(core.apply_result(corrected, 101.1)[0])
+
+    def test_result_source_clock_jitter_uses_existing_tolerance(self):
+        core = self.make_core()
+        action = self.dispatch(core, candidate(now=101.0), now=101.0)
+        slightly_early = replace(
+            result_for(action, 1), event_stamp_ns=int(100.95 * NSEC))
+        accepted, reason, _ = core.apply_result(slightly_early, 101.1)
+        self.assertTrue(accepted, reason)
+        self.assertEqual(reason, "progress_recorded")
 
     def test_duplicate_and_out_of_order_results_are_idempotent(self):
         core = self.make_core()

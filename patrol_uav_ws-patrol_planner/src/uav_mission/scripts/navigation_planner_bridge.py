@@ -249,8 +249,6 @@ class NavigationPlannerBridge:
                 rospy.get_param("~execution/planner_accept_timeout", 5.0)),
             max_effective_goal_offset_m=float(rospy.get_param(
                 "~execution/effective_goal_max_offset", 1.10)),
-            max_planning_attempts=int(rospy.get_param(
-                "~execution/max_planning_attempts", 20)),
             arrival_distance_m=float(rospy.get_param(
                 "~execution/arrival_position_tolerance", 0.30)),
             approach_arrival_distance_m=float(rospy.get_param(

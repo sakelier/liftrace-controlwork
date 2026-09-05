@@ -68,6 +68,15 @@ STAGE_NAMES = {
     NavigationResult.LANDING: "LANDING",
 }
 
+TRANSIENT_READINESS_FAILURES = frozenset((
+    "pose_missing",
+    "pose_stale",
+    "pose_stamp_in_future",
+    "map_missing",
+    "map_stale",
+    "map_stamp_in_future",
+))
+
 
 def _stamp_to_ns(stamp):
     return int(stamp.secs) * 1_000_000_000 + int(stamp.nsecs)
@@ -530,6 +539,13 @@ class NavigationMissionManager:
                         MissionPhase.COMPLETE, MissionPhase.ABORTED):
                     ready, reason = self._readiness(now)
                     if not ready:
+                        if reason in TRANSIENT_READINESS_FAILURES:
+                            # Do not turn one delayed transport sample into a
+                            # flight abort. Hold scheduling; the active action
+                            # and mission deadlines remain authoritative.
+                            self._last_reason = "runtime_waiting_for_%s" % reason
+                            self._publish_status()
+                            return
                         outcome = self._runtime.abort(reason, now)
                         self._last_reason = outcome.reason
                         self._publish_action(outcome.action)

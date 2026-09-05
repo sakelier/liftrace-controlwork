@@ -170,6 +170,11 @@ class NavigationManagerContractTest(unittest.TestCase):
                 self.source,
             )
         self.assertNotIn('abort("executor_changed"', self.source)
+        self.assertIn("TRANSIENT_READINESS_FAILURES", self.source)
+        self.assertIn(
+            'self._last_reason = "runtime_waiting_for_%s" % reason',
+            self.source,
+        )
 
     def test_readiness_accepts_only_bounded_future_stamp_jitter(self):
         manager = next(

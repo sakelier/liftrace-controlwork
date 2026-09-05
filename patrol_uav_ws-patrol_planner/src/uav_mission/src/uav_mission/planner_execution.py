@@ -232,7 +232,6 @@ class PlannerMotionConfig:
     source_future_tolerance_ns: int = 100_000_000
     planner_accept_timeout_ns: int = 5_000_000_000
     max_effective_goal_offset_m: float = 1.10
-    max_planning_attempts: int = 20
     arrival_distance_m: float = 0.30
     approach_arrival_distance_m: float = 0.35
     arrival_speed_mps: float = 0.20
@@ -259,8 +258,6 @@ class PlannerMotionConfig:
             raise ValueError("effective goal offset exceeds the audited bound")
         object.__setattr__(
             self, "max_effective_goal_offset_m", effective_offset)
-        object.__setattr__(self, "max_planning_attempts", _integer(
-            "max_planning_attempts", self.max_planning_attempts, 1))
         distance = _finite("arrival_distance_m", self.arrival_distance_m)
         approach_distance = _finite(
             "approach_arrival_distance_m",
@@ -337,7 +334,6 @@ class _GoalLifecycle:
     dispatch_ns: int
     effective_goal: Optional[MotionGoal] = None
     planning_attempt: int = 0
-    failed_attempt_count: int = 0
     planner_accepted: bool = False
     trajectory_ready: bool = False
     trajectory_ever_ready: bool = False
@@ -716,32 +712,41 @@ class PlannerMotionExecutor:
         status = event.status
         if status == "ACCEPTED":
             if self._awaiting_cancel_goal_seq:
-                return self._fail_closed(
-                    "replacement_accepted_before_cancel")
+                # The single planner replaces its active goal atomically.  A
+                # dropped CANCELLED telemetry message must not reject the
+                # positively identified acceptance of the new generation.
+                self._awaiting_cancel_goal_seq = 0
             if event.planning_attempt != 0:
-                return self._fail_closed("planner_attempt_invalid_for_accept")
+                return self._outcome(
+                    False, "planner_attempt_invalid_for_accept_ignored")
             if state.planner_accepted or state.trajectory_finished:
-                return self._fail_closed("planner_accepted_out_of_order")
+                return self._outcome(
+                    False, "planner_accepted_duplicate_ignored")
             state.planner_accepted = True
             state.effective_goal = effective.goal
             return self._outcome(True, "planner_goal_accepted", events=(
                 self._result(state, int(now_ns), "STARTED", "PLANNER",
                              False, False, "planner_goal_accepted"),))
         if not state.planner_accepted:
-            return self._fail_closed("planner_status_before_accepted")
+            return self._outcome(False, "planner_status_before_accepted_ignored")
         if state.trajectory_finished:
-            return self._fail_closed("planner_status_after_finished")
+            return self._outcome(False, "planner_status_after_finished_ignored")
         if status in ("PLANNING", "REPLANNING"):
-            expected_attempt = state.planning_attempt + 1
-            if event.planning_attempt != expected_attempt:
-                return self._fail_closed("planner_attempt_not_monotonic")
+            if event.planning_attempt <= state.planning_attempt:
+                return self._outcome(False, "stale_planner_attempt_ignored")
             state.planning_attempt = event.planning_attempt
             state.trajectory_ready = False
             state.effective_goal = effective.goal
-        elif (event.planning_attempt != state.planning_attempt or
-              event.planning_attempt < 1):
-            return self._fail_closed("planner_attempt_inconsistent")
         else:
+            if event.planning_attempt < 1:
+                return self._outcome(
+                    False, "planner_attempt_invalid_ignored")
+            if event.planning_attempt < state.planning_attempt:
+                return self._outcome(False, "stale_planner_attempt_ignored")
+            # A bounded ROS subscriber queue may omit the begin-attempt
+            # progress sample.  The current-generation READY/FAILED/FINISHED
+            # fact is sufficient to advance the observed attempt number.
+            state.planning_attempt = event.planning_attempt
             state.effective_goal = effective.goal
         if status == "PLANNING":
             return self._outcome(True, "planner_attempt_started")
@@ -755,22 +760,11 @@ class PlannerMotionExecutor:
                 self._result(state, int(now_ns), "PROGRESS", "PLANNER",
                              False, False, "planner_trajectory_ready"),))
         if status == "FAILED_ATTEMPT":
-            state.failed_attempt_count += 1
-            if state.failed_attempt_count > self.config.max_planning_attempts:
-                if (state.trajectory_ever_ready and
-                        self._has_fresh_near_goal_odom(state, int(now_ns))):
-                    return self._outcome(
-                        True,
-                        "planner_attempt_limit_deferred_for_arrival_settle",
-                    )
-                return self._fail_closed("planner_attempt_limit_exceeded")
             return self._outcome(True, "planner_attempt_failed_nonterminal",
                 events=(self._result(
                     state, int(now_ns), "PROGRESS", "PLANNER", False, False,
                     "planner_attempt_failed_nonterminal"),))
         if status == "TRAJECTORY_FINISHED":
-            if not state.trajectory_ready:
-                return self._fail_closed("trajectory_finished_without_ready")
             state.trajectory_finished = True
             state.finished_stamp_ns = event.stamp_ns
             state.dwell_start_ns = 0
@@ -783,29 +777,6 @@ class PlannerMotionExecutor:
     def _reset_dwell(self, state: _GoalLifecycle) -> None:
         state.dwell_start_ns = 0
         state.last_qualified_odom_ns = 0
-
-    def _has_fresh_near_goal_odom(self, state: _GoalLifecycle,
-                                  now_ns: int) -> bool:
-        sample = self._last_odom
-        goal = state.effective_goal
-        if sample is None or goal is None or sample.frame_id != goal.frame_id:
-            return False
-        if (sample.stamp_ns >
-                int(now_ns) + self.config.source_future_tolerance_ns or
-                max(0, int(now_ns) - sample.stamp_ns) >
-                self.config.odom_max_age_ns):
-            return False
-        distance = math.sqrt(
-            (sample.x - goal.x) ** 2 +
-            (sample.y - goal.y) ** 2 +
-            (sample.z - goal.z) ** 2
-        )
-        arrival_distance = (
-            self.config.approach_arrival_distance_m
-            if state.decision.command == "APPROACH"
-            else self.config.arrival_distance_m
-        )
-        return distance <= arrival_distance
 
     def _complete_arrival(self, state: _GoalLifecycle,
                           now_ns: int) -> ExecutorOutcome:

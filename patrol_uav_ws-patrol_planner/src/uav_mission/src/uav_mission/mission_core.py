@@ -890,10 +890,10 @@ class MissionCore:
             return "event_duplicate_or_out_of_order"
         return "accepted"
 
-    @staticmethod
-    def _validate_result_against_action(event: ResultEvent,
+    def _validate_result_against_action(self, event: ResultEvent,
                                         action: CoreAction) -> str:
-        if event.event_time < action.issued_at:
+        if (event.event_time + self.config.result_future_tolerance <
+                action.issued_at):
             return "result_precedes_decision"
         if event.decision_seq != action.decision_seq:
             return "decision_mismatch"

@@ -15,9 +15,8 @@ execution:
   # until the current replan callback returns.  Five seconds covers the
   # observed loaded-map latency without masking the 60/90 s action deadline.
   planner_accept_timeout: 5.0
-  # Compatibility name: this limits explicit FAILED_ATTEMPT events.  Normal
-  # receding-horizon REPLANNING cycles must not consume the failure budget.
-  max_planning_attempts: 20
+  # Planner retry messages are telemetry, not a physical failure budget.
+  # Motion remains bounded by the per-action deadline from Mission Manager.
   source_future_tolerance: 0.1
   odom_max_age: 0.5
   arrival_position_tolerance: 0.30
