@@ -111,10 +111,10 @@ void KinoReplanFSM::waypointCallback(const geometry_msgs::PoseStamped msg) {
     current_wp_ = (current_wp_ + 1) % waypoint_num_;
   }
 
-  // 计算终端速度，模长为 0.1，方向为收到的 yaw 角方向
-  double yaw = tf::getYaw(msg.pose.orientation);
-  if (std::isnan(yaw)) yaw = 0.0;
-  end_vel_ << 0.1 * cos(yaw), 0.1 * sin(yaw), 0.0;
+  // PoseStamped carries vehicle attitude, not a translational velocity
+  // contract.  A discrete mission goal must therefore end at rest; deriving
+  // +x motion from the default identity quaternion bends narrow-door paths.
+  end_vel_.setZero();
 
   geometry_msgs::PoseStamped effective_goal = msg;
   effective_goal.pose.position.x = end_pt_(0);
