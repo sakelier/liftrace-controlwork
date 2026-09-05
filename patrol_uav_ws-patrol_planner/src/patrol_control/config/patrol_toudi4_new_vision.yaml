@@ -28,6 +28,8 @@ max_yaw_change: 0.20
 # H 证据必须来自 camera_init、晚于 LAND 命令并持续满足新鲜度与稳定帧数。
 external_landing:
   frame: camera_init
+  # 正式链直接消费视觉 typed map detection；旧 PoseStamped 仅留 legacy 模式。
+  detections_topic: /uav_vision/detections_mapped
   capture_height: 0.75
   auto_land_height: 0.40
   alignment_tolerance: 0.08

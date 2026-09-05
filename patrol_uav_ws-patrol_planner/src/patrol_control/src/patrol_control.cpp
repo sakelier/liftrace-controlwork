@@ -89,7 +89,7 @@ LLController::LLController(ros::NodeHandle nh):nh_(nh) {
     // 默认禁用圆形检测
     std_msgs::Bool detect_disable_msg;
     detect_disable_msg.data = false;
-    detect_control_pub_.publish(detect_disable_msg);
+    publishLegacyVisionControl(detect_control_pub_, detect_disable_msg);
 
     std::cout << "\033[47;30m ---------------------------------- Start mission ---------------------------------- \033[0m" << std::endl;
 }
@@ -135,9 +135,19 @@ void LLController::initializeNode() {
         servo_marky_sub_ = nh_.subscribe(
             "/detect/servo_complete", 1,
             &LLController::servoMarkyCallback, this);
+        servo_status_pub_ =
+            nh_.advertise<std_msgs::Bool>("/detect/servo_status", 1);
+        land_mark_sub_ = nh_.subscribe(
+            "/detect/land_mark_point", 1,
+            &LLController::landMarkCallback, this);
+    } else {
+        landing_detections_sub_ = nh_.subscribe(
+            external_landing_detections_topic_, 2,
+            &LLController::landingDetectionsCallback, this);
+        ROS_INFO(
+            "[PatrolControl] External landing consumes typed detections: %s",
+            external_landing_detections_topic_.c_str());
     }
-    servo_status_pub_ = nh_.advertise<std_msgs::Bool>("/detect/servo_status", 1);
-    land_mark_sub_ = nh_.subscribe("/detect/land_mark_point", 1,&LLController::landMarkCallback, this);
     //send goal to planner
     //setplanner_goal_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/planner_planner/goal_position", 1);
     if (!external_mission_mode_) {
@@ -147,9 +157,11 @@ void LLController::initializeNode() {
         ROS_INFO("[PatrolControl] External mission mode active; planner goal publisher disabled");
     }
     servo_complete_sub_ = nh_.subscribe("/servo/complete", 1,&LLController::servoCompleteCallback, this);
-    class_control_pub_ = nh_.advertise<std_msgs::Bool>("/detect/class_control", 1);
-    tank_control_pub_ = nh_.advertise<std_msgs::Bool>("/detect/tank_control",1);
     if (!external_mission_mode_) {
+        class_control_pub_ =
+            nh_.advertise<std_msgs::Bool>("/detect/class_control", 1);
+        tank_control_pub_ =
+            nh_.advertise<std_msgs::Bool>("/detect/tank_control", 1);
         tank_status_sub_ = nh_.subscribe(
             "/detect/tank_status", 1,
             &LLController::TankStatusCallback, this);
@@ -160,11 +172,15 @@ void LLController::initializeNode() {
     cmd_timer = nh_.createTimer(ros::Duration(0.05), &LLController::cmdCallback, this);
 
     // 发布检测控制话题
-    detect_control_pub_ = nh_.advertise<std_msgs::Bool>("/detect/control", 1);
+    if (!external_mission_mode_) {
+        detect_control_pub_ =
+            nh_.advertise<std_msgs::Bool>("/detect/control", 1);
+        landing_detect_control_pub_ =
+            nh_.advertise<std_msgs::Bool>("/detect/landing_control", 1);
+        cross_control_pub_ =
+            nh_.advertise<std_msgs::Bool>("/cross/control", 1);
+    }
     point_class_pub_ = nh_.advertise<std_msgs::Int8>("/detect/point_class",1);
-
-    // 发布降落检测控制话题
-    landing_detect_control_pub_ = nh_.advertise<std_msgs::Bool>("/detect/landing_control", 1);
     align_mode_pub_ = nh_.advertise<std_msgs::String>("/uav_vision/align_mode", 1);
 
     // 初始化舵机控制发布器
@@ -185,7 +201,6 @@ void LLController::initializeNode() {
             "/detect/cross_status", 1,
             &LLController::crossStatusCallback, this);
     }
-    cross_control_pub_ = nh_.advertise<std_msgs::Bool>("/cross/control", 1);
     if (!external_mission_mode_) {
         selected_target_sub_ = nh_.subscribe(
             "/uav_vision/selected_target", 1,
@@ -287,6 +302,14 @@ void LLController::publishControlReady(bool ready) {
     control_ready_pub_.publish(message);
 }
 
+void LLController::publishLegacyVisionControl(
+    ros::Publisher& publisher, const std_msgs::Bool& message) {
+    if (external_mission_mode_) {
+        return;
+    }
+    publisher.publish(message);
+}
+
 void LLController::externalMissionTick() {
     if (Drone_mode == Land) {
         externalLandingTick();
@@ -298,7 +321,7 @@ void LLController::externalMissionTick() {
 
     std_msgs::Bool detect_enable_msg;
     detect_enable_msg.data = true;
-    detect_control_pub_.publish(detect_enable_msg);
+    publishLegacyVisionControl(detect_control_pub_, detect_enable_msg);
     align_ok = true;
     patrol_cmd.pose.position.x = adjust_target_position[0];
     patrol_cmd.pose.position.y = adjust_target_position[1];
@@ -313,7 +336,7 @@ void LLController::externalMissionTick() {
                                              : WayPointDetectDone();
     if (align_done) {
         detect_enable_msg.data = false;
-        detect_control_pub_.publish(detect_enable_msg);
+        publishLegacyVisionControl(detect_control_pub_, detect_enable_msg);
         // Do not resume the still-fresh approach trajectory while Mission
         // Manager is preparing the next RESUME/RETURN_HOME transaction.
         // Hold the measured pose until a new planner command arrives.
@@ -358,7 +381,7 @@ void LLController::clearExternalLandingState(bool disable_detector) {
     if (disable_detector) {
         std_msgs::Bool landing_enable;
         landing_enable.data = false;
-        landing_detect_control_pub_.publish(landing_enable);
+        publishLegacyVisionControl(landing_detect_control_pub_, landing_enable);
     }
 }
 
@@ -384,7 +407,7 @@ void LLController::externalLandingTick() {
 
     std_msgs::Bool landing_enable;
     landing_enable.data = true;
-    landing_detect_control_pub_.publish(landing_enable);
+    publishLegacyVisionControl(landing_detect_control_pub_, landing_enable);
 
     const ros::Time now = ros::Time::now();
     if (flag_land) {
@@ -810,6 +833,37 @@ void LLController::crossMarkCallback(const geometry_msgs::PoseStamped& msg) {
     ROS_INFO("[crossMarkCallback] cross_mark_point: %.2f, %.2f, %.2f", cross_mark_point.pose.position.x, cross_mark_point.pose.position.y, cross_mark_point.pose.position.z);
 }
 
+void LLController::landingDetectionsCallback(
+    const uav_vision::TargetDetectionArray::ConstPtr& msg)
+{
+    if (!external_mission_mode_) {
+        return;
+    }
+
+    const uav_vision::TargetDetection* best = nullptr;
+    float best_confidence = -1.0F;
+    for (const auto& detection : msg->detections) {
+        if (detection.class_name != "landing_pad" ||
+            !detection.map_valid || !detection.geometry_verified ||
+            !std::isfinite(detection.geometry_confidence) ||
+            detection.geometry_confidence <= best_confidence) {
+            continue;
+        }
+        best = &detection;
+        best_confidence = detection.geometry_confidence;
+    }
+    if (best == nullptr) {
+        return;
+    }
+
+    geometry_msgs::PoseStamped mark;
+    mark.header = best->header;
+    mark.header.frame_id = best->map_frame;
+    mark.pose.position = best->map_point;
+    mark.pose.orientation.w = 1.0;
+    landMarkCallback(mark);
+}
+
 void LLController::landMarkCallback(const geometry_msgs::PoseStamped& msg)
 {
     if (external_mission_mode_) {
@@ -939,8 +993,10 @@ void LLController::cmdCallback(const ros::TimerEvent& event) {
         case Takeoff:  // Takeoff
             have_planner_cmd = false;
             detect_enable_msg_temp.data = false;
-            detect_control_pub_.publish(detect_enable_msg_temp);
-            landing_detect_control_pub_.publish(detect_enable_msg_temp);
+            publishLegacyVisionControl(
+                detect_control_pub_, detect_enable_msg_temp);
+            publishLegacyVisionControl(
+                landing_detect_control_pub_, detect_enable_msg_temp);
             mavros_point_cmd.pose.position.x = takeoff_point[0];
             mavros_point_cmd.pose.position.y = takeoff_point[1];
             mavros_point_cmd.pose.position.z = takeoff_point[2];
@@ -956,7 +1012,8 @@ void LLController::cmdCallback(const ros::TimerEvent& event) {
             adjust_target_position[0] = uav_pose.pose.position.x;
             adjust_target_position[1] = uav_pose.pose.position.y;
             adjust_target_position[2] = uav_pose.pose.position.z;
-            detect_control_pub_.publish(detect_enable_msg_temp);
+            publishLegacyVisionControl(
+                detect_control_pub_, detect_enable_msg_temp);
             if (external_mission_mode_) {
                 // The external task chain has exactly one motion source:
                 // Planner Bridge -> Fast-Planner -> planner_cmd.  The 2025
@@ -1430,6 +1487,9 @@ void LLController::load_params() {
     align_height = nh_.param("align_height", 1.0);
     external_landing_frame_ = nh_.param<std::string>(
         "external_landing/frame", "camera_init");
+    external_landing_detections_topic_ = nh_.param<std::string>(
+        "external_landing/detections_topic",
+        "/uav_vision/detections_mapped");
     external_landing_capture_height_ = nh_.param(
         "external_landing/capture_height", 0.75);
     external_landing_watchdog_timeout_sec_ = nh_.param(
@@ -1446,7 +1506,10 @@ void LLController::load_params() {
         "external_landing/auto_land_retry_sec", 1.0);
     external_landing_stable_frames_ = nh_.param(
         "external_landing/stable_frames", 10);
-    if (external_landing_frame_.empty() || land_height <= 0.0 ||
+    if (external_landing_frame_.empty() ||
+        (external_mission_mode_ &&
+         external_landing_detections_topic_.empty()) ||
+        land_height <= 0.0 ||
         external_landing_capture_height_ <= external_landing_auto_land_height_ ||
         external_landing_auto_land_height_ < land_height ||
         external_landing_watchdog_timeout_sec_ <= 0.0 ||
@@ -1552,9 +1615,12 @@ void LLController::load_params() {
     ROS_INFO("[UavVision] external recovery handoff height: %.2f m",
              external_recovery_height_);
     ROS_INFO(
-        "[ExternalLanding] frame=%s capture=%.2f handoff=%.2f land=%.2f "
+        "[ExternalLanding] frame=%s detections=%s capture=%.2f "
+        "handoff=%.2f land=%.2f "
         "tol=%.2f mark_age=%.2f stable=%d controller_watchdog=%.1f",
-        external_landing_frame_.c_str(), external_landing_capture_height_,
+        external_landing_frame_.c_str(),
+        external_landing_detections_topic_.c_str(),
+        external_landing_capture_height_,
         external_landing_auto_land_height_, land_height,
         external_landing_alignment_tolerance_,
         external_landing_mark_max_age_sec_, external_landing_stable_frames_,
@@ -1601,7 +1667,6 @@ void LLController::load_params() {
     takeoff_point[1] = waypoint_list[0].y;
     takeoff_point[2] = waypoint_list[0].z;
     detect_enable_msg_temp.data = false;
-    landing_detect_control_pub_.publish(detect_enable_msg_temp);
 }
 
 void LLController::pub_goal(geometry_msgs::PoseStamped goal_msg){
@@ -2736,9 +2801,6 @@ void LLController::missionCommandCallback(
             adjust_target_position[3] =
                 tf::getYaw(external_landing_goal_.pose.orientation);
             patrol_cmd = external_landing_goal_;
-            std_msgs::Bool landing_enable;
-            landing_enable.data = true;
-            landing_detect_control_pub_.publish(landing_enable);
             Drone_mode = Land;
             ROS_INFO(
                 "[PatrolControl] External LAND command accepted; awaiting fresh H evidence");

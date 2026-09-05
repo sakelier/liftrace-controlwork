@@ -26,12 +26,13 @@ try:  # Keep the reducer importable by system-Python unit tests.
     from std_msgs.msg import String
     from patrol_control.msg import MissionCommand
     from uav_mission.msg import NavigationDecision, NavigationResult
-    from uav_vision.msg import TargetCandidate
+    from uav_vision.msg import TargetCandidate, TargetDetectionArray
 except ImportError:  # pragma: no cover - exercised by pure import environments.
     rosgraph = None
     rospy = None
     PoseStamped = ExtendedState = State = String = MissionCommand = None
     NavigationDecision = NavigationResult = TargetCandidate = None
+    TargetDetectionArray = None
 
 
 SCHEMA_VERSION = 1
@@ -76,6 +77,23 @@ def _finite(value):
         return math.isfinite(float(value))
     except (TypeError, ValueError):
         return False
+
+
+def _best_landing_map_detection(message):
+    """Return the strongest verified, mapped H detection in one frame."""
+    best = None
+    best_confidence = -1.0
+    for detection in message.detections:
+        confidence = detection.geometry_confidence
+        if (detection.class_name != "landing_pad" or
+                not detection.map_valid or
+                not detection.geometry_verified or
+                not _finite(confidence) or
+                float(confidence) <= best_confidence):
+            continue
+        best = detection
+        best_confidence = float(confidence)
+    return best
 
 
 def _positive_int(value):
@@ -1253,8 +1271,9 @@ class NavigationVcl06AssertionNode:
                 "~pose_topic", "/mavros/local_position/pose"),
             "selected": rospy.get_param(
                 "~selected_topic", "/uav_vision/selected_target"),
-            "landing_mark": rospy.get_param(
-                "~landing_mark_topic", "/detect/land_mark_point"),
+            "landing_detections": rospy.get_param(
+                "~landing_detections_topic",
+                "/uav_vision/detections_mapped"),
             "align_mode": rospy.get_param(
                 "~align_mode_topic", "/uav_vision/align_mode"),
             "extended_state": rospy.get_param(
@@ -1275,8 +1294,8 @@ class NavigationVcl06AssertionNode:
                          self._on_pose, queue_size=1)
         rospy.Subscriber(topics["selected"], TargetCandidate,
                          self._on_selected, queue_size=20)
-        rospy.Subscriber(topics["landing_mark"], PoseStamped,
-                         self._on_landing_h_mark, queue_size=2)
+        rospy.Subscriber(topics["landing_detections"], TargetDetectionArray,
+                         self._on_landing_detections, queue_size=2)
         rospy.Subscriber(topics["align_mode"], String,
                          self._on_align_mode, queue_size=2)
         rospy.Subscriber(topics["extended_state"], ExtendedState,
@@ -1407,20 +1426,23 @@ class NavigationVcl06AssertionNode:
                 _stamp_ns(message.first_seen))
             self._check_terminal()
 
-    def _on_landing_h_mark(self, message):
+    def _on_landing_detections(self, message):
         with self._lock:
+            detection = _best_landing_map_detection(message)
+            if detection is None:
+                return
             receipt_wall = time.monotonic()
-            stamp_ns = _stamp_ns(message.header.stamp)
+            stamp_ns = _stamp_ns(detection.header.stamp)
             now_ns = _stamp_ns(rospy.Time.now())
             age_sec = ((now_ns - stamp_ns) / 1e9
                        if now_ns >= stamp_ns else -1.0)
             fresh = (
                 stamp_ns > 0 and
                 0.0 <= age_sec <= self._landing_mark_max_age_sec)
-            position = message.pose.position
+            position = detection.map_point
             self.reducer.observe_landing_h_mark(
                 position.x, position.y, position.z,
-                message.header.frame_id, stamp_ns,
+                detection.map_frame, stamp_ns,
                 receipt_wall=receipt_wall, fresh=fresh)
             self._check_terminal()
 

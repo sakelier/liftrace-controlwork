@@ -27,6 +27,7 @@
   <arg name="drop_stable_frames" default="5" />
   <arg name="class_profile" default="full" />
   <arg name="require_alignment_context" default="false" />
+  <arg name="start_legacy_compat" default="true" />
   <arg name="gui" default="true" />
   <arg name="rviz" default="true" />
   <arg name="mapping_rviz" default="false" />
@@ -94,5 +95,6 @@
     <arg name="class_profile" value="$(arg class_profile)" />
     <arg name="require_alignment_context"
          value="$(arg require_alignment_context)" />
+    <arg name="start_legacy_compat" value="$(arg start_legacy_compat)" />
   </include>
 </launch>

@@ -67,6 +67,7 @@
     <arg name="class_profile" value="$(arg class_profile)" />
     <arg name="require_alignment_context" value="true" />
     <arg name="require_release_evidence_context" value="true" />
+    <arg name="start_legacy_compat" value="false" />
     <arg name="planner_max_vel" value="1.0" />
     <arg name="planner_max_acc" value="1.0" />
     <!-- A 0.8 m scoring opening is represented on a 0.1 m voxel grid.  Two
@@ -156,7 +157,8 @@
     <param name="planner_goal_topic" value="/fastplanner/goal" />
     <param name="expected_planner_goal_publisher"
            value="/navigation/planner_bridge" />
-    <param name="landing_mark_topic" value="/detect/land_mark_point" />
+    <param name="landing_detections_topic"
+           value="/uav_vision/detections_mapped" />
     <param name="landing_mark_max_age" value="0.5" />
     <param name="align_mode_topic" value="/uav_vision/align_mode" />
     <param name="extended_state_topic" value="/mavros/extended_state" />
@@ -193,9 +195,9 @@
               /uav_vision/drop_offset
               /uav_vision/alignment_target_context
               /uav_vision/release_evidence_context
+              /uav_vision/detections_mapped
               /uav_vision/align_mode
               /detect/point_class
-              /detect/land_mark_point
               /mavros/extended_state
               /mavros/state
               /mission/random_field_status

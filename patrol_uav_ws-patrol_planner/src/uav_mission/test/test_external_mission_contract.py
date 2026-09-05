@@ -127,6 +127,37 @@ class ExternalMissionContractTest(unittest.TestCase):
                 "if (!external_mission_mode_)", 0, topic_index)
             self.assertNotEqual(guard_index, -1, topic)
 
+    def test_external_landing_uses_typed_detection_without_legacy_bridge(self):
+        header = (PATROL / "include" / "patrol_control" /
+                  "patrol_control.h").read_text(encoding="utf-8")
+        source = (PATROL / "src" / "patrol_control.cpp").read_text(
+            encoding="utf-8")
+        self.assertIn("uav_vision/TargetDetectionArray.h", header)
+        self.assertIn("landingDetectionsCallback", header)
+        self.assertIn("external_landing_detections_topic_", header)
+        self.assertIn("landing_detections_sub_ = nh_.subscribe", source)
+        self.assertIn('detection.class_name != "landing_pad"', source)
+        self.assertIn("!detection.map_valid", source)
+        self.assertIn("!detection.geometry_verified", source)
+        self.assertIn("landMarkCallback(mark)", source)
+
+        init_start = source.index("void LLController::initializeNode")
+        init_end = source.index("void LLController::positionCallback",
+                                init_start)
+        init_body = source[init_start:init_end]
+        legacy_land_index = init_body.index("/detect/land_mark_point")
+        self.assertNotEqual(
+            init_body.rfind("if (!external_mission_mode_)",
+                            0, legacy_land_index), -1)
+        for topic in (
+                "/detect/servo_status", "/detect/class_control",
+                "/detect/tank_control", "/detect/control",
+                "/detect/landing_control", "/cross/control"):
+            topic_index = init_body.index(topic)
+            self.assertNotEqual(
+                init_body.rfind("if (!external_mission_mode_)",
+                                0, topic_index), -1, topic)
+
     def test_control_readiness_is_latched_after_takeoff(self):
         header = (PATROL / "include" / "patrol_control" /
                   "patrol_control.h").read_text(encoding="utf-8")
@@ -174,6 +205,7 @@ class ExternalMissionContractTest(unittest.TestCase):
             if filename.endswith("navigation_mission_manager.launch"))
         self.assertEqual(patrol_args["external_mission_mode"], "true")
         self.assertEqual(patrol_args["waypoint_mode"], "false")
+        self.assertEqual(patrol_args["start_legacy_compat"], "false")
         self.assertEqual(patrol_args["vehicle_sdf"], "$(arg vehicle_sdf)")
         self.assertTrue(arguments["vehicle_sdf"].endswith(
             "model_ks2a543.sdf"))
@@ -310,6 +342,9 @@ class ExternalMissionContractTest(unittest.TestCase):
                         encoding="utf-8"))
                 landing = config["external_landing"]
                 self.assertEqual(landing["frame"], "camera_init")
+                self.assertEqual(
+                    landing["detections_topic"],
+                    "/uav_vision/detections_mapped")
                 self.assertGreater(landing["capture_height"],
                                    landing["auto_land_height"])
                 self.assertGreaterEqual(landing["auto_land_height"],

@@ -19,6 +19,7 @@
 #include <uav_vision/DropOffset.h>
 #include <uav_vision/DropReady.h>
 #include <uav_vision/TargetCandidate.h>
+#include <uav_vision/TargetDetectionArray.h>
 #include <patrol_control/MissionCommand.h>
 #include <Eigen/Core>
 #include <cmath>  // 引入 math 库，使用 sqrt 函数
@@ -113,6 +114,7 @@ private:
     ros::Subscriber drop_ready_sub_;
     ros::Subscriber mission_release_permission_sub_;
     ros::Subscriber mission_command_sub_;
+    ros::Subscriber landing_detections_sub_;
     // 舵机控制发布器
     ros::Publisher servo1_pub_;
     ros::Publisher servo2_pub_;
@@ -198,6 +200,8 @@ private:
     bool control_ready_latched_ = false;
     std::string control_ready_topic_ = "/mission/control_ready";
     std::string mission_command_topic_ = "/mission/command";
+    std::string external_landing_detections_topic_ =
+        "/uav_vision/detections_mapped";
     double external_planner_cmd_timeout_ = 0.5;
     double external_planner_start_max_distance_ = 0.6;
     double external_planner_max_command_z_ = 3.5;
@@ -336,6 +340,8 @@ private:
     std::string current_align_mode_ = "disabled";
     void publishAlignMode(const std::string& mode);
     void publishControlReady(bool ready);
+    void publishLegacyVisionControl(ros::Publisher& publisher,
+                                    const std_msgs::Bool& message);
     std::string desiredAlignMode() const;
     bool classMatchesGoal(const std::string& class_name) const;
     bool hasFreshSelectedTarget() const;
@@ -390,6 +396,8 @@ private:
     void cmdCallback(const ros::TimerEvent& event);
     void waypointMarkCallback(const geometry_msgs::PoseStamped& msg);
     void landMarkCallback(const geometry_msgs::PoseStamped& msg);
+    void landingDetectionsCallback(
+        const uav_vision::TargetDetectionArray::ConstPtr& msg);
     void crossStateCallback(const std_msgs::Bool::ConstPtr& msg);
     void mavrosLocalPositionCallback(const geometry_msgs::PoseStamped& msg);
     void servoMarkyCallback(const std_msgs::Bool& msg);

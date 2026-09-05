@@ -64,19 +64,22 @@ interrupt_top_k=3
 
 ## 视觉运行依赖
 
-导航仓只携带构建正式任务链所需的两条视觉上下文消息：
+导航仓不再复制或维护 `uav_vision` 源码。构建导航工作区前必须先 source 视觉组的
+devel/install；正式任务链使用下列视觉消息：
 
 ```text
+uav_vision/TargetDetectionArray
+uav_vision/TargetCandidate
+uav_vision/DropOffset
+uav_vision/DropReady
 uav_vision/AlignmentTargetContext
 uav_vision/ReleaseEvidenceContext
 ```
 
-完整仿真必须叠加视觉冻结分支
-`liftrace-visionwork:feat/vcl06-local-full-mission@34ce0c3`，并让它的
-`uav_vision` 包优先。导航仓自己的旧 `phase_d.launch` 不具备正式运行合同；不得通过删除
-`class_profile` 或 `require_alignment_context` 参数来绕过依赖检查。正确 overlay 顺序、构建命令、
-现有 r9 阻塞和后续 Gate 条件见
-`docs/导航组本地完整任务联调HANDOFF_20260902.md`。
+正式 external launch 直接消费 `/uav_vision/detections_mapped` 中经过几何验证的
+`landing_pad`，并以 `start_legacy_compat:=false` 关闭旧 `/detect/*` 视觉桥；legacy launch
+仍默认保留兼容桥。当前精确双仓基线、overlay 顺序和最终 Gate 条件见仓库根目录
+`docs/NAVIGATION_FINAL_BASELINE_HANDOFF_20260905.md`。
 
 ## 轻量策略仿真
 
@@ -87,11 +90,10 @@ uav_vision/ReleaseEvidenceContext
 
 ## 当前验收边界
 
-同步导航上游 PR #1～#6 后，`freedom;plan_manage;patrol_control;uav_mission` Catkin 定向构建和
-209 项当前包测试通过；使用上述视觉 overlay 时完整 launch 与分段 launch 均可递归解析。后继成果曾提交为跨 fork PR #8，
-现按仓库 owner 安排关闭该大 PR，并直接维护上游 `feat/vcl06-local-full-mission`。r19b 已在
-KS2A543 新相机基线上完成前两投，第三个 bridge 接近因 Fast-Planner 连续重规划极限环在 120 秒
-事务截止时退出；完整三门走廊和 H/LAND 尚未被该轮触达，下一步先用上述分段入口独立验收。
+`r41` 已在视觉 `8e53bd0` + 导航 `3557215`、KS2A543、seed 11 上完成三投、三恢复、
+三门、H、AUTO.LAND、落地和解除武装，ROS 任务时钟 `429.875 s`。后继收口候选修正了计时
+口径并去除正式链旧视觉桥，但精确最终候选仍须在两个仓库收口后只运行一次完整 Gate；不得把
+分阶段或旧 revision 的 PASS 自动继承给新组合。
 
 上述结果不是全工作区构建 PASS。全量 Catkin 配置仍会报告仓内 `tool/cv_bridge/src` 缺少
 `CMakeLists.txt`，以及 `local_sensing` 的 `cmake_modules` 依赖在当前环境不可用；这两项属于独立的

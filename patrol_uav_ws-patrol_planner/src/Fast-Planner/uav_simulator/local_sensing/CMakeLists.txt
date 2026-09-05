@@ -28,7 +28,7 @@ if(ENABLE_CUDA)
   find_package(Boost REQUIRED COMPONENTS system filesystem)
 
   find_package(catkin REQUIRED COMPONENTS
-      roscpp roslib cmake_modules cv_bridge image_transport pcl_ros sensor_msgs geometry_msgs nav_msgs quadrotor_msgs dynamic_reconfigure)
+      roscpp roslib cv_bridge image_transport pcl_ros sensor_msgs geometry_msgs nav_msgs quadrotor_msgs dynamic_reconfigure)
   generate_dynamic_reconfigure_options(
     cfg/local_sensing_node.cfg
   )
@@ -65,7 +65,7 @@ if(ENABLE_CUDA)
 else(ENABLE_CUDA)
   find_package(Eigen3 REQUIRED)
   find_package(catkin REQUIRED COMPONENTS
-      roscpp roslib cmake_modules pcl_ros sensor_msgs geometry_msgs nav_msgs quadrotor_msgs)
+      roscpp roslib pcl_ros sensor_msgs geometry_msgs nav_msgs quadrotor_msgs)
   
   catkin_package(
       DEPENDS Eigen

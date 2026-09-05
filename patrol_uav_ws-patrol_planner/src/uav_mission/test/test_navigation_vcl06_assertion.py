@@ -1036,8 +1036,8 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertEqual(params["expected_planner_goal_publisher"],
                          "/navigation/planner_bridge")
         self.assertNotIn("forced_return_sec", params)
-        self.assertEqual(params["landing_mark_topic"],
-                         "/detect/land_mark_point")
+        self.assertEqual(params["landing_detections_topic"],
+                         "/uav_vision/detections_mapped")
         self.assertEqual(params["landing_mark_max_age"], "0.5")
         self.assertEqual(params["align_mode_topic"],
                          "/uav_vision/align_mode")
@@ -1045,11 +1045,12 @@ class Vcl06GateReducerTest(unittest.TestCase):
                          "/mavros/extended_state")
         self.assertEqual(params["vehicle_state_topic"], "/mavros/state")
         for evidence_topic in (
-                "/detect/land_mark_point", "/uav_vision/align_mode",
+                "/uav_vision/detections_mapped", "/uav_vision/align_mode",
                 "/mavros/extended_state", "/mavros/state",
                 "/fastplanner/setpoint_position/local",
                 "/mavros/setpoint_position/local"):
             self.assertIn(evidence_topic, source)
+        self.assertNotIn("/detect/land_mark_point", source)
         arguments = {item.attrib["name"]: item.attrib.get("default")
                      for item in root.findall("arg")}
         self.assertEqual(arguments["gate_startup_wall_timeout"], "180.0")
@@ -1068,6 +1069,7 @@ class Vcl06GateReducerTest(unittest.TestCase):
         guarded_args = {item.attrib["name"]: item.attrib.get("value")
                         for item in guarded.findall("arg")}
         self.assertEqual(guarded_args["map_frame"], "camera_init")
+        self.assertEqual(guarded_args["start_legacy_compat"], "false")
         self.assertEqual(
             guarded_args["external_planner_max_command_z"],
             "$(arg external_planner_max_command_z)")
@@ -1089,6 +1091,31 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertEqual(
             nested_args["external_planner_max_command_z"],
             "$(arg external_planner_max_command_z)")
+        self.assertEqual(
+            nested_args["start_legacy_compat"],
+            "$(arg start_legacy_compat)")
+
+    def test_landing_detection_selector_uses_verified_mapped_h(self):
+        def item(class_name, confidence, mapped=True, verified=True):
+            return SimpleNamespace(
+                class_name=class_name,
+                geometry_confidence=confidence,
+                map_valid=mapped,
+                geometry_verified=verified,
+            )
+
+        weak = item("landing_pad", 0.4)
+        strong = item("landing_pad", 0.9)
+        message = SimpleNamespace(detections=[
+            item("panzer", 0.99),
+            item("landing_pad", 1.0, mapped=False),
+            item("landing_pad", 0.95, verified=False),
+            item("landing_pad", float("nan")),
+            weak,
+            strong,
+        ])
+        self.assertIs(
+            MODULE._best_landing_map_detection(message), strong)
 
     def test_post_delivery_launch_locks_matching_start_and_gate_scope(self):
         root = ET.parse(str(POST_DELIVERY_LAUNCH)).getroot()

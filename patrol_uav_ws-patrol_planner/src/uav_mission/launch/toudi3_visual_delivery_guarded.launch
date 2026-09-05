@@ -22,6 +22,7 @@
   <arg name="class_profile" default="full" />
   <arg name="require_alignment_context" default="false" />
   <arg name="require_release_evidence_context" default="false" />
+  <arg name="start_legacy_compat" default="true" />
   <arg name="planner_max_vel" default="3.0" />
   <arg name="planner_max_acc" default="2.0" />
   <arg name="planner_obstacles_inflation" default="0.25" />
@@ -76,6 +77,7 @@
     <arg name="class_profile" value="$(arg class_profile)" />
     <arg name="require_alignment_context"
          value="$(arg require_alignment_context)" />
+    <arg name="start_legacy_compat" value="$(arg start_legacy_compat)" />
     <arg name="planner_max_vel" value="$(arg planner_max_vel)" />
     <arg name="planner_max_acc" value="$(arg planner_max_acc)" />
     <arg name="planner_obstacles_inflation" value="$(arg planner_obstacles_inflation)" />
