@@ -15,6 +15,7 @@ LAUNCH = PACKAGE_ROOT / "launch" / "navigation_planner_bridge.launch"
 MISSION_LAUNCH = (
     PACKAGE_ROOT / "launch" / "navigation_search_delivery_vcl06.launch")
 CONFIG = PACKAGE_ROOT / "config" / "vcl06_planner_bridge.yaml"
+FORMAL_RUNTIME = PACKAGE_ROOT / "config" / "vcl06_random_field_runtime.yaml"
 PACKAGE_XML = PACKAGE_ROOT / "package.xml"
 
 
@@ -24,6 +25,8 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         cls.source = SCRIPT.read_text(encoding="utf-8")
         cls.tree = ast.parse(cls.source)
         cls.config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+        cls.formal_runtime = yaml.safe_load(
+            FORMAL_RUNTIME.read_text(encoding="utf-8"))
         cls.launch = ET.parse(str(LAUNCH)).getroot()
         cls.mission_launch = ET.parse(str(MISSION_LAUNCH)).getroot()
         cls.package = ET.parse(str(PACKAGE_XML)).getroot()
@@ -113,6 +116,11 @@ class NavigationPlannerBridgeContractTest(unittest.TestCase):
         self.assertNotIn("allowed_target_classes", execution)
         self.assertEqual(execution["effective_goal_max_offset"], 0.35)
         self.assertEqual(execution["planner_accept_timeout"], 5.0)
+        self.assertEqual(execution["arrival_position_tolerance"], 0.18)
+        self.assertEqual(
+            execution["arrival_position_tolerance"],
+            self.formal_runtime["post_delivery_gate"]["goal_tolerance"],
+        )
         self.assertEqual(
             execution["approach_arrival_position_tolerance"], 0.35)
 
