@@ -18,6 +18,9 @@ spawn:
   # 先在内存中规划完整 5 靶布局；顺序贪心遇到后段死路时整套重采样，Gazebo 不留半成品。
   layout_attempts: 64
   static_model_radius: 0.55
+  # KS2A543 + MID360 冷启动时整机模型可能在 Gazebo 服务就绪后继续加载；
+  # 初始占用采样只等待状态，不改变摆放/飞行 Gate，避免 30 s 边缘竞态。
+  initial_model_states_timeout: 90.0
   verification_tolerance: 0.05
   verification_timeout: 20.0
 # ModelStates only exposes top-level model poses.  Use conservative per-model

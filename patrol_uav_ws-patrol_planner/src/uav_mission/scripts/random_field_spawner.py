@@ -92,6 +92,8 @@ class RandomFieldSpawner:
             rospy.get_param("~spawn/verification_tolerance", 0.05))
         self._verification_timeout = float(
             rospy.get_param("~spawn/verification_timeout", 20.0))
+        self._initial_model_states_timeout = float(rospy.get_param(
+            "~spawn/initial_model_states_timeout", 90.0))
         self._offset_x = float(rospy.get_param("~spawn_offset/x", 0.0))
         self._offset_y = float(rospy.get_param("~spawn_offset/y", 0.0))
         self._spawn_red_cross = bool(
@@ -154,8 +156,10 @@ class RandomFieldSpawner:
             self._standard_classes, required)
         if (self._boundary_margin < 0.0 or self._pair_gap < 0.0 or
                 self._static_model_radius < 0.0 or self._max_attempts <= 0 or
-                self._layout_attempts <= 0):
-            raise ValueError("spawn margins/radii/attempts are invalid")
+                self._layout_attempts <= 0 or
+                self._verification_timeout <= 0.0 or
+                self._initial_model_states_timeout <= 0.0):
+            raise ValueError("spawn margins/radii/attempts/timeouts are invalid")
         if not self._model_roots:
             raise ValueError("model_roots is empty; pass GAZEBO_MODEL_PATH")
         normalized_radii = {}
@@ -312,7 +316,8 @@ class RandomFieldSpawner:
     def _execute(self):
         self._validate()
         spawn = self._wait_spawn_service()
-        occupied = self._occupied(self._collect_models())
+        occupied = self._occupied(self._collect_models(
+            timeout=self._initial_model_states_timeout))
         plan = [(class_name, CLASS_MODEL_NAMES[class_name],
                  STANDARD_FOOTPRINT_RADIUS)
                 for class_name in self._standard_classes]

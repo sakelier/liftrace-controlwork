@@ -192,6 +192,8 @@ class ExternalMissionContractTest(unittest.TestCase):
                 "coverage", "navigation", "candidate", "interrupt",
                 "execute_candidates", "collect_before_delivery"):
             self.assertNotIn(legacy_key, field_config)
+        self.assertGreaterEqual(
+            field_config["spawn"]["initial_model_states_timeout"], 60.0)
         spawner = (PACKAGE / "scripts" / "random_field_spawner.py").read_text(
             encoding="utf-8")
         self.assertIn(
