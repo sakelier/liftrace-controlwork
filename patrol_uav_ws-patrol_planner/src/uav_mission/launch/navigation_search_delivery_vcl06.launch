@@ -185,7 +185,12 @@
               /mavros/setpoint_position/local
               /planning/goal_status
               /mission/command
+              /mission/release_permission
+              /mission/release_permission_active
+              /mission/release_commitment_evidence
               /mission/release_result
+              /uav_vision/drop_ready
+              /uav_vision/drop_offset
               /uav_vision/alignment_target_context
               /uav_vision/release_evidence_context
               /uav_vision/align_mode
