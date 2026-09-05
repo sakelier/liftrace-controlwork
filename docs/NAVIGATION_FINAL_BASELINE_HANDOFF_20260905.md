@@ -39,12 +39,12 @@ LAND 成功的 ROS 任务时钟为 `429.875 s`，其中 LAND 为 `32.73 s`。
 
 | 仓库 | 当前候选 | 相对 r41 | 是否按精确组合整场实跑 |
 | --- | --- | --- | --- |
-| 视觉 | `feat/vdeploy-final-closeout-plan@e5fdc6897d9ff76a95895d69de0863bffa6754bf` | 从 `8e53bd0` 到该提交只有 Roadmap/报告/变更记录；含 `56f0667`，尚不含 `f0b1b8b` | 否 |
-| 视觉外参 | `feat/vdeploy-camera-extrinsic@f0b1b8be8df7a4ba716ff68b452eb522ef3b0c07` | 增加板端外参 profile/launch；当前运行值为 `body -> camera -0.16 m`，MID360 `-0.21 m` 只是测量元数据 | 否 |
+| 视觉收口 | branch/docs tip `feat/vdeploy-final-closeout-plan@9ed1d463d97c8e5d2dfeb217d1a66f19e01d9861`；运行代码 `9324745ed6aec77125f21dd92804930232354551` | 已继承 KS2A543/r41 候选 `56f0667`，并由 `8dd996f` 非快进合入实机外参 `f0b1b8b`；正式 Phase-D 默认关闭 legacy bridge，并移除 bridge 的无效 `drop_ready` 订阅 | 否；视觉 worktree clean/pushed |
 | 导航收口 | `feat/vcl06-local-full-mission@be85c423f13d840519f2c0af739394fcd557dcb1` | 在 `6c59e17` 后冻结基线、改用 typed H、关闭正式 legacy 视觉桥、删除视觉源码副本并修复空目录构建 | 否；空目录全量构建及纯测试 222/222 PASS |
 
-最终联合 Gate 必须记录合入外参后的视觉候选 HEAD 与导航 `be85c42`（或其仅文档后继），不能只引用“r41”或某一个仓库的
-tip。若候选代码在 Gate 后又发生变化，旧 PASS 不自动继承。
+最终联合 Gate 必须记录视觉运行代码 `9324745`、导航运行代码 `be85c42` 及两仓各自的仅文档
+branch tip，不能只引用“r41”或某一个仓库的 tip。若候选代码在 Gate 后又发生变化，旧 PASS
+不自动继承。
 
 ## 3. 证据可用性
 
@@ -102,13 +102,16 @@ stop-ack 实验、原始资产和视觉 worktree 均未删除；实际结果见�
 
 1. **已完成**：导航 typed H、正式 launch 关闭 legacy compat、删除导航视觉源码副本，以及
    纯测试、launch 静态展开和空目录全量编译。
-2. 视觉侧独立完成视觉 worktree 清理，在最终 closeout 分支合入外参 revision；不得删除视觉
-   权威 `uav_vision`。
-3. 冻结精确双仓候选，确认 `rospack find uav_vision` 解析到视觉仓，且
+2. **已完成（视觉侧）**：视觉最终分支已合入 KS2A543 候选和实机外参，清理默认旧话题及
+   无效订阅，并将 clean/pushed branch tip 冻结为 `9ed1d46`、运行代码冻结为 `9324745`。
+3. **已完成（源码级静态）**：按视觉 `9324745` 源码与导航 `be85c42` 展开正式 launch，确认
+   typed H 存在、两个旧降落话题不存在；两视觉 revision 间消息 ABI 无变化。
+4. 从两个 clean checkout 生成最终 install 和 `integration_manifest.yaml`，确认
+   `rospack find uav_vision` 解析到视觉 install，且
    `/fastplanner/goal` 只有 `/navigation/planner_bridge` 一个发布者。
-4. 经用户当轮明确授权后运行一次最终完整 SITL，保存 manifest、Gate、timeline、日志和必要 bag。
-5. 只有候选 Gate PASS 后，才由人工将两个 PR 非快进合入 main、打 annotated tag，并生成
-   `integration_manifest.yaml`。
+5. 经用户当轮明确授权后运行一次最终完整 SITL，保存 manifest、Gate、timeline、日志和必要 bag。
+6. 只有候选 Gate PASS 后，才由人工将两个 PR 非快进合入 main、打 annotated tag，并用最终
+   merge revision 更新 `integration_manifest.yaml`。
 
 ## 7. 本轮导航清理结果
 
@@ -135,8 +138,10 @@ stop-ack 实验、原始资产和视觉 worktree 均未删除；实际结果见�
 - 删除旧 build/devel 后，source 视觉 devel 并执行全工作区
   `catkin_make -DROS_EDITION=ROS1 -j1`，从 0 到 100% PASS；typed H C++ 已实际编译链接。
 - `uav_mission` 全量纯 Python 回归 `222 tests` PASS；`git diff --check` PASS。
-- 只读 launch 展开时强制 `uav_vision` 指向视觉 closeout 候选 `e5fdc68`，889 行参数解析 PASS；
-  展开结果含 `/uav_vision/detections_mapped`，不含两个旧降落话题。该命令未连接 roscore、未启动节点。
+- 先前空目录全量编译使用既有视觉 devel；随后只读 launch 展开已强制 `uav_vision` 指向最终视觉
+  运行源码 `9324745`，889 行参数解析 PASS。展开结果含 `/uav_vision/detections_mapped`，不含
+  `/detect/landing_control` 或 `/detect/land_mark_point`；`e5fdc68..9324745` 的消息定义无差异。
+  该静态验证未连接 roscore、未启动节点，最终 clean install 联合构建仍列为 Gate 前置项。
 
 ### 7.3 本地清理与保护结果
 
@@ -150,9 +155,9 @@ stop-ack 实验、原始资产和视觉 worktree 均未删除；实际结果见�
 
 ### 7.4 给视觉侧 Codex 的接力项
 
-1. 在视觉最终分支整合 `56f0667` 与外参 `f0b1b8b`，给出唯一视觉源码 revision；确认运行 TF
-   与 MID360/相机测量元数据语义不混用。
-2. 产出视觉 install，至少包含本文第 4.1 节六类消息、Phase-D 节点、KS2A543 内参、实机外参
+1. **已完成**：视觉最终分支已整合 `56f0667` 与外参 `f0b1b8b`，唯一运行代码 revision 为
+   `9324745`，clean/pushed 文档 tip 为 `9ed1d46`；运行 TF 与测量元数据的语义由视觉交付文档维护。
+2. 从 clean checkout 产出视觉 install，至少包含本文第 4.1 节六类消息、Phase-D 节点、KS2A543 内参、实机外参
    profile 和 RKNN 模型入口；正式联合入口允许 `start_legacy_compat:=false`。
 3. 与导航 `be85c42`（或本文档后继）共同生成 `integration_manifest.yaml`，先静态确认
    `rospack find uav_vision` 指向视觉 install，再在用户当轮明确授权后只跑一次完整 SITL Gate。
