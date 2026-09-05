@@ -69,6 +69,9 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["max_target_z"], 4.0)
         self.assertEqual(mission["approach_altitude"], 1.2)
         self.assertEqual(mission["return_altitude"], 2.2)
+        self.assertEqual(mission["motion_action_timeout"], 90.0)
+        self.assertIn(
+            '"~mission/motion_action_timeout", 90.0', self.source)
         self.assertNotIn("classes", self.config)
 
     def test_formal_runtime_has_ordered_three_door_route_to_final_h(self):
@@ -78,6 +81,7 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["forced_return_at"], 420.0)
         self.assertEqual(mission["return_land_reserve"], 180.0)
         self.assertEqual(mission["target_action_timeout"], 120.0)
+        self.assertEqual(mission["motion_action_timeout"], 90.0)
         self.assertEqual(
             mission["post_delivery_route_revision"],
             "toudi3-random-three-door-h-r2",

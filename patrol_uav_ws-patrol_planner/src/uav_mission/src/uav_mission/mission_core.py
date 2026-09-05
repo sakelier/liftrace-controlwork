@@ -212,7 +212,7 @@ class MissionConfig:
     approach_altitude: float = 1.2
     return_altitude: float = 2.2
     target_action_timeout: float = 90.0
-    motion_action_timeout: float = 60.0
+    motion_action_timeout: float = 90.0
     landing_action_timeout: float = 90.0
     result_future_tolerance: float = 0.1
     home_xy: Tuple[float, float] = (0.0, 0.0)

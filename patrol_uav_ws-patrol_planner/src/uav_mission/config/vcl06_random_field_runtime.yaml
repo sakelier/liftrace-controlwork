@@ -25,7 +25,10 @@ mission:
   # r17 的 KS2A543 实跑中，复杂地图接近 + 低空视觉对准在 90 s 截止后约
   # 1 s 才满足释放高度；给完整目标事务保留适度调度余量，但不放宽证据或 Gate。
   target_action_timeout: 120.0
-  motion_action_timeout: 60.0
+  # r33 的首个走廊航段已使用 55.8 s；r37b 从第三靶离场时因实体靶体
+  # 绕障先爬升后下降，60 s 时仍在持续收敛。统一留 90 s 运动 lease，
+  # 但继续服从 420 s 强制返航与 600 s 整场硬限。
+  motion_action_timeout: 90.0
   landing_action_timeout: 90.0
   result_future_tolerance: 0.1
   home_xy: [0.0, 0.0]
