@@ -1,7 +1,7 @@
 # 导航部署前基线与收口交接
 
-日期：2026-09-05  
-状态：`PRE_CLEANUP_BASELINE_FROZEN`  
+日期：2026-09-05（2026-09-06 完成导航收口回填）
+状态：`NAVIGATION_CLOSEOUT_READY / JOINT_GATE_PENDING`
 职责边界：本文由导航侧维护；视觉 worktree 的清理由视觉组 Codex 独立负责。
 
 ## 1. 删除前冻结的唯一整场跑通组合
@@ -41,9 +41,9 @@ LAND 成功的 ROS 任务时钟为 `429.875 s`，其中 LAND 为 `32.73 s`。
 | --- | --- | --- | --- |
 | 视觉 | `feat/vdeploy-final-closeout-plan@e5fdc6897d9ff76a95895d69de0863bffa6754bf` | 从 `8e53bd0` 到该提交只有 Roadmap/报告/变更记录；含 `56f0667`，尚不含 `f0b1b8b` | 否 |
 | 视觉外参 | `feat/vdeploy-camera-extrinsic@f0b1b8be8df7a4ba716ff68b452eb522ef3b0c07` | 增加板端外参 profile/launch；当前运行值为 `body -> camera -0.16 m`，MID360 `-0.21 m` 只是测量元数据 | 否 |
-| 导航 | `feat/vcl06-local-full-mission@6c59e1769c68255b68d00449248db807582014e8` | `3557215` 的直接子提交；修正 ROS/墙钟、LAND action deadline 和 passive audit 重复裁决 | 否；纯测试 220/220 PASS |
+| 导航收口 | `feat/vcl06-local-full-mission@be85c423f13d840519f2c0af739394fcd557dcb1` | 在 `6c59e17` 后冻结基线、改用 typed H、关闭正式 legacy 视觉桥、删除视觉源码副本并修复空目录构建 | 否；空目录全量构建及纯测试 222/222 PASS |
 
-最终联合 Gate 必须记录新的视觉候选 HEAD 与导航 `6c59e17`，不能只引用“r41”或某一个仓库的
+最终联合 Gate 必须记录合入外参后的视觉候选 HEAD 与导航 `be85c42`（或其仅文档后继），不能只引用“r41”或某一个仓库的
 tip。若候选代码在 Gate 后又发生变化，旧 PASS 不自动继承。
 
 ## 3. 证据可用性
@@ -92,17 +92,16 @@ r41 原目录曾记录为：
 | 路径 | 状态 | 处置 |
 | --- | --- | --- |
 | `/home/xhj/liftrace-controlwork-nav` | clean；本地 `main@a68925d` 落后 `origin/main@a182ca9` 26 个提交 | 保留仓库管理 checkout；不作为最终构建源 |
-| `vcl06-local-full-mission@6c59e17` | clean/pushed；最终导航候选 | 保留；只删除可再生 build/devel/cache |
+| `vcl06-local-full-mission` | 功能 revision `be85c42` clean/pushed；本文回填只追加文档 | 保留；build/devel/cache 已删除 |
 | `vcl06-planner-stop-ack@c12ee0c` | 14 个 tracked 修改、7 个未跟踪协议文件 | 原样保留；不纳入最终链、不自动删除 |
 
-本轮允许删除的导航本地产物只有精确列出的 build、devel 和 Python cache。所有 Git 分支、远端
-引用、dirty stop-ack 实验、原始资产和视觉 worktree 都不删除。清理后的实际释放量和最终状态在
-第 7 节回填。
+本轮只删除了精确列出的 build、devel 和 Python cache。所有 Git 分支、远端引用、dirty
+stop-ack 实验、原始资产和视觉 worktree 均未删除；实际结果见第 7 节。
 
 ## 6. 最终交接顺序
 
-1. 导航完成 typed H、正式 launch 关闭 legacy compat、删除导航视觉源码副本，并做纯测试、
-   launch 静态展开和编译检查。
+1. **已完成**：导航 typed H、正式 launch 关闭 legacy compat、删除导航视觉源码副本，以及
+   纯测试、launch 静态展开和空目录全量编译。
 2. 视觉侧独立完成视觉 worktree 清理，在最终 closeout 分支合入外参 revision；不得删除视觉
    权威 `uav_vision`。
 3. 冻结精确双仓候选，确认 `rospack find uav_vision` 解析到视觉仓，且
@@ -113,4 +112,49 @@ r41 原目录曾记录为：
 
 ## 7. 本轮导航清理结果
 
-待本轮代码、接口和磁盘清理完成后回填；在此之前不得把状态改成 `CLOSEOUT_READY`。
+### 7.1 源码与接口
+
+- 导航功能收口提交：`be85c423f13d840519f2c0af739394fcd557dcb1`，已推送
+  `origin/feat/vcl06-local-full-mission`。
+- 从导航仓删除 `vision_ws` 下 78 个 tracked 视觉副本文件；正式构建只认视觉仓
+  `uav_vision` devel/install。
+- external `patrol_control` 直接订阅 `/uav_vision/detections_mapped`，H 证据必须同时满足
+  `landing_pad`、`map_valid`、`geometry_verified`，并继续经过时间戳、frame、锚点距离和稳定帧检查。
+- 正式 launch 明确 `start_legacy_compat:=false`；Gate/rosbag 不再依赖
+  `/detect/landing_control`、`/detect/land_mark_point`。legacy launch 默认值仍为 true，旧工程回归
+  没有被删。
+- external 模式不再 advertise `/detect/control`、`/detect/landing_control`、
+  `/detect/class_control`、`/detect/tank_control`、`/detect/servo_status` 和 `/cross/control`。
+  `/detect/point_class` 仍被 release arbiter 与 Planner Bridge 实际消费，`/Servo` 仍是投递执行
+  服务，两者不是冗余接口，本轮有意保留。
+
+### 7.2 构建与静态验收
+
+- 首次空目录构建暴露并修正两个导航上游遗漏：`local_sensing` 无效 `cmake_modules` 依赖、
+  vendored `cv_bridge/src/CMakeLists.txt` 缺失。
+- 删除旧 build/devel 后，source 视觉 devel 并执行全工作区
+  `catkin_make -DROS_EDITION=ROS1 -j1`，从 0 到 100% PASS；typed H C++ 已实际编译链接。
+- `uav_mission` 全量纯 Python 回归 `222 tests` PASS；`git diff --check` PASS。
+- 只读 launch 展开时强制 `uav_vision` 指向视觉 closeout 候选 `e5fdc68`，889 行参数解析 PASS；
+  展开结果含 `/uav_vision/detections_mapped`，不含两个旧降落话题。该命令未连接 roscore、未启动节点。
+
+### 7.3 本地清理与保护结果
+
+- 完整任务 worktree 从约 `968 MiB` 降至 `446 MiB`，释放约 `522 MiB`；删除内容为本次验证
+  生成的 build/devel、先前残留 build/devel 和 Python cache。
+- 导航主 worktree 仍为 `main@a68925d`，约 `618 MiB`；本地 main 仍落后
+  `origin/main@a182ca9` 26 个提交，未合并、未重置、未作为交付 revision。
+- dirty `vcl06-planner-stop-ack@c12ee0c` 仍为 14 个 tracked 修改和 7 个未跟踪文件；清理前后
+  `git status --porcelain -uall` 完全一致。
+- 最终 `git worktree list` 只有上述 3 个保留项；没有删除分支、tag、远程引用或任何视觉 worktree。
+
+### 7.4 给视觉侧 Codex 的接力项
+
+1. 在视觉最终分支整合 `56f0667` 与外参 `f0b1b8b`，给出唯一视觉源码 revision；确认运行 TF
+   与 MID360/相机测量元数据语义不混用。
+2. 产出视觉 install，至少包含本文第 4.1 节六类消息、Phase-D 节点、KS2A543 内参、实机外参
+   profile 和 RKNN 模型入口；正式联合入口允许 `start_legacy_compat:=false`。
+3. 与导航 `be85c42`（或本文档后继）共同生成 `integration_manifest.yaml`，先静态确认
+   `rospack find uav_vision` 指向视觉 install，再在用户当轮明确授权后只跑一次完整 SITL Gate。
+4. Gate 通过后才进入人工 PR/main/tag；`liftrace-sim` 单策略筛选和板端无桨 Stage A–C 仅列为
+   后续计划，本轮未执行。
