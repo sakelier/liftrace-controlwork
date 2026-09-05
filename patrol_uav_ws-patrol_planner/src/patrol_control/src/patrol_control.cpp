@@ -156,7 +156,11 @@ void LLController::initializeNode() {
     } else {
         ROS_INFO("[PatrolControl] External mission mode active; planner goal publisher disabled");
     }
-    servo_complete_sub_ = nh_.subscribe("/servo/complete", 1,&LLController::servoCompleteCallback, this);
+    if (!external_mission_mode_) {
+        servo_complete_sub_ = nh_.subscribe(
+            "/servo/complete", 1,
+            &LLController::servoCompleteCallback, this);
+    }
     if (!external_mission_mode_) {
         class_control_pub_ =
             nh_.advertise<std_msgs::Bool>("/detect/class_control", 1);
@@ -183,10 +187,13 @@ void LLController::initializeNode() {
     point_class_pub_ = nh_.advertise<std_msgs::Int8>("/detect/point_class",1);
     align_mode_pub_ = nh_.advertise<std_msgs::String>("/uav_vision/align_mode", 1);
 
-    // 初始化舵机控制发布器
-    servo1_pub_ = nh_.advertise<std_msgs::Bool>("/control1", 1);
-    servo2_pub_ = nh_.advertise<std_msgs::Bool>("/control2", 1);
-    servo3_pub_ = nh_.advertise<std_msgs::Bool>("/control3", 1);
+    // 旧 topic 舵机控制只属于 legacy 入口。external 正式链仅使用
+    // permission-gated /Servo 服务及其同步 ACK。
+    if (!external_mission_mode_) {
+        servo1_pub_ = nh_.advertise<std_msgs::Bool>("/control1", 1);
+        servo2_pub_ = nh_.advertise<std_msgs::Bool>("/control2", 1);
+        servo3_pub_ = nh_.advertise<std_msgs::Bool>("/control3", 1);
+    }
 
     servo_client = nh_.serviceClient<patrol_control::Servo>("Servo");
 
@@ -2921,6 +2928,10 @@ DropActionResult LLController::executeDropAction(int servo_id) {
     return result;
 }
 void LLController::stopDropAction(int servo_id) {
+
+    if (external_mission_mode_) {
+        return;
+    }
 
     // 创建投递控制消息
     std_msgs::Bool drop_msg;

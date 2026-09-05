@@ -15,6 +15,7 @@
     <arg name="planner_max_acc" default="2.0" />
     <arg name="planner_obstacles_inflation" default="0.25" />
     <arg name="planner_clearance_threshold" default="0.20" />
+    <arg name="start_waypoint_generator" default="true" />
     <arg name="waypoint_config" default="$(find patrol_control)/config/patrol_sim.yaml" />
     <!-- Keep the historical 5 cm precision default.  The full toudi3 SITL
          entry overrides this with a slightly wider tolerance because the
@@ -44,6 +45,7 @@
         <arg name="max_acc" value="$(arg planner_max_acc)" />
         <arg name="obstacles_inflation" value="$(arg planner_obstacles_inflation)" />
         <arg name="clearance_threshold" value="$(arg planner_clearance_threshold)" />
+        <arg name="start_waypoint_generator" value="$(arg start_waypoint_generator)" />
     </include>
 
     <group if="$(arg rviz)">

@@ -15,6 +15,8 @@ KS2A543_MODEL = PATROL / "models" / "iris_mid360_downward_camera" / \
     "model_ks2a543.sdf"
 RVIZ_CONFIG = PATROL / "rviz_config" / "patrol_pc.rviz"
 RUNTIME_CONFIG = PACKAGE / "config" / "vcl06_random_field_runtime.yaml"
+FAST_LIO = WORKSPACE_SRC / "FAST_LIO"
+PLAN_MANAGE = WORKSPACE_SRC / "Fast-Planner" / "fast_planner" / "plan_manage"
 
 
 class ExternalMissionContractTest(unittest.TestCase):
@@ -152,11 +154,82 @@ class ExternalMissionContractTest(unittest.TestCase):
         for topic in (
                 "/detect/servo_status", "/detect/class_control",
                 "/detect/tank_control", "/detect/control",
-                "/detect/landing_control", "/cross/control"):
+                "/detect/landing_control", "/cross/control",
+                "/servo/complete", "/control1", "/control2", "/control3"):
             topic_index = init_body.index(topic)
             self.assertNotEqual(
                 init_body.rfind("if (!external_mission_mode_)",
                                 0, topic_index), -1, topic)
+
+        stop_start = source.index("void LLController::stopDropAction")
+        stop_end = source.index("void LLController::resetDropState", stop_start)
+        self.assertIn("if (external_mission_mode_)",
+                      source[stop_start:stop_end])
+
+    def test_formal_headless_disables_manual_and_visualization_nodes(self):
+        def include_args(root, suffix):
+            include = next(
+                item for item in root.iter("include")
+                if item.attrib.get("file", "").endswith(suffix))
+            return {item.attrib["name"]: item.attrib.get("value")
+                    for item in include.findall("arg")}
+
+        formal = ET.parse(str(FORMAL_LAUNCH)).getroot()
+        formal_guarded = include_args(
+            formal, "toudi3_visual_delivery_guarded.launch")
+        self.assertEqual(formal_guarded["start_waypoint_generator"], "false")
+        self.assertEqual(formal_guarded["enable_static_pointcloud_viz"],
+                         "false")
+
+        guarded_path = PACKAGE / "launch" / \
+            "toudi3_visual_delivery_guarded.launch"
+        guarded = ET.parse(str(guarded_path)).getroot()
+        guarded_nested = include_args(
+            guarded, "toudi3_full_competition_sim_new_vision.launch")
+        for name in ("start_waypoint_generator",
+                     "enable_static_pointcloud_viz"):
+            self.assertEqual(guarded_nested[name], "$(arg %s)" % name)
+
+        visual_path = PATROL / "launch" / \
+            "toudi3_full_competition_sim_new_vision.launch"
+        visual = ET.parse(str(visual_path)).getroot()
+        visual_full = include_args(
+            visual, "patrol_full_competition_sim.launch")
+        for name in ("start_waypoint_generator",
+                     "enable_static_pointcloud_viz"):
+            self.assertEqual(visual_full[name], "$(arg %s)" % name)
+
+        full_path = PATROL / "launch" / "patrol_full_competition_sim.launch"
+        full = ET.parse(str(full_path)).getroot()
+        full_control = include_args(full, "patrol_control_px4_sim.launch")
+        full_mapping = include_args(full, "mapping_mid360_sim.launch")
+        self.assertEqual(full_control["start_waypoint_generator"],
+                         "$(arg start_waypoint_generator)")
+        self.assertEqual(full_mapping["enable_static_pointcloud_viz"],
+                         "$(arg enable_static_pointcloud_viz)")
+
+        control_path = PATROL / "launch" / "patrol_control_px4_sim.launch"
+        control = ET.parse(str(control_path)).getroot()
+        planner_args = include_args(control, "patrol_planner_px4_sim.launch")
+        self.assertEqual(planner_args["start_waypoint_generator"],
+                         "$(arg start_waypoint_generator)")
+
+        planner_path = PLAN_MANAGE / "launch" / \
+            "patrol_planner_px4_sim.launch"
+        planner = ET.parse(str(planner_path)).getroot()
+        waypoint = next(item for item in planner.findall("node")
+                        if item.attrib.get("name") == "waypoint_generator")
+        self.assertEqual(waypoint.attrib.get("if"),
+                         "$(arg start_waypoint_generator)")
+
+    def test_fast_lio_waits_for_catkin_generated_headers(self):
+        source = (FAST_LIO / "CMakeLists.txt").read_text(encoding="utf-8")
+        target_start = source.index("add_dependencies(fastlio_mapping")
+        target_end = source.index(")", target_start)
+        dependency_block = source[target_start:target_end]
+        self.assertIn("${${PROJECT_NAME}_EXPORTED_TARGETS}",
+                      dependency_block)
+        self.assertIn("${catkin_EXPORTED_TARGETS}", dependency_block)
 
     def test_control_readiness_is_latched_after_takeoff(self):
         header = (PATROL / "include" / "patrol_control" /

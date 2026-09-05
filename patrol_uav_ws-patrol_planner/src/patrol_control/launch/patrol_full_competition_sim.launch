@@ -30,6 +30,8 @@
   <arg name="start_mapping" default="true" />
   <arg name="start_visual" default="true" />
   <arg name="start_arming" default="true" />
+  <arg name="start_waypoint_generator" default="true" />
+  <arg name="enable_static_pointcloud_viz" default="true" />
   <!-- The requested legacy competition flow is direct waypoint mode.  The
        planner nodes remain started for full-chain compatibility, but they do
        not own the vehicle setpoint in this mode. -->
@@ -92,6 +94,7 @@
     <arg name="planner_max_acc" value="$(arg planner_max_acc)" />
     <arg name="planner_obstacles_inflation" value="$(arg planner_obstacles_inflation)" />
     <arg name="planner_clearance_threshold" value="$(arg planner_clearance_threshold)" />
+    <arg name="start_waypoint_generator" value="$(arg start_waypoint_generator)" />
     <arg name="aligning_threshold" value="$(arg aligning_threshold)" />
     <arg name="waypoint_config" value="$(arg waypoint_config)" />
   </include>
@@ -116,6 +119,8 @@
   <group if="$(arg start_mapping)">
     <include file="$(find fast_lio)/launch/mapping_mid360_sim.launch">
       <arg name="rviz" value="$(arg mapping_rviz)" />
+      <arg name="enable_static_pointcloud_viz"
+           value="$(arg enable_static_pointcloud_viz)" />
     </include>
   </group>
 </launch>
