@@ -752,17 +752,11 @@ class PlannerMotionExecutor:
         if status == "FAILED_ATTEMPT":
             state.failed_attempt_count += 1
             if state.failed_attempt_count > self.config.max_planning_attempts:
-                qualified_dwell_fresh = (
-                    state.trajectory_ever_ready and
-                    state.dwell_start_ns > 0 and
-                    state.last_qualified_odom_ns > 0 and
-                    max(0, int(now_ns) - state.last_qualified_odom_ns) <=
-                    self.config.odom_max_age_ns
-                )
-                if qualified_dwell_fresh:
+                if (state.trajectory_ever_ready and
+                        self._has_fresh_near_goal_odom(state, int(now_ns))):
                     return self._outcome(
                         True,
-                        "planner_attempt_limit_deferred_for_arrival_dwell",
+                        "planner_attempt_limit_deferred_for_arrival_settle",
                     )
                 return self._fail_closed("planner_attempt_limit_exceeded")
             return self._outcome(True, "planner_attempt_failed_nonterminal",
@@ -784,6 +778,29 @@ class PlannerMotionExecutor:
     def _reset_dwell(self, state: _GoalLifecycle) -> None:
         state.dwell_start_ns = 0
         state.last_qualified_odom_ns = 0
+
+    def _has_fresh_near_goal_odom(self, state: _GoalLifecycle,
+                                  now_ns: int) -> bool:
+        sample = self._last_odom
+        goal = state.effective_goal
+        if sample is None or goal is None or sample.frame_id != goal.frame_id:
+            return False
+        if (sample.stamp_ns >
+                int(now_ns) + self.config.source_future_tolerance_ns or
+                max(0, int(now_ns) - sample.stamp_ns) >
+                self.config.odom_max_age_ns):
+            return False
+        distance = math.sqrt(
+            (sample.x - goal.x) ** 2 +
+            (sample.y - goal.y) ** 2 +
+            (sample.z - goal.z) ** 2
+        )
+        arrival_distance = (
+            self.config.approach_arrival_distance_m
+            if state.decision.command == "APPROACH"
+            else self.config.arrival_distance_m
+        )
+        return distance <= arrival_distance
 
     def _complete_arrival(self, state: _GoalLifecycle,
                           now_ns: int) -> ExecutorOutcome:

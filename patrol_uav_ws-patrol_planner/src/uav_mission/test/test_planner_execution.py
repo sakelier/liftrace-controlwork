@@ -56,6 +56,18 @@ class PlannerMotionExecutorTest(unittest.TestCase):
             self.assertTrue(outcome.accepted, outcome.reason)
         return now + 30_000_000
 
+    def start_replanning_goal(self, executor):
+        self.dispatch(executor)
+        for event_seq, name, attempt in (
+                (1, "ACCEPTED", 0),
+                (2, "PLANNING", 1),
+                (3, "TRAJECTORY_READY", 1),
+                (4, "REPLANNING", 2)):
+            stamp = BASE + event_seq * 10_000_000
+            outcome = executor.apply_planner_status(
+                status(event_seq, 8, name, stamp, attempt=attempt), stamp)
+            self.assertTrue(outcome.accepted, outcome.reason)
+
     def test_late_start_and_zero_target_id(self):
         out = self.dispatch(self.make(), decision(42, "APPROACH"))
         self.assertEqual(out.planner_goal.decision_seq, 42)
@@ -177,18 +189,7 @@ class PlannerMotionExecutorTest(unittest.TestCase):
             arrival_distance_m=.25, arrival_speed_mps=.15,
             arrival_dwell_ns=100_000_000,
             odom_max_age_ns=200_000_000))
-        self.dispatch(executor)
-        events = (
-            (1, "ACCEPTED", 0),
-            (2, "PLANNING", 1),
-            (3, "TRAJECTORY_READY", 1),
-            (4, "REPLANNING", 2),
-        )
-        for event_seq, name, attempt in events:
-            stamp = BASE + event_seq * 10_000_000
-            outcome = executor.apply_planner_status(
-                status(event_seq, 8, name, stamp, attempt=attempt), stamp)
-            self.assertTrue(outcome.accepted, outcome.reason)
+        self.start_replanning_goal(executor)
 
         first_stamp = BASE + 50_000_000
         self.assertEqual(
@@ -207,11 +208,74 @@ class PlannerMotionExecutorTest(unittest.TestCase):
             BASE+80_000_000)
         self.assertEqual(
             deferred.reason,
-            "planner_attempt_limit_deferred_for_arrival_dwell")
+            "planner_attempt_limit_deferred_for_arrival_settle")
 
         arrived_stamp = first_stamp + 100_000_000
         arrived = executor.apply_odom(odom(arrived_stamp), arrived_stamp)
         self.assertEqual(arrived.events[0].status, "SUCCEEDED")
+
+    def test_fresh_near_goal_moving_odom_defers_attempt_limit(self):
+        executor = PlannerMotionExecutor(PlannerMotionConfig(
+            executor_id="executor-test", max_planning_attempts=1,
+            arrival_distance_m=.25, arrival_speed_mps=.15,
+            arrival_dwell_ns=100_000_000,
+            odom_max_age_ns=200_000_000))
+        self.start_replanning_goal(executor)
+
+        moving_stamp = BASE + 50_000_000
+        moving = executor.apply_odom(
+            odom(moving_stamp, speed=.30), moving_stamp)
+        self.assertEqual(moving.reason, "arrival_threshold_not_met")
+        first_failed = executor.apply_planner_status(
+            status(5, 8, "FAILED_ATTEMPT", BASE+60_000_000, attempt=2),
+            BASE+60_000_000)
+        self.assertTrue(first_failed.accepted, first_failed.reason)
+        replanning = executor.apply_planner_status(
+            status(6, 8, "REPLANNING", BASE+70_000_000, attempt=3),
+            BASE+70_000_000)
+        self.assertTrue(replanning.accepted, replanning.reason)
+        deferred = executor.apply_planner_status(
+            status(7, 8, "FAILED_ATTEMPT", BASE+80_000_000, attempt=3),
+            BASE+80_000_000)
+        self.assertTrue(deferred.accepted, deferred.reason)
+        self.assertEqual(
+            deferred.reason,
+            "planner_attempt_limit_deferred_for_arrival_settle")
+
+        dwell_stamp = BASE + 90_000_000
+        dwell = executor.apply_odom(odom(dwell_stamp), dwell_stamp)
+        self.assertEqual(dwell.reason, "arrival_dwell_pending")
+        arrived_stamp = dwell_stamp + 100_000_000
+        arrived = executor.apply_odom(odom(arrived_stamp), arrived_stamp)
+        self.assertEqual(arrived.reason, "motion_succeeded")
+        self.assertEqual(arrived.events[0].status, "SUCCEEDED")
+
+    def test_attempt_limit_is_not_deferred_outside_arrival_radius(self):
+        executor = PlannerMotionExecutor(PlannerMotionConfig(
+            executor_id="executor-test", max_planning_attempts=1,
+            arrival_distance_m=.25, arrival_speed_mps=.15,
+            arrival_dwell_ns=100_000_000,
+            odom_max_age_ns=200_000_000))
+        self.start_replanning_goal(executor)
+
+        outside_stamp = BASE + 50_000_000
+        outside = replace(odom(outside_stamp), x=1.251)
+        self.assertEqual(
+            executor.apply_odom(outside, outside_stamp).reason,
+            "arrival_threshold_not_met")
+        first_failed = executor.apply_planner_status(
+            status(5, 8, "FAILED_ATTEMPT", BASE+60_000_000, attempt=2),
+            BASE+60_000_000)
+        self.assertTrue(first_failed.accepted, first_failed.reason)
+        replanning = executor.apply_planner_status(
+            status(6, 8, "REPLANNING", BASE+70_000_000, attempt=3),
+            BASE+70_000_000)
+        self.assertTrue(replanning.accepted, replanning.reason)
+        exhausted = executor.apply_planner_status(
+            status(7, 8, "FAILED_ATTEMPT", BASE+80_000_000, attempt=3),
+            BASE+80_000_000)
+        self.assertFalse(exhausted.accepted)
+        self.assertEqual(exhausted.reason, "planner_attempt_limit_exceeded")
 
     def test_attempt_limit_still_fails_without_valid_trajectory(self):
         executor = PlannerMotionExecutor(PlannerMotionConfig(
