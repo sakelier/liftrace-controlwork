@@ -522,6 +522,27 @@ class PlannerMotionExecutorTest(unittest.TestCase):
         self.assertFalse(rejected.accepted)
         self.assertEqual(rejected.reason, "decision_from_future")
 
+    def test_planner_event_source_clock_jitter_is_bounded(self):
+        dispatch_ns = BASE + 200_000_000
+        item = decision(deadline=BASE + 5*NSEC)
+
+        executor = self.make()
+        self.dispatch(executor, item, dispatch_ns)
+        within_tolerance = executor.apply_planner_status(
+            status(1, 8, "ACCEPTED", dispatch_ns-100_000_000),
+            dispatch_ns)
+        self.assertTrue(within_tolerance.accepted, within_tolerance.reason)
+        self.assertEqual(within_tolerance.reason, "planner_goal_accepted")
+
+        executor = self.make()
+        self.dispatch(executor, item, dispatch_ns)
+        beyond_tolerance = executor.apply_planner_status(
+            status(1, 8, "ACCEPTED", dispatch_ns-100_000_001),
+            dispatch_ns)
+        self.assertFalse(beyond_tolerance.accepted)
+        self.assertEqual(beyond_tolerance.reason,
+                         "planner_event_precedes_dispatch")
+
     def test_configurable_frame_orientation_and_planner_progress_events(self):
         executor = PlannerMotionExecutor(PlannerMotionConfig(mission_frame="map"))
         item = replace(decision(), goal=MotionGoal(

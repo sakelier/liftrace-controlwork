@@ -674,7 +674,12 @@ class PlannerMotionExecutor:
         state = self._goals.get(event.goal_seq)
         if state is None:
             return self._outcome(False, "foreign_planner_goal_ignored")
-        if event.stamp_ns < state.dispatch_ns:
+        # Planner status is stamped by roscpp before the rospy decision
+        # callback finishes recording dispatch_ns.  Keep the generation and
+        # echoed-goal fences below, but tolerate the same bounded source-clock
+        # skew already accepted for decisions and future-dated telemetry.
+        if (event.stamp_ns + self.config.source_future_tolerance_ns <
+                state.dispatch_ns):
             return self._fail_closed("planner_event_precedes_dispatch")
         requested = event.requested_goal
         effective = event.effective_goal
