@@ -32,17 +32,16 @@ mission:
   # All points are camera_init coordinates derived from toudi3_random.world.
   # The route first crosses the low Wall_15 opening south-to-north, then the
   # Wall_20 and Wall_22 scoring doors west-to-east, and ends above the final H.
-  post_delivery_route_revision: toudi3-random-three-door-h-r3
+  post_delivery_route_revision: toudi3-random-three-door-h-r2
   landing_xy: [3.274292, 8.057220]
   landing_anchor_tolerance: 0.05
   post_delivery_route:
     # Do not stop on a wall plane: the occupancy grid can mark the plane voxel
     # occupied even when the continuous vehicle path fits through the opening.
-    # The 2025 route likewise used bracketing points on the two sides.  These
-    # Wall_15 points include the two extra 0.1 m cells repeatedly selected by
-    # the online EDT in r20/r26/r29, so the goal does not move during flight.
-    - [-2.386703, 5.472270, 0.90]  # Wall_15 south map-clear approach
-    - [-2.386703, 6.672270, 0.90]  # Wall_15 north map-clear exit
+    # Keep the r20/r26 proven brackets around the 2025 competition waypoints;
+    # planner convergence is fixed in the FSM instead of retuning route data.
+    - [-2.386703, 5.672270, 0.90]  # Wall_15 south approach
+    - [-2.386703, 6.472270, 0.90]  # Wall_15 north clear
     - [-2.386703, 7.652690, 1.20]  # north corridor entry
     - [-0.512003, 8.053133, 1.20]  # Wall_20 west approach
     - [ 0.287997, 8.053133, 1.20]  # Wall_20 east clear

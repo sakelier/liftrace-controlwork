@@ -80,11 +80,11 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["target_action_timeout"], 120.0)
         self.assertEqual(
             mission["post_delivery_route_revision"],
-            "toudi3-random-three-door-h-r3",
+            "toudi3-random-three-door-h-r2",
         )
         self.assertEqual(len(route), 8)
-        self.assertEqual(route[0], [-2.386703, 5.472270, 0.9])
-        self.assertEqual(route[1], [-2.386703, 6.672270, 0.9])
+        self.assertEqual(route[0], [-2.386703, 5.672270, 0.9])
+        self.assertEqual(route[1], [-2.386703, 6.472270, 0.9])
         self.assertEqual(route[3], [-0.512003, 8.053133, 1.2])
         self.assertEqual(route[4], [0.287997, 8.053133, 1.2])
         self.assertEqual(route[5], [1.723022, 8.009650, 1.2])
@@ -103,8 +103,8 @@ class NavigationManagerContractTest(unittest.TestCase):
             self.assertGreater(current, door["coordinate"])
             self.assertNotEqual(current, door["coordinate"])
         wall_15 = doors[0]
-        self.assertGreater(wall_15["coordinate"] - route[0][1], 0.5)
-        self.assertGreater(route[1][1] - wall_15["coordinate"], 0.5)
+        self.assertGreater(wall_15["coordinate"] - route[0][1], 0.3)
+        self.assertGreater(route[1][1] - wall_15["coordinate"], 0.3)
         self.assertIn("GoalSnapshot", self.source)
         self.assertIn("post_delivery_route_index", self.source)
 

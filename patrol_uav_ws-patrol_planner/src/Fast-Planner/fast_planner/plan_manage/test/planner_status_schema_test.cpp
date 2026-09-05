@@ -4,6 +4,7 @@
 #include <plan_manage/PlannerStatus.h>
 #include <plan_manage/planner_status_tracker.h>
 
+#include <limits>
 #include <vector>
 
 namespace {
@@ -131,6 +132,23 @@ TEST(PlannerStatusTracker, EffectiveAdjustmentKeepsSequenceAndFinishClosesActive
   ASSERT_EQ(1u, next.size());
   EXPECT_EQ(plan_manage::PlannerStatus::ACCEPTED, next[0].status);
   EXPECT_EQ(74u, next[0].goal_seq);
+}
+
+TEST(PlannerStatusTracker, CompletionRequiresActiveFiniteDistanceWithinThreshold) {
+  fast_planner::PlannerStatusTracker tracker;
+  tracker.replaceGoal(makeGoal(81, 1.0), makeGoal(81, 1.0),
+                      ros::Time(30, 0), 0.0, 1.0);
+
+  EXPECT_FALSE(tracker.canFinishWithin(0.329, 0.1));
+  EXPECT_TRUE(tracker.canFinishWithin(0.1, 0.1));
+  EXPECT_FALSE(tracker.canFinishWithin(
+      std::numeric_limits<double>::quiet_NaN(), 0.1));
+  EXPECT_FALSE(tracker.canFinishWithin(
+      std::numeric_limits<double>::infinity(), 0.1));
+  EXPECT_FALSE(tracker.canFinishWithin(0.05, -1.0));
+
+  tracker.finish("goal_reached_after_local_trajectory", ros::Time(31, 0), 0.1);
+  EXPECT_FALSE(tracker.canFinishWithin(0.0, 0.1));
 }
 
 int main(int argc, char** argv) {

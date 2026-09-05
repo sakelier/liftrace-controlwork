@@ -236,10 +236,17 @@ void KinoReplanFSM::execFSMCallback(const ros::TimerEvent& e) {
 
       Eigen::Vector3d pos = info->position_traj_.evaluateDeBoorT(t_cur);
 
-      /* && (end_pt_ - pos).norm() < 0.5 */
       if (t_cur > info->duration_ - 1e-2) {
-        publishGoalStatus(goal_status_tracker_.finish("local_trajectory_duration_reached",
-                                                      ros::Time::now(), currentGoalDistance()));
+        const double goal_distance = currentGoalDistance();
+        if (!goal_status_tracker_.canFinishWithin(goal_distance, no_replan_thresh_)) {
+          // A local segment ending is not the same as reaching the global
+          // mission goal.  Continue from measured odometry until the vehicle
+          // is inside the configured planner convergence radius.
+          changeFSMExecState(REPLAN_TRAJ, "FSM");
+          return;
+        }
+        publishGoalStatus(goal_status_tracker_.finish(
+            "goal_reached_after_local_trajectory", ros::Time::now(), goal_distance));
         have_target_ = false;
         changeFSMExecState(WAIT_TARGET, "FSM");
         return;

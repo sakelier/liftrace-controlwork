@@ -1,6 +1,7 @@
 #ifndef _PLANNER_STATUS_TRACKER_H_
 #define _PLANNER_STATUS_TRACKER_H_
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -93,6 +94,12 @@ public:
 
   const geometry_msgs::PoseStamped& effectiveGoal() const {
     return effective_goal_;
+  }
+
+  bool canFinishWithin(double distance_to_goal, double max_distance) const {
+    return active_ && std::isfinite(distance_to_goal) &&
+           std::isfinite(max_distance) && max_distance >= 0.0 &&
+           distance_to_goal <= max_distance;
   }
 
 private:
