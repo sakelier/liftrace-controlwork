@@ -248,7 +248,10 @@ def build_corridor_reducer(crossing_names=MODULE.EXPECTED_DOOR_ORDER,
         "Wall_22": ((1.90, 8.009650, 1.2),
                     (2.30, 8.009650, 1.2)),
     }
-    crossing_route_index = {"Wall_15": 2, "Wall_20": 5, "Wall_22": 7}
+    crossing_route_index = {
+        door["name"]: int(door["route_indices"][0])
+        for door in CORRIDOR_DOORS
+    }
     goal_override = dict(goal_override or {})
     for route_index, configured_goal in enumerate(CORRIDOR_ROUTE, start=1):
         issued = 320.0 + (route_index - 1) * 12.0
@@ -330,7 +333,10 @@ def build_post_delivery_stage_reducer():
         "Wall_22": ((1.90, 8.009650, 1.2),
                     (2.30, 8.009650, 1.2)),
     }
-    crossing_route_index = {"Wall_15": 2, "Wall_20": 5, "Wall_22": 7}
+    crossing_route_index = {
+        door["name"]: int(door["route_indices"][0])
+        for door in CORRIDOR_DOORS
+    }
     event_sequence = 1
     for route_index, configured_goal in enumerate(CORRIDOR_ROUTE, start=1):
         issued = 10.0 + (route_index - 1) * 12.0
@@ -558,18 +564,20 @@ class Vcl06GateReducerTest(unittest.TestCase):
             post_delivery_goal_tolerance=CORRIDOR_GOAL_TOLERANCE,
             post_delivery_doors=CORRIDOR_DOORS,
         )
-        reducer.observe_decision(decision(
-            1, MODULE.RETURN_HOME, 10.0, 70.0,
-            goal=CORRIDOR_ROUTE[0],
-            reason="post_delivery_route:1/%d:%s:test" % (
-                len(CORRIDOR_ROUTE), CORRIDOR_REVISION)))
-        reducer.observe_pose(-2.386703, 6.2, 1.0, "camera_init")
-        reducer.observe_decision(decision(
-            2, MODULE.RETURN_HOME, 20.0, 80.0,
-            goal=CORRIDOR_ROUTE[1],
-            reason="post_delivery_route:2/%d:%s:test" % (
-                len(CORRIDOR_ROUTE), CORRIDOR_REVISION)))
-        reducer.observe_pose(-2.386703, 5.9, 1.0, "camera_init")
+        wall_15_index = int(CORRIDOR_DOORS[0]["route_indices"][0])
+        for route_index in range(1, wall_15_index + 1):
+            if route_index == wall_15_index:
+                reducer.observe_pose(
+                    -2.386703, 6.2, 1.0, "camera_init")
+            reducer.observe_decision(decision(
+                route_index, MODULE.RETURN_HOME,
+                10.0 * route_index, 70.0 + 10.0 * route_index,
+                goal=CORRIDOR_ROUTE[route_index - 1],
+                reason="post_delivery_route:%d/%d:%s:test" % (
+                    route_index, len(CORRIDOR_ROUTE), CORRIDOR_REVISION)))
+            if route_index == wall_15_index:
+                reducer.observe_pose(
+                    -2.386703, 5.9, 1.0, "camera_init")
         self.assertIn("door_direction_invalid:Wall_15", reducer.errors)
 
     def test_corridor_gate_rejects_crossing_outside_opening(self):
@@ -588,14 +596,21 @@ class Vcl06GateReducerTest(unittest.TestCase):
                     post_delivery_goal_tolerance=CORRIDOR_GOAL_TOLERANCE,
                     post_delivery_doors=CORRIDOR_DOORS,
                 )
-                route_decision = decision(
-                    1, MODULE.RETURN_HOME, 10.0, 70.0,
-                    goal=CORRIDOR_ROUTE[1],
-                    reason="post_delivery_route:2/%d:%s:test" % (
-                        len(CORRIDOR_ROUTE), CORRIDOR_REVISION))
-                reducer.observe_decision(route_decision)
-                reducer.observe_pose(*before, "camera_init")
-                reducer.observe_pose(*after, "camera_init")
+                wall_15_index = int(
+                    CORRIDOR_DOORS[0]["route_indices"][0])
+                for route_index in range(1, wall_15_index + 1):
+                    route_decision = decision(
+                        route_index, MODULE.RETURN_HOME,
+                        10.0 * route_index,
+                        70.0 + 10.0 * route_index,
+                        goal=CORRIDOR_ROUTE[route_index - 1],
+                        reason="post_delivery_route:%d/%d:%s:test" % (
+                            route_index, len(CORRIDOR_ROUTE),
+                            CORRIDOR_REVISION))
+                    reducer.observe_decision(route_decision)
+                    if route_index == wall_15_index:
+                        reducer.observe_pose(*before, "camera_init")
+                        reducer.observe_pose(*after, "camera_init")
                 self.assertIn(expected_error, reducer.errors)
 
     def test_corridor_gate_rejects_wrong_route_goal(self):

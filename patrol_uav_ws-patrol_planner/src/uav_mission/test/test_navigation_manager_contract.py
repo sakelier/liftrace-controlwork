@@ -84,20 +84,23 @@ class NavigationManagerContractTest(unittest.TestCase):
         self.assertEqual(mission["motion_action_timeout"], 90.0)
         self.assertEqual(
             mission["post_delivery_route_revision"],
-            "toudi3-random-three-door-h-r2",
+            "toudi3-random-three-door-h-r3",
         )
-        self.assertEqual(len(route), 8)
-        self.assertEqual(route[0], [-2.386703, 5.672270, 0.9])
-        self.assertEqual(route[1], [-2.386703, 6.472270, 0.9])
-        self.assertEqual(route[3], [-0.512003, 8.053133, 1.2])
-        self.assertEqual(route[4], [0.287997, 8.053133, 1.2])
-        self.assertEqual(route[5], [1.723022, 8.009650, 1.2])
-        self.assertEqual(route[6], [2.523022, 8.009650, 1.2])
+        self.assertEqual(len(route), 9)
+        self.assertEqual(route[0], [-2.386703, 5.672270, 2.2])
+        self.assertEqual(route[1], [-2.386703, 5.672270, 0.9])
+        self.assertEqual(route[2], [-2.386703, 6.472270, 0.9])
+        self.assertEqual(route[4], [-0.512003, 8.053133, 1.2])
+        self.assertEqual(route[5], [0.287997, 8.053133, 1.2])
+        self.assertEqual(route[6], [1.723022, 8.009650, 1.2])
+        self.assertEqual(route[7], [2.523022, 8.009650, 1.2])
         self.assertEqual(route[-1][:2], mission["landing_xy"])
         self.assertLessEqual(max(point[2] for point in route), 4.0)
+        self.assertGreater(route[0][2], 1.5)
+        self.assertEqual(route[0][:2], route[1][:2])
         doors = self.formal_config["post_delivery_gate"]["doors"]
         self.assertEqual(
-            [door["route_indices"] for door in doors], [[2], [5], [7]])
+            [door["route_indices"] for door in doors], [[3], [6], [8]])
         for door in doors:
             axis = 0 if door["axis"] == "x" else 1
             crossing_index = door["route_indices"][0] - 1
@@ -107,8 +110,8 @@ class NavigationManagerContractTest(unittest.TestCase):
             self.assertGreater(current, door["coordinate"])
             self.assertNotEqual(current, door["coordinate"])
         wall_15 = doors[0]
-        self.assertGreater(wall_15["coordinate"] - route[0][1], 0.3)
-        self.assertGreater(route[1][1] - wall_15["coordinate"], 0.3)
+        self.assertGreater(wall_15["coordinate"] - route[1][1], 0.3)
+        self.assertGreater(route[2][1] - wall_15["coordinate"], 0.3)
         self.assertIn("GoalSnapshot", self.source)
         self.assertIn("post_delivery_route_index", self.source)
 

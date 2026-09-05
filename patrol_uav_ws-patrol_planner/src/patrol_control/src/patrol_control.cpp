@@ -281,7 +281,10 @@ void LLController::externalMissionTick() {
     patrol_cmd.pose.position.x = adjust_target_position[0];
     patrol_cmd.pose.position.y = adjust_target_position[1];
     patrol_cmd.pose.position.z = align_height;
-    patrol_cmd.pose.orientation = waypoint_mark_point.pose.orientation;
+    patrol_cmd.pose.orientation =
+        (current_task_type == CROSS_MISSION)
+            ? cross_mark_point.pose.orientation
+            : waypoint_mark_point.pose.orientation;
 
     const bool align_done =
         (current_task_type == CROSS_MISSION) ? CrossDetectionDone()
@@ -738,6 +741,11 @@ void LLController::plannercmdCallback(const geometry_msgs::PoseStamped& msg) {
 }
 
 void LLController::TankStatusCallback(const geometry_msgs::PoseStamped& msg){
+    if (external_mission_mode_) {
+        ROS_DEBUG_THROTTLE(
+            5.0, "[PatrolControl] Ignoring legacy tank mark in external mission mode");
+        return;
+    }
     tank_found_ = true;
     tank_mark_point.pose.position.x = msg.pose.position.x;
     tank_mark_point.pose.position.y = msg.pose.position.y;
@@ -746,6 +754,11 @@ void LLController::TankStatusCallback(const geometry_msgs::PoseStamped& msg){
 }
 
 void LLController::waypointMarkCallback(const geometry_msgs::PoseStamped& msg) {
+    if (external_mission_mode_) {
+        ROS_DEBUG_THROTTLE(
+            5.0, "[PatrolControl] Ignoring legacy waypoint mark in external mission mode");
+        return;
+    }
     have_waypoint_mark = true;
     // waypoint_mark_point = msg;
     waypoint_mark_point.pose.position.x = msg.pose.position.x;
@@ -755,6 +768,11 @@ void LLController::waypointMarkCallback(const geometry_msgs::PoseStamped& msg) {
 }
 
 void LLController::crossMarkCallback(const geometry_msgs::PoseStamped& msg) {
+    if (external_mission_mode_) {
+        ROS_DEBUG_THROTTLE(
+            5.0, "[PatrolControl] Ignoring legacy cross mark in external mission mode");
+        return;
+    }
     have_cross_mark = true;
     cross_mark_point.pose.position.x = msg.pose.position.x;
     cross_mark_point.pose.position.y = msg.pose.position.y;
@@ -2336,6 +2354,11 @@ bool LLController::LandDetectDone()
 
 void LLController::ClassCallback(const std_msgs::String& msg)
 {
+    if (external_mission_mode_) {
+        ROS_DEBUG_THROTTLE(
+            5.0, "[PatrolControl] Ignoring legacy class result in external mission mode");
+        return;
+    }
     class_ = msg;
     if (classMatchesGoal(class_.data)) {
         align_ok = true;
@@ -2487,6 +2510,14 @@ void LLController::projectDropOffsetToTarget(const uav_vision::DropOffset& msg)
 
 void LLController::selectedTargetCallback(const uav_vision::TargetCandidate::ConstPtr& msg)
 {
+    if (external_mission_mode_) {
+        // Mission Manager freezes target identity and Planner Bridge owns the
+        // ALIGN handoff. A later global selection must not retarget the
+        // low-level controller while that transaction is in progress.
+        ROS_DEBUG_THROTTLE(
+            5.0, "[PatrolControl] Ignoring policy selection in external mission mode");
+        return;
+    }
     latest_selected_target_ = *msg;
     latest_selected_target_time_ = ros::Time::now();
     have_selected_target_ = true;
@@ -2564,7 +2595,7 @@ void LLController::missionCommandCallback(
                      msg->command, msg->target_id, msg->target_class.c_str());
             break;
 
-        case patrol_control::MissionCommand::ALIGN:
+        case patrol_control::MissionCommand::ALIGN: {
             if (external_landing_auto_land_requested_) {
                 ROS_ERROR(
                     "[ExternalLanding] refusing ALIGN after AUTO.LAND handoff");
@@ -2582,24 +2613,33 @@ void LLController::missionCommandCallback(
             if (!msg->target_class.empty()) {
                 goal.push_back(msg->target_class);
             }
-            waypoint_mark_point = msg->goal;
-            waypoint_mark_point.header.frame_id = "camera_init";
-            waypoint_mark_point.pose.position.z = align_height;
-            if (!isQuaternionNormalized(waypoint_mark_point.pose.orientation)) {
-                waypoint_mark_point.pose.orientation =
+            geometry_msgs::PoseStamped alignment_target = msg->goal;
+            alignment_target.header.frame_id = "camera_init";
+            alignment_target.pose.position.z = align_height;
+            if (!isQuaternionNormalized(alignment_target.pose.orientation)) {
+                alignment_target.pose.orientation =
                     tf::createQuaternionMsgFromYaw(0.0);
             }
-            adjust_target_position[0] = waypoint_mark_point.pose.position.x;
-            adjust_target_position[1] = waypoint_mark_point.pose.position.y;
+            if (current_task_type == CROSS_MISSION) {
+                cross_mark_point = alignment_target;
+                have_cross_mark = true;
+                have_waypoint_mark = false;
+            } else {
+                waypoint_mark_point = alignment_target;
+                have_waypoint_mark = true;
+                have_cross_mark = false;
+            }
+            adjust_target_position[0] = alignment_target.pose.position.x;
+            adjust_target_position[1] = alignment_target.pose.position.y;
             adjust_target_position[2] = align_height;
             adjust_target_position[3] =
-                tf::getYaw(waypoint_mark_point.pose.orientation);
-            have_waypoint_mark = true;
+                tf::getYaw(alignment_target.pose.orientation);
             align_ok = true;
             ROS_INFO("[PatrolControl] External ALIGN target=%u class=%s at (%.2f, %.2f)",
                      msg->target_id, msg->target_class.c_str(),
                      adjust_target_position[0], adjust_target_position[1]);
             break;
+        }
 
         case patrol_control::MissionCommand::LAND: {
             if (external_landing_active_) {
@@ -2839,6 +2879,11 @@ void LLController::servoCompleteCallback(const std_msgs::Bool::ConstPtr& msg) {
     ROS_INFO("\033[36m[ServoComplete] Received servo complete: %d\033[0m", servo_complete.data);
 }
 void LLController::crossStatusCallback(const std_msgs::Bool::ConstPtr& msg) {
+    if (external_mission_mode_) {
+        ROS_DEBUG_THROTTLE(
+            5.0, "[PatrolControl] Ignoring legacy cross status in external mission mode");
+        return;
+    }
     static bool last_state = false;
     static bool first_call = true;
 

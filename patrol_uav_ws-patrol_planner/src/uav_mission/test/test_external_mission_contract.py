@@ -64,6 +64,29 @@ class ExternalMissionContractTest(unittest.TestCase):
         self.assertEqual(source.count(
             'advertise<geometry_msgs::PoseStamped>("/fastplanner/goal"'), 1)
 
+    def test_external_alignment_ignores_legacy_policy_inputs(self):
+        source = (PATROL / "src" / "patrol_control.cpp").read_text(
+            encoding="utf-8")
+        for callback in (
+                "TankStatusCallback", "waypointMarkCallback",
+                "crossMarkCallback", "ClassCallback",
+                "selectedTargetCallback", "crossStatusCallback"):
+            start = source.index("void LLController::%s" % callback)
+            body = source[start:source.index("\n}", start) + 2]
+            self.assertIn("if (external_mission_mode_)", body)
+            self.assertIn("return;", body)
+
+        align_start = source.index(
+            "case patrol_control::MissionCommand::ALIGN:")
+        align_end = source.index(
+            "case patrol_control::MissionCommand::LAND:", align_start)
+        align_body = source[align_start:align_end]
+        self.assertIn("geometry_msgs::PoseStamped alignment_target", align_body)
+        self.assertIn("cross_mark_point = alignment_target", align_body)
+        self.assertIn("waypoint_mark_point = alignment_target", align_body)
+        self.assertIn("have_cross_mark = true", align_body)
+        self.assertIn("have_waypoint_mark = true", align_body)
+
     def test_control_readiness_is_latched_after_takeoff(self):
         header = (PATROL / "include" / "patrol_control" /
                   "patrol_control.h").read_text(encoding="utf-8")
