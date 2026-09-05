@@ -35,7 +35,9 @@ external_landing:
   mark_max_age_sec: 0.50
   stable_frames: 10
   auto_land_retry_sec: 1.0
-  timeout_sec: 75.0
+  # Mission Manager 的 LAND deadline 为 90 s；本项只处理控制进程失联，
+  # 必须更晚，不能与任务层竞争终态所有权。
+  watchdog_timeout_sec: 120.0
 
 progressive_descent:
   enable: true
@@ -71,6 +73,8 @@ switch:
 drop_system:
   precision_threshold: 20.0
   height_threshold: 0.20
+  position_threshold: 0.15
+  release_setpoint_height: 0.10
   enable_drop: true
   descent_stable_duration: 2.0
   slot_offsets: [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
@@ -81,6 +85,7 @@ uav_vision:
   require_release_permission: true
   release_permission_state_topic: /mission/release_permission_active
   release_permission_timeout: 0.20
+  recovery_height: 0.95
   selected_target_timeout: 1.0
   drop_offset_timeout: 1.0
   pixel_to_meter_ratio: 0.0015

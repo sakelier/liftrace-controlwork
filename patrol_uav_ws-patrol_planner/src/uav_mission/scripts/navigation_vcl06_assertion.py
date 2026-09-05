@@ -901,7 +901,9 @@ class Vcl06GateReducer:
         return_issued = min(
             (item.issued_ns for item in return_decisions), default=None)
         land_stamp = min((event.stamp_ns for event in self.results.values()
-                          if ((event.mission_id, event.decision_seq) in
+                          if (event.status == SUCCEEDED and event.terminal and
+                              event.stage == LANDING and
+                              (event.mission_id, event.decision_seq) in
                               self.land_success)), default=None)
         mission_ros_sec = None
         if first_issued is not None and land_stamp is not None:

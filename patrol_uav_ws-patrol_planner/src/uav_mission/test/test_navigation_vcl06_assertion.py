@@ -184,6 +184,10 @@ def build_passing_reducer():
     land = decision(5, MODULE.LAND, 450.0, 590.0)
     reducer.observe_decision(land, receipt_wall=450.0)
     reducer.observe_result(result(
+        event_sequence, land, MODULE.STARTED, MODULE.LANDING,
+        460.0), receipt_wall=460.0)
+    event_sequence += 1
+    reducer.observe_result(result(
         event_sequence, land, MODULE.SUCCEEDED, MODULE.LANDING,
         500.0, terminal=True), receipt_wall=500.0)
     return reducer
@@ -290,6 +294,10 @@ def build_corridor_reducer(crossing_names=MODULE.EXPECTED_DOOR_ORDER,
             MODULE.LANDED_STATE_ON_GROUND,
             receipt_wall=499.0)
     reducer.observe_result(result(
+        event_sequence, land, MODULE.STARTED, MODULE.LANDING,
+        land_issued + 2.5), receipt_wall=land_issued + 2.5)
+    event_sequence += 1
+    reducer.observe_result(result(
         event_sequence, land, MODULE.SUCCEEDED, MODULE.LANDING,
         500.0, terminal=True), receipt_wall=500.0)
     if h_evidence:
@@ -377,11 +385,13 @@ class Vcl06GateReducerTest(unittest.TestCase):
         self.assertEqual(report["metrics"]["release_commit_count"], 3)
         self.assertEqual(report["metrics"]["approach_command_count"], 3)
         self.assertLessEqual(report["metrics"]["mission_ros_sec"], 600.0)
+        self.assertAlmostEqual(report["metrics"]["mission_ros_sec"], 490.0)
 
     def test_complete_corridor_route_and_three_doors_pass(self):
         reducer = build_corridor_reducer()
         report = reducer.report()
         self.assertEqual(report["status"], "PASS", report)
+        self.assertAlmostEqual(report["metrics"]["mission_ros_sec"], 490.0)
         self.assertEqual(
             report["metrics"]["post_delivery_return_success_count"],
             len(CORRIDOR_ROUTE))

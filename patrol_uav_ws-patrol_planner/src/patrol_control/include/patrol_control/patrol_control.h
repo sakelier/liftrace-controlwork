@@ -201,10 +201,9 @@ private:
     double external_planner_cmd_timeout_ = 0.5;
     double external_planner_start_max_distance_ = 0.6;
     double external_planner_max_command_z_ = 3.5;
-    double external_alignment_timeout_sec_ = 75.0;
     std::string external_landing_frame_ = "camera_init";
     double external_landing_capture_height_ = 0.75;
-    double external_landing_timeout_sec_ = 75.0;
+    double external_landing_watchdog_timeout_sec_ = 120.0;
     double external_landing_mark_max_age_sec_ = 0.5;
     double external_landing_alignment_tolerance_ = 0.08;
     double external_landing_max_mark_offset_ = 0.60;
@@ -237,7 +236,10 @@ private:
     std::vector<bool> drop_completed;      // 记录每个检测点是否已完成投递
     bool drop_condition_met = false;       // 投递条件是否满足
     double drop_precision_threshold = 20.0; // 投递精度阈值（像素）
-    double drop_height_threshold = 0.2;     // 投递高度阈值（米）
+    double drop_height_threshold = 0.2;     // 旧链投递高度阈值（米）
+    double drop_position_threshold_ = 0.15; // 旧链投递三维距离阈值（米）
+    double drop_release_setpoint_height_ = 0.10; // 投递下降目标高度（米）
+    double external_recovery_height_ = 0.95; // 外部投递恢复交接高度（米）
     bool drop_enabled = true;               // 投递功能是否启用
     bool cross_mark = true;
     bool tank_mark = true;

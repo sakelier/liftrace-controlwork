@@ -14,6 +14,7 @@ MANAGER_LAUNCH = PACKAGE / "launch" / "navigation_mission_manager.launch"
 KS2A543_MODEL = PATROL / "models" / "iris_mid360_downward_camera" / \
     "model_ks2a543.sdf"
 RVIZ_CONFIG = PATROL / "rviz_config" / "patrol_pc.rviz"
+RUNTIME_CONFIG = PACKAGE / "config" / "vcl06_random_field_runtime.yaml"
 
 
 class ExternalMissionContractTest(unittest.TestCase):
@@ -226,7 +227,7 @@ class ExternalMissionContractTest(unittest.TestCase):
             "        external_landing_stable_count_ = 0;\n"
             "        external_landing_alignment_complete_ = false;",
             source)
-        self.assertIn("h_alignment_or_auto_land_timeout", source)
+        self.assertIn("controller_landing_watchdog_timeout", source)
         self.assertIn("failed closed and holding position", source)
         self.assertIn("if (external_mission_mode_ && !mode_accepted)", source)
         self.assertIn("flag_land = false;", source)
@@ -252,7 +253,14 @@ class ExternalMissionContractTest(unittest.TestCase):
                                         config["land_height"])
                 self.assertLessEqual(landing["mark_max_age_sec"], 0.5)
                 self.assertGreaterEqual(landing["stable_frames"], 1)
-                self.assertGreater(landing["timeout_sec"], 0.0)
+                self.assertNotIn("timeout_sec", landing)
+                self.assertGreater(landing["watchdog_timeout_sec"], 0.0)
+                runtime = yaml.safe_load(
+                    RUNTIME_CONFIG.read_text(encoding="utf-8"))
+                self.assertGreater(
+                    landing["watchdog_timeout_sec"],
+                    runtime["mission"]["landing_action_timeout"],
+                )
                 self.assertIs(config["switch"]["auto_land"], True)
 
 

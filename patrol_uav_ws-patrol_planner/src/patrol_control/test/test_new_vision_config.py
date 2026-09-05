@@ -11,6 +11,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 CONTROL_CPP = ROOT / "src/patrol_control/src/patrol_control.cpp"
 CONFIG = ROOT / "src/patrol_control/config/patrol_toudi4_new_vision.yaml"
+TOUDI3_CONFIG = ROOT / "src/patrol_control/config/patrol_toudi3_new_vision.yaml"
+BRIDGE_CONFIG = ROOT / "src/uav_mission/config/vcl06_planner_bridge.yaml"
 LAUNCH = ROOT / "src/patrol_control/launch/toudi3_full_competition_sim_new_vision.launch"
 FULL_LAUNCH = ROOT / "src/patrol_control/launch/patrol_full_competition_sim.launch"
 CONTROL_LAUNCH = ROOT / "src/patrol_control/launch/patrol_control_px4_sim.launch"
@@ -88,7 +90,32 @@ class NewVisionConfigTest(unittest.TestCase):
             config,
         )
         self.assertIn("release_permission_timeout: 0.20", config)
-        self.assertGreaterEqual(source.count("canRequestDrop("), 3)
+        self.assertGreaterEqual(source.count("dropReleaseReady("), 3)
+        self.assertNotIn("uav_pose.pose.position.z <= 0.17", source)
+        self.assertNotIn("ttt <= 0.15", source)
+
+    def test_external_release_and_recovery_have_one_authority(self):
+        source = CONTROL_CPP.read_text(encoding="utf-8")
+        bridge = yaml.safe_load(BRIDGE_CONFIG.read_text(encoding="utf-8"))
+        for path in (CONFIG, TOUDI3_CONFIG):
+            with self.subTest(path=path.name):
+                config = yaml.safe_load(path.read_text(encoding="utf-8"))
+                drop = config["drop_system"]
+                vision = config["uav_vision"]
+                self.assertEqual(drop["position_threshold"], 0.15)
+                self.assertEqual(drop["release_setpoint_height"], 0.10)
+                self.assertEqual(
+                    vision["recovery_height"],
+                    bridge["target"]["recovery_height"])
+        self.assertNotIn("external_alignment_timeout", source)
+        self.assertIn(
+            'current_align_mode_ == "drop_circle" && uav_drop_ready_',
+            source,
+        )
+        self.assertIn(
+            'current_align_mode_ == "drop_cross" && uav_drop_ready_',
+            source,
+        )
 
     def test_new_vision_launch_passes_camera_model_and_map_parameters(self):
         launch = LAUNCH.read_text(encoding="utf-8")

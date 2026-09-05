@@ -42,6 +42,25 @@ TEST(DropActionTest, VisionModeRequiresFreshMissionPermission) {
   EXPECT_TRUE(patrol_control::canRequestDrop(true, gate));
 }
 
+TEST(DropActionTest, ExternalReleaseUsesOnlyFreshMissionPermission) {
+  patrol_control::DropReleaseGate gate{};
+  EXPECT_FALSE(patrol_control::dropReleaseReady(true, true, false, gate));
+  EXPECT_FALSE(patrol_control::dropReleaseReady(true, true, true, gate));
+  gate.mission_permission_active = true;
+  gate.mission_permission_fresh = true;
+  EXPECT_TRUE(patrol_control::dropReleaseReady(true, false, true, gate));
+}
+
+TEST(DropActionTest, LegacyReleaseKeepsGeometryAndOptionalPermission) {
+  patrol_control::DropReleaseGate gate{};
+  EXPECT_FALSE(patrol_control::dropReleaseReady(false, false, false, gate));
+  EXPECT_TRUE(patrol_control::dropReleaseReady(false, true, false, gate));
+  EXPECT_FALSE(patrol_control::dropReleaseReady(false, true, true, gate));
+  gate.mission_permission_active = true;
+  gate.mission_permission_fresh = true;
+  EXPECT_TRUE(patrol_control::dropReleaseReady(false, true, true, gate));
+}
+
 TEST(DropActionTest, LegacyAlignmentKeepsHistoricalTimeout) {
   EXPECT_TRUE(patrol_control::alignmentWindowOpen(false, 29.9, 30.0));
   EXPECT_TRUE(patrol_control::alignmentWindowOpen(false, 30.0, 30.0));

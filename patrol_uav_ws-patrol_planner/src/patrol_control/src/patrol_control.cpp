@@ -362,8 +362,8 @@ void LLController::externalLandingTick() {
         return;
     }
     if ((now - external_landing_started_at_).toSec() >
-        external_landing_timeout_sec_) {
-        failExternalLanding("h_alignment_or_auto_land_timeout");
+        external_landing_watchdog_timeout_sec_) {
+        failExternalLanding("controller_landing_watchdog_timeout");
         return;
     }
 
@@ -1337,9 +1337,6 @@ void LLController::load_params() {
         "mission_command_topic", "/mission/command");
     external_planner_cmd_timeout_ =
         nh_.param("external_planner_cmd_timeout", 0.5);
-    external_alignment_timeout_sec_ =
-        nh_.param("external_alignment_timeout", 75.0);
-
     // 目标类别列表：~goal_list 参数（XmlRpc 数组）可选，缺省保持旧行为 {"panzer"}
     external_planner_start_max_distance_ =
         nh_.param("external_planner_start_max_distance", 0.6);
@@ -1376,8 +1373,8 @@ void LLController::load_params() {
         "external_landing/frame", "camera_init");
     external_landing_capture_height_ = nh_.param(
         "external_landing/capture_height", 0.75);
-    external_landing_timeout_sec_ = nh_.param(
-        "external_landing/timeout_sec", 75.0);
+    external_landing_watchdog_timeout_sec_ = nh_.param(
+        "external_landing/watchdog_timeout_sec", 120.0);
     external_landing_mark_max_age_sec_ = nh_.param(
         "external_landing/mark_max_age_sec", 0.5);
     external_landing_alignment_tolerance_ = nh_.param(
@@ -1393,7 +1390,7 @@ void LLController::load_params() {
     if (external_landing_frame_.empty() || land_height <= 0.0 ||
         external_landing_capture_height_ <= external_landing_auto_land_height_ ||
         external_landing_auto_land_height_ < land_height ||
-        external_landing_timeout_sec_ <= 0.0 ||
+        external_landing_watchdog_timeout_sec_ <= 0.0 ||
         external_landing_mark_max_age_sec_ <= 0.0 ||
         external_landing_alignment_tolerance_ <= 0.0 ||
         external_landing_max_mark_offset_ <
@@ -1408,6 +1405,10 @@ void LLController::load_params() {
     drop_precision_threshold = nh_.param("drop_system/precision_threshold", 20.0);
     dynamic_height = nh_.param("dynamic/ranger_height", 0.20);
     drop_height_threshold = nh_.param("drop_system/height_threshold", 0.2);
+    drop_position_threshold_ = nh_.param(
+        "drop_system/position_threshold", 0.15);
+    drop_release_setpoint_height_ = nh_.param(
+        "drop_system/release_setpoint_height", 0.10);
     drop_enabled = nh_.param("drop_system/enable_drop", true);
     descent_stable_duration = nh_.param("drop_system/descent_stable_duration", 2.0);
     loadSlotOffsets(nh_, "drop_system/slot_offsets", &drop_slot_offsets_);
@@ -1417,6 +1418,8 @@ void LLController::load_params() {
     drop_offset_timeout_ = nh_.param("uav_vision/drop_offset_timeout", 1.0);
     mission_release_permission_timeout_ = nh_.param(
         "uav_vision/release_permission_timeout", 0.25);
+    external_recovery_height_ = nh_.param(
+        "uav_vision/recovery_height", 0.95);
     mission_release_permission_topic_ = nh_.param<std::string>(
         "uav_vision/release_permission_state_topic",
         "/mission/release_permission_active");
@@ -1440,9 +1443,25 @@ void LLController::load_params() {
     landing_pad_radius_m_ = nh_.param("uav_vision/landing_pad_radius_m", 0.3);
     enable_selected_tank_interrupt_ = nh_.param("uav_vision/enable_tank_interrupt", false);
 
+    if (!std::isfinite(drop_height_threshold) ||
+        !std::isfinite(drop_position_threshold_) ||
+        !std::isfinite(drop_release_setpoint_height_) ||
+        !std::isfinite(external_recovery_height_) ||
+        drop_height_threshold <= 0.0 || drop_height_threshold > 1.0 ||
+        drop_position_threshold_ <= 0.0 || drop_position_threshold_ > 1.0 ||
+        drop_release_setpoint_height_ <= 0.05 ||
+        drop_release_setpoint_height_ > drop_height_threshold ||
+        external_recovery_height_ <= drop_height_threshold ||
+        external_recovery_height_ > align_height) {
+        ROS_FATAL("[DropSystem] invalid release/recovery geometry parameters");
+        throw std::invalid_argument("invalid drop_system geometry parameters");
+    }
+
     ROS_INFO("\033[32m[DropSystem] Drop system enabled: %s\033[0m", drop_enabled ? "true" : "false");
     ROS_INFO("\033[32m[DropSystem] Precision threshold: %.1f px\033[0m", drop_precision_threshold);
-    ROS_INFO("\033[32m[DropSystem] Height threshold: %.3f m (not used)\033[0m", drop_height_threshold);
+    ROS_INFO("\033[32m[DropSystem] Legacy release geometry: z<=%.3f m, distance<=%.3f m; descent setpoint=%.3f m\033[0m",
+             drop_height_threshold, drop_position_threshold_,
+             drop_release_setpoint_height_);
     ROS_INFO("\033[32m[DropSystem] Descent stable duration: %.1f s\033[0m", descent_stable_duration);
     for (int slot = 0; slot < 3; ++slot) {
         ROS_INFO("[DropSystem] slot %d offsets standard=(%.3f, %.3f) dynamic=(%.3f, %.3f)",
@@ -1471,16 +1490,16 @@ void LLController::load_params() {
              mission_command_topic_.c_str());
     ROS_INFO("[PatrolControl] control_ready_topic: %s",
              control_ready_topic_.c_str());
-    ROS_INFO("[PatrolControl] external_alignment_timeout: %.1f s",
-             external_alignment_timeout_sec_);
+    ROS_INFO("[UavVision] external recovery handoff height: %.2f m",
+             external_recovery_height_);
     ROS_INFO(
         "[ExternalLanding] frame=%s capture=%.2f handoff=%.2f land=%.2f "
-        "tol=%.2f mark_age=%.2f stable=%d timeout=%.1f",
+        "tol=%.2f mark_age=%.2f stable=%d controller_watchdog=%.1f",
         external_landing_frame_.c_str(), external_landing_capture_height_,
         external_landing_auto_land_height_, land_height,
         external_landing_alignment_tolerance_,
         external_landing_mark_max_age_sec_, external_landing_stable_frames_,
-        external_landing_timeout_sec_);
+        external_landing_watchdog_timeout_sec_);
 
     nh_.getParam("/debug", debug);
 
@@ -1775,25 +1794,28 @@ bool LLController::DynamicProcess()
                 ROS_INFO("\033[32m[CrossDetectionDone]waypoint_temp: %.2f, %.2f\033[0m", waypoint_temp.pose.position.x, waypoint_temp.pose.position.y);
                 adjust_target_position[0] = waypoint_temp.pose.position.x;
                 adjust_target_position[1] = waypoint_temp.pose.position.y;
-                align_height = 0.10;
+                align_height = drop_release_setpoint_height_;
                 adjust_target_position[3] = tf::getYaw(waypoint_temp.pose.orientation);
                 applyDropSlotOffset(servo_id, true);
-                double ttt = distance3d(uav_pose.pose.position.x,uav_pose.pose.position.y,uav_pose.pose.position.z,waypoint_temp.pose.position.x,waypoint_temp.pose.position.y,0.1);
+                double ttt = distance3d(
+                    uav_pose.pose.position.x, uav_pose.pose.position.y,
+                    uav_pose.pose.position.z, waypoint_temp.pose.position.x,
+                    waypoint_temp.pose.position.y,
+                    drop_release_setpoint_height_);
                 ROS_INFO("\033[32m[CrossDetectionDone] should_drop: %d, drop_complete: %d, uav_pose.pose.position.z: %.2f\033[0m", should_drop, drop_complete, uav_pose.pose.position.z);
-                if(uav_pose.pose.position.z <= 0.17 && ttt <= 0.15 && !drop_complete)
-                {
-                    should_drop = true;
-                    ROS_INFO("\033[32m[CrossDetectionDone] height_reach should_drop: true\033[0m");
-                }
-
+                const bool legacy_geometry_ready =
+                    uav_pose.pose.position.z <= drop_height_threshold &&
+                    ttt <= drop_position_threshold_ && !drop_complete;
                 const DropReleaseGate release_gate = currentDropReleaseGate();
-                const bool release_authorized = canRequestDrop(
+                should_drop = dropReleaseReady(
+                    external_mission_mode_, legacy_geometry_ready,
                     require_vision_release_permission_, release_gate);
-                if (should_drop && !drop_complete && !release_authorized) {
+                if (!drop_complete && !should_drop) {
                     ROS_WARN_THROTTLE(
                         1.0,
-                        "[DynamicProcess] Waiting for mission release permission "
-                        "(active=%s fresh=%s)",
+                        "[DynamicProcess] Waiting for release authority "
+                        "(legacy_geometry=%s permission_active=%s fresh=%s)",
+                        legacy_geometry_ready ? "true" : "false",
                         release_gate.mission_permission_active ? "true" : "false",
                         release_gate.mission_permission_fresh ? "true" : "false");
                     return false;
@@ -1827,7 +1849,9 @@ bool LLController::DynamicProcess()
                     ROS_INFO("\033[33m[CrossDetectionDone] servo_complete.data: %d\033[0m", servo_complete.data);
                     down_flag = false;
                     align_height = 1.15;
-                    if(uav_pose.pose.position.z >= 0.95){
+                    const double recovery_height = external_mission_mode_
+                        ? external_recovery_height_ : 0.95;
+                    if(uav_pose.pose.position.z >= recovery_height){
                         // stopDropAction(servo_id-1);
                         resetDropState();   // 重置投递状态
                         cleanupAfterCrossDrop();  // 彻底清理十字投递状态
@@ -2057,27 +2081,32 @@ bool LLController::WayPointDetectDone()
     }
     ROS_INFO("\033[32m[WayPointDetectDone] align_ok: %d\033[0m", align_ok);
     // 完成条件：检测次数或时间达到阈值
-    double time_threshould = 0;
+    double legacy_time_threshould = 0;
 
     dis_to_next_position = distance3d(uav_pose.pose.position.x, uav_pose.pose.position.y, uav_pose.pose.position.z,
                                       adjust_target_position[0],adjust_target_position[1],uav_pose.pose.position.z);
     ROS_INFO("error point %f",dis_to_next_position);
     if(!align_ok){
-        time_threshould = 4;
+        legacy_time_threshould = 4;
     }
     else{
-        time_threshould = external_mission_mode_
-            ? external_alignment_timeout_sec_ : 45.0;
+        legacy_time_threshould = 45.0;
     }
     int servo_id = detect_point_counter + 1;
-    if (elapsed_time <= time_threshould) {
+    if (patrol_control::alignmentWindowOpen(
+            external_mission_mode_, elapsed_time,
+            legacy_time_threshould)) {
         // drop_complete 已经在 first_call 中重置，这里不需要额外处理
         //int servo_id = detect_point_counter + 1;
         ROS_INFO("time is effective,dis_to_next: %f",dis_to_next_position);
+        const int required_alignment_samples =
+            external_mission_mode_ ? 1 : 70;
+        const bool alignment_ready = external_mission_mode_
+            ? (current_align_mode_ == "drop_circle" && uav_drop_ready_)
+            : dis_to_next_position <= 0.1;
         if(have_waypoint_mark &&
-           count_aligning < 70 &&
-           align_ok == 1 &&
-           (dis_to_next_position <= 0.1 || (current_align_mode_ == "drop_circle" && uav_drop_ready_))){
+           count_aligning < required_alignment_samples &&
+           align_ok == 1 && alignment_ready){
             ROS_INFO("\033[32m[CrossDetectionDone] dis_to_next_position: %.2f\033[0m", dis_to_next_position);
             count_aligning++;
             // down_flag = true;
@@ -2086,34 +2115,36 @@ bool LLController::WayPointDetectDone()
             waypoint_temp.pose.position.y = waypoint_mark_point.pose.position.y;
             waypoint_temp.pose.orientation = waypoint_mark_point.pose.orientation;
         }
-        if(count_aligning >= 70 && align_ok == 1){
+        if(count_aligning >= required_alignment_samples && align_ok == 1){
             ROS_INFO("\033[32m[CrossDetectionDone]waypoint_temp: %.2f, %.2f\033[0m", waypoint_temp.pose.position.x, waypoint_temp.pose.position.y);
             adjust_target_position[0] = waypoint_temp.pose.position.x;
             adjust_target_position[1] = waypoint_temp.pose.position.y;
-            align_height = 0.10;
+            align_height = drop_release_setpoint_height_;
             adjust_target_position[3] = tf::getYaw(waypoint_temp.pose.orientation);
             applyDropSlotOffset(servo_id, false);
             ROS_INFO("\033[32m[CrossDetectionDone] should_drop: %d, drop_complete: %d, uav_pose.pose.position.z: %.2f\033[0m", should_drop, drop_complete, uav_pose.pose.position.z);
             ROS_INFO("dis %f",dis_to_next_position);
             ROS_INFO("waypoint temp %f %f",waypoint_temp.pose.position.x,waypoint_temp.pose.position.y);
             ROS_INFO("\033[32m[WayPointDetectDone] time_temp : %f  ,should_drop: %d, drop_complete: %d, uav_pose.pose.position.z: %.2f\033[0m",time_temp, should_drop, drop_complete, uav_pose.pose.position.z);
-            double ttt = distance3d(uav_pose.pose.position.x,uav_pose.pose.position.y,uav_pose.pose.position.z,waypoint_temp.pose.position.x,waypoint_temp.pose.position.y,0.1);
+            double ttt = distance3d(
+                uav_pose.pose.position.x, uav_pose.pose.position.y,
+                uav_pose.pose.position.z, waypoint_temp.pose.position.x,
+                waypoint_temp.pose.position.y,
+                drop_release_setpoint_height_);
             ROS_INFO("\033[32m[CrossDetectionDone] should_drop: %d, drop_complete: %d, uav_pose.pose.position.z: %.2f\033[0m", should_drop, drop_complete, uav_pose.pose.position.z);
-            if(uav_pose.pose.position.z <= 0.17 && ttt <= 0.15 && !drop_complete)
-            {
-                should_drop = true;
-                // drop_time_flag = false;
-                ROS_INFO("\033[32m[WayPointDetectDone] height_reach should_drop: true\033[0m");
-            }
-
+            const bool legacy_geometry_ready =
+                uav_pose.pose.position.z <= drop_height_threshold &&
+                ttt <= drop_position_threshold_ && !drop_complete;
             const DropReleaseGate release_gate = currentDropReleaseGate();
-            const bool release_authorized = canRequestDrop(
+            should_drop = dropReleaseReady(
+                external_mission_mode_, legacy_geometry_ready,
                 require_vision_release_permission_, release_gate);
-            if (should_drop && !drop_complete && !release_authorized) {
+            if (!drop_complete && !should_drop) {
                 ROS_WARN_THROTTLE(
                     1.0,
-                    "[WayPointDetectDone] Waiting for mission release permission "
-                    "(active=%s fresh=%s)",
+                    "[WayPointDetectDone] Waiting for release authority "
+                    "(legacy_geometry=%s permission_active=%s fresh=%s)",
+                    legacy_geometry_ready ? "true" : "false",
                     release_gate.mission_permission_active ? "true" : "false",
                     release_gate.mission_permission_fresh ? "true" : "false");
                 return false;
@@ -2149,7 +2180,9 @@ bool LLController::WayPointDetectDone()
                 ROS_INFO("\033[33m[WayPointDetectDone] servo_complete.data: %d\033[0m", servo_complete.data);
                 // down_flag = false;
                 align_height = 1.2;
-                if(uav_pose.pose.position.z >= 1.0){
+                const double recovery_height = external_mission_mode_
+                    ? external_recovery_height_ : 1.0;
+                if(uav_pose.pose.position.z >= recovery_height){
                     first_call = true;  // 重置标志
                     times_detect = 0;
                     should_drop = false;
@@ -2917,8 +2950,10 @@ bool LLController::CrossDetectionDone() {
     if (patrol_control::alignmentWindowOpen(
             external_mission_mode_, elapsed_time, 30.0)) {
         if(have_cross_mark &&
-           count_aligning < 50 &&
-           (dis_to_next_position <= 0.07 || (current_align_mode_ == "drop_cross" && uav_drop_ready_))){
+           count_aligning < (external_mission_mode_ ? 1 : 50) &&
+           (external_mission_mode_
+                ? (current_align_mode_ == "drop_cross" && uav_drop_ready_)
+                : dis_to_next_position <= 0.07)){
             ROS_INFO("\033[32m[CrossDetectionDone] dis_to_next_position: %.2f\033[0m", dis_to_next_position);
             count_aligning++;
             down_flag = true;
@@ -2927,29 +2962,32 @@ bool LLController::CrossDetectionDone() {
             waypoint_temp.pose.position.y = cross_mark_point.pose.position.y;
             waypoint_temp.pose.orientation = cross_mark_point.pose.orientation;
         }
-        if(count_aligning >= 50){
+        if(count_aligning >= (external_mission_mode_ ? 1 : 50)){
             ROS_INFO("\033[32m[CrossDetectionDone]waypoint_temp: %.2f, %.2f\033[0m", waypoint_temp.pose.position.x, waypoint_temp.pose.position.y);
             adjust_target_position[0] = waypoint_temp.pose.position.x;
             adjust_target_position[1] = waypoint_temp.pose.position.y;
-            align_height = 0.10;
+            align_height = drop_release_setpoint_height_;
             adjust_target_position[3] = tf::getYaw(waypoint_temp.pose.orientation);
             applyDropSlotOffset(servo_id, true);
-            double ttt = distance3d(uav_pose.pose.position.x,uav_pose.pose.position.y,uav_pose.pose.position.z,waypoint_temp.pose.position.x,waypoint_temp.pose.position.y,0.1);
+            double ttt = distance3d(
+                uav_pose.pose.position.x, uav_pose.pose.position.y,
+                uav_pose.pose.position.z, waypoint_temp.pose.position.x,
+                waypoint_temp.pose.position.y,
+                drop_release_setpoint_height_);
             ROS_INFO("\033[32m[CrossDetectionDone] should_drop: %d, drop_complete: %d, uav_pose.pose.position.z: %.2f\033[0m", should_drop, drop_complete, uav_pose.pose.position.z);
-            if(uav_pose.pose.position.z <= 0.17 && ttt <= 0.15 && !drop_complete)
-            {
-                should_drop = true;
-                ROS_INFO("\033[32m[CrossDetectionDone] height_reach should_drop: true\033[0m");
-            }
-
+            const bool legacy_geometry_ready =
+                uav_pose.pose.position.z <= drop_height_threshold &&
+                ttt <= drop_position_threshold_ && !drop_complete;
             const DropReleaseGate release_gate = currentDropReleaseGate();
-            const bool release_authorized = canRequestDrop(
+            should_drop = dropReleaseReady(
+                external_mission_mode_, legacy_geometry_ready,
                 require_vision_release_permission_, release_gate);
-            if (should_drop && !drop_complete && !release_authorized) {
+            if (!drop_complete && !should_drop) {
                 ROS_WARN_THROTTLE(
                     1.0,
-                    "[CrossDetectionDone] Waiting for mission release permission "
-                    "(active=%s fresh=%s)",
+                    "[CrossDetectionDone] Waiting for release authority "
+                    "(legacy_geometry=%s permission_active=%s fresh=%s)",
+                    legacy_geometry_ready ? "true" : "false",
                     release_gate.mission_permission_active ? "true" : "false",
                     release_gate.mission_permission_fresh ? "true" : "false");
                 return false;
@@ -2983,7 +3021,9 @@ bool LLController::CrossDetectionDone() {
                 ROS_INFO("\033[33m[CrossDetectionDone] servo_complete.data: %d\033[0m", servo_complete.data);
                 down_flag = false;
                 align_height = 1.15;
-                if(uav_pose.pose.position.z >= 0.95){
+                const double recovery_height = external_mission_mode_
+                    ? external_recovery_height_ : 0.95;
+                if(uav_pose.pose.position.z >= recovery_height){
                     // stopDropAction(servo_id-1);
                     resetDropState();   // 重置投递状态
                     cleanupAfterCrossDrop();  // 彻底清理十字投递状态
