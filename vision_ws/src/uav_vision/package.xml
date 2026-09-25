@@ -16,6 +16,7 @@
   <depend>geometry_msgs</depend>
   <depend>diagnostic_msgs</depend>
   <depend>image_transport</depend>
+  <exec_depend>image_view</exec_depend>
   <depend>cv_bridge</depend>
   <depend>image_geometry</depend>
   <depend>tf2</depend>
@@ -24,4 +25,7 @@
   <depend>std_srvs</depend>
   <depend>message_generation</depend>
   <depend>message_runtime</depend>
+
+  <test_depend>rostest</test_depend>
+  <test_depend>python3-nose</test_depend>
 </package>
