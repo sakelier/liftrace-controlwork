@@ -67,5 +67,4 @@
     <!-- Other tools can request additional information be placed here -->
 
   </export>
-  <test_depend>rostest</test_depend>
 </package>

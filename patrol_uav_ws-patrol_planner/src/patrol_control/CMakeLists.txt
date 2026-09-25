@@ -11,7 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mavros
   mavros_msgs
-  nav_msgs
   roscpp
   rospy
   std_msgs
@@ -19,10 +18,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   cv_bridge
   image_transport
-  message_generation
   tf2_ros
   tf2_geometry_msgs
-  uav_vision
 )
 
 ## System dependencies are found with CMake's conventions
@@ -60,16 +57,18 @@ find_package(OpenCV REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  MissionCommand.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  Servo.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -79,12 +78,10 @@ add_service_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  geometry_msgs
-  mavros_msgs
-  std_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   geometry_msgs#   mavros_msgs#   std_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -118,7 +115,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES patrol_control
-  CATKIN_DEPENDS geometry_msgs mavros mavros_msgs message_runtime nav_msgs roscpp rospy std_msgs tf uav_vision
+#  CATKIN_DEPENDS geometry_msgs mavros mavros_msgs roscpp rospy std_msgs tf
 #  DEPENDS system_lib
 )
 
@@ -143,12 +140,15 @@ add_executable(patrol_control src/patrol_control.cpp src/node/patrol_control_nod
 add_dependencies(patrol_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(patrol_control yaml-cpp ${catkin_LIBRARIES})
 
-# Simulation-only arming/OFFBOARD helper. It is not included by hardware
-# launch files.
-add_executable(uav_arming_node src/uav_arming_node.cpp)
-add_dependencies(uav_arming_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(uav_arming_node ${catkin_LIBRARIES})
+# 添加圆形检测节点
+add_executable(circle_detector_node src/circle_detector_node.cpp)
+add_dependencies(circle_detector_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(circle_detector_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
+# 添加对准控制转换节点
+add_executable(alignment_control_converter src/alignment_control_converter.cpp)
+add_dependencies(alignment_control_converter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(alignment_control_converter ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -159,16 +159,10 @@ target_link_libraries(uav_arming_node ${catkin_LIBRARIES})
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-catkin_install_python(PROGRAMS
-  scripts/px4_sitl_start.py
-  scripts/odom_to_pose_relay.py
-  scripts/spawn_model_delayed.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(DIRECTORY config launch models
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+# catkin_install_python(PROGRAMS
+#   scripts/my_python_script
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
@@ -203,14 +197,10 @@ install(DIRECTORY config launch models
 #############
 
 ## Add gtest based cpp test target and link libraries
-catkin_add_gtest(${PROJECT_NAME}-drop-action-test test/test_drop_action.cpp)
-if(TARGET ${PROJECT_NAME}-drop-action-test)
-  target_link_libraries(${PROJECT_NAME}-drop-action-test ${catkin_LIBRARIES})
-endif()
-
-catkin_add_nosetests(test/test_no_legacy_servo_status_false.py)
-catkin_add_nosetests(test/test_new_vision_config.py)
-catkin_add_nosetests(test/test_px4_sitl_start.py)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_patrol_control.cpp)
+# if(TARGET ${PROJECT_NAME}-test)
+#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
+# endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)

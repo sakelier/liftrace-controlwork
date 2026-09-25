@@ -12,8 +12,7 @@ class SearchPolicy:
             min_y,
             max_y,
             lane_spacing,
-            altitude,
-            manual_waypoints=None
+            altitude
     ):
         self.min_x = float(min_x)
         self.min_y = float(min_y)
@@ -21,37 +20,13 @@ class SearchPolicy:
         self.max_y = float(max_y)
         self.lane_spacing = float(lane_spacing)
         self.altitude = float(altitude)
-        self.manual_waypoints = manual_waypoints
 
-        if manual_waypoints is not None:
-            self._validate_manual(manual_waypoints)
-            self._waypoints = [Waypoint(float(w[0]), float(w[1]), float(w[2]))
-                               for w in manual_waypoints]
-        else:
-            self._validate_parameters()
-            self._waypoints = self._generate_waypoints()
+        self._validate_parameters()
 
+        self._waypoints = self._generate_waypoints()
         self._current_index = 0
         # _current_index, 既表示正在飞往的航点的序号（从0开始），
         # 又表示已经完成的航点的数量
-
-    def _validate_manual(self, waypoints):
-        if not waypoints:
-            raise ValueError("manual_waypoints must not be empty")
-        for i, w in enumerate(waypoints):
-            if (not isinstance(w, (list, tuple)) or len(w) != 3 or
-                    any(not isinstance(v, (int, float)) or isinstance(v, bool)
-                        for v in w)):
-                raise ValueError(
-                    "manual_waypoints[%d] must be [x, y, z]" % i)
-            for v in w:
-                if not math.isfinite(float(v)):
-                    raise ValueError(
-                        "manual_waypoints[%d] has non-finite value" % i)
-            z = float(w[2])
-            if z <= 0.0 or z > 4.0:
-                raise ValueError(
-                    "manual_waypoints[%d] z must be in (0, 4.0]" % i)
 
     def _validate_parameters(self):
         values = (

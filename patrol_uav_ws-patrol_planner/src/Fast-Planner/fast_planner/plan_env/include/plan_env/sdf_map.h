@@ -104,11 +104,6 @@ struct MappingParameters {
 
   /* visualization and computation time display */
   double esdf_slice_height_, visualization_truncate_height_, virtual_ceil_height_, ground_height_;
-  bool horizontal_avoidance_;
-  double horizontal_min_x_, horizontal_max_x_, horizontal_min_y_, horizontal_max_y_;
-  double horizontal_obstacle_min_z_, horizontal_floor_z_;
-  int horizontal_support_min_points_;
-  double horizontal_support_radius_, horizontal_support_min_span_;
   bool show_esdf_time_, show_occ_time_;
 
   /* active mapping */
@@ -170,7 +165,6 @@ struct MappingData {
 };
 
 class SDFMap {
-  friend class KinodynamicSearchFixture;
 public:
   SDFMap() {}
   ~SDFMap() {}
@@ -259,7 +253,6 @@ private:
   void projectDepthImage();
   void raycastProcess();
   void clearAndInflateLocalMap();
-  void applyFlightCeiling();
 
   inline void inflatePoint(const Eigen::Vector3i& pt, int step, vector<Eigen::Vector3i>& pts);
   int setCacheOccupancy(Eigen::Vector3d pos, int occ);
@@ -439,7 +432,6 @@ inline int SDFMap::getOccupancy(Eigen::Vector3d pos) {
 
 inline int SDFMap::getInflateOccupancy(Eigen::Vector3d pos) {
   if (!isInMap(pos)) return -1;
-  if (mp_.virtual_ceil_height_ > 0.0 && pos.z() >= mp_.virtual_ceil_height_) return 1;
 
   Eigen::Vector3i id;
   posToIndex(pos, id);

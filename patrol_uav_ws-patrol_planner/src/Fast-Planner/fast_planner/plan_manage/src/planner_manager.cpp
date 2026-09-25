@@ -100,8 +100,7 @@ void FastPlannerManager::setGlobalWaypoints(vector<Eigen::Vector3d>& waypoints) 
 
 bool FastPlannerManager::checkTrajCollision(double& distance) {
 
-  const double t_now = local_data_.execution_time_ >= 0.0 ? local_data_.execution_time_ :
-      (ros::Time::now() - local_data_.start_time_).toSec();
+  double t_now = (ros::Time::now() - local_data_.start_time_).toSec();
 
   double tm, tmp;
   local_data_.position_traj_.getTimeSpan(tm, tmp);
@@ -115,7 +114,7 @@ bool FastPlannerManager::checkTrajCollision(double& distance) {
     fut_pt = local_data_.position_traj_.evaluateDeBoor(tm + t_now + fut_t);
 
     double dist = edt_environment_->evaluateCoarseEDT(fut_pt, -1.0);
-    if (dist < pp_.clearance_) {
+    if (dist < 0.1) {
       distance = radius;
       return false;
     }
@@ -138,13 +137,14 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
        << start_acc.transpose() << "\ngoal:" << end_pt.transpose() << ", " << end_vel.transpose()
        << endl;
 
-  if ((start_pt - end_pt).norm() < 0.01) {
+  if ((start_pt - end_pt).norm() < 0.2) {
     cout << "Close goal" << endl;
     return false;
   }
 
   ros::Time t1, t2;
 
+  local_data_.start_time_ = ros::Time::now();
   double t_search = 0.0, t_opt = 0.0, t_adjust = 0.0;
 
   Eigen::Vector3d init_pos = start_pt;
@@ -189,19 +189,6 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
-  // Least-squares path fitting does not impose exact boundary states. Pin
-  // the cubic boundary controls before optimization, which keeps them fixed.
-  // Otherwise the first command can start on the opposite side of a loop.
-  const auto pin_boundary = [&ctrl_pts, ts](int first, const Eigen::Vector3d& p,
-                                           const Eigen::Vector3d& v,
-                                           const Eigen::Vector3d& a) {
-    ctrl_pts.row(first) = (p - ts * v + ts * ts * a / 3.0).transpose();
-    ctrl_pts.row(first + 1) = (p - ts * ts * a / 6.0).transpose();
-    ctrl_pts.row(first + 2) = (p + ts * v + ts * ts * a / 3.0).transpose();
-  };
-  pin_boundary(0, start_pt, start_vel, start_acc);
-  if (status == KinodynamicAstar::REACH_END)
-    pin_boundary(ctrl_pts.rows() - 3, end_pt, end_vel, Eigen::Vector3d::Zero());
   NonUniformBspline init(ctrl_pts, 3, ts);
 
   // bspline trajectory optimization
@@ -225,10 +212,15 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   double to = pos.getTimeSum();
   pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
-  // Uniform time scaling preserves the searched/optimized geometry and exact
-  // endpoint positions. Local knot edits used to move the curve after fitting.
-  const double ratio = std::max(1.0, pos.checkRatio() * 1.02);
-  pos.setKnot(pos.getKnot() * ratio);
+  bool feasible = pos.checkFeasibility(false);
+
+  int iter_num = 0;
+  while (!feasible && ros::ok()) {
+
+    feasible = pos.reallocateTime();
+
+    if (++iter_num >= 3) break;
+  }
 
   // pos.checkFeasibility(true);
   // cout << "[Main]: iter num: " << iter_num << endl;
@@ -242,38 +234,6 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   // save planned results
 
-  // Optimization is optional when its output loses a feasible searched
-  // curve. Both candidates use the same complete clearance check.
-  Eigen::Vector3d rejected_point = Eigen::Vector3d::Zero();
-  const auto is_clear = [this, &rejected_point](NonUniformBspline& curve) {
-    for (double t = 0.0; t <= curve.getTimeSum() + 0.02; t += 0.02) {
-      Eigen::Vector3d point = curve.evaluateDeBoorT(std::min(t, curve.getTimeSum()));
-      if (!point.allFinite() ||
-          edt_environment_->sdf_map_->getInflateOccupancy(point) != 0 ||
-          edt_environment_->evaluateCoarseEDT(point, -1.0) < pp_.clearance_) {
-        rejected_point = point;
-        return false;
-      }
-    }
-    return true;
-  };
-  if (!is_clear(pos)) {
-    const Eigen::Vector3d optimized_rejection = rejected_point;
-    init.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
-    const double initial_ratio = std::max(1.0, init.checkRatio() * 1.02);
-    init.setKnot(init.getKnot() * initial_ratio);
-    if (!is_clear(init)) {
-      ROS_WARN_THROTTLE(1.0,
-          "both fitted curves violate clearance: optimized=(%.3f,%.3f,%.3f), initial=(%.3f,%.3f,%.3f)",
-          optimized_rejection.x(), optimized_rejection.y(), optimized_rejection.z(),
-          rejected_point.x(), rejected_point.y(), rejected_point.z());
-      return false;
-    }
-    pos = init;
-    ROS_WARN_THROTTLE(1.0, "keeping validated initial curve after unsafe optimization");
-  }
-  local_data_.start_time_ = ros::Time::now();
-  local_data_.execution_time_ = 0.0;
   local_data_.position_traj_ = pos;
 
   double t_total = t_search + t_opt + t_adjust;

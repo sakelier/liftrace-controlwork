@@ -3,7 +3,6 @@
 
 import json
 import math
-from numbers import Real
 import threading
 
 import rospy
@@ -16,7 +15,6 @@ from uav_vision.msg import TargetCandidateArray
 from uav_mission.coverage_route import CoverageRoute
 from uav_mission.mission_core import (
     CandidateSnapshot,
-    GoalSnapshot,
     MissionConfig,
     MissionCore,
     MissionPhase,
@@ -68,15 +66,6 @@ STAGE_NAMES = {
     NavigationResult.LANDING: "LANDING",
 }
 
-TRANSIENT_READINESS_FAILURES = frozenset((
-    "pose_missing",
-    "pose_stale",
-    "pose_stamp_in_future",
-    "map_missing",
-    "map_stale",
-    "map_stamp_in_future",
-))
-
 
 def _stamp_to_ns(stamp):
     return int(stamp.secs) * 1_000_000_000 + int(stamp.nsecs)
@@ -112,15 +101,10 @@ class NavigationMissionManager:
             rospy.get_param("~readiness/pose_max_age", 0.5))
         self._map_max_age = float(
             rospy.get_param("~readiness/map_max_age", 2.0))
-        self._stamp_future_tolerance = float(
-            rospy.get_param(
-                "~readiness/stamp_future_tolerance", 0.05))
         self._require_map = rospy.get_param("~readiness/require_map", True)
         self._tick_hz = float(rospy.get_param("~runtime/tick_hz", 10.0))
         self._mission_id_prefix = str(
             rospy.get_param("~runtime/mission_id_prefix", "vcl06"))
-        self._start_mode = str(
-            rospy.get_param("~runtime/start_mode", "full")).strip()
         self._validate_shell_parameters()
 
         self._decision_pub = rospy.Publisher(
@@ -148,9 +132,8 @@ class NavigationMissionManager:
             rospy.Duration.from_sec(1.0 / self._tick_hz), self._on_timer)
         self._publish_status(force=True)
         rospy.loginfo(
-            "VCL06 mission manager ready; manual start required, "
-            "profile=%s start_mode=%s",
-            self._profile_name, self._start_mode,
+            "VCL06 mission manager ready; manual start required, profile=%s",
+            self._profile_name,
         )
 
     def _validate_shell_parameters(self):
@@ -162,41 +145,17 @@ class NavigationMissionManager:
         for name, value in numeric.items():
             if not math.isfinite(value) or value <= 0.0:
                 raise ValueError("%s must be finite and positive" % name)
-        if (not math.isfinite(self._stamp_future_tolerance) or
-                self._stamp_future_tolerance < 0.0 or
-                self._stamp_future_tolerance > 0.1):
-            raise ValueError(
-                "stamp_future_tolerance must be finite and within [0, 0.1]")
         if not isinstance(self._require_map, bool):
             raise ValueError("readiness/require_map must be boolean")
         if self._profile_name == "r2026" and not self._require_map:
             raise ValueError("r2026 requires map readiness")
         if not self._mission_id_prefix.strip():
             raise ValueError("runtime/mission_id_prefix must not be empty")
-        if self._start_mode not in ("full", "post_delivery"):
-            raise ValueError(
-                "runtime/start_mode must be full or post_delivery")
 
     def _mission_config(self):
-        mission_frame = rospy.get_param("~mission/frame", "camera_init")
-        route_values = rospy.get_param(
-            "~mission/post_delivery_route", [])
-        if not isinstance(route_values, (list, tuple)):
-            raise ValueError("mission/post_delivery_route must be a list")
-        post_delivery_route = []
-        route_yaw = float(rospy.get_param("~mission/post_delivery_yaw", 0.0))
-        for index, point in enumerate(route_values):
-            if (not isinstance(point, (list, tuple)) or len(point) != 3 or
-                    any(isinstance(value, bool) or not isinstance(value, Real)
-                        for value in point)):
-                raise ValueError(
-                    "mission/post_delivery_route[%d] must be [x,y,z]" %
-                    index)
-            post_delivery_route.append(GoalSnapshot(
-                mission_frame, *(float(value) for value in point),
-                yaw=route_yaw))
         return MissionConfig(
-            mission_frame=mission_frame,
+            mission_frame=rospy.get_param(
+                "~mission/frame", "camera_init"),
             candidate_max_age=rospy.get_param(
                 "~mission/candidate_max_age", 0.5),
             transform_max_age=rospy.get_param(
@@ -207,7 +166,6 @@ class NavigationMissionManager:
             retry_cooldown=rospy.get_param(
                 "~mission/retry_cooldown", 20.0),
             mission_timeout=rospy.get_param("~mission/timeout", 600.0),
-            early_return_enabled=rospy.get_param("~mission/early_return_enabled", True),
             forced_return_at=rospy.get_param(
                 "~mission/forced_return_at", 510.0),
             return_land_reserve=rospy.get_param(
@@ -224,42 +182,25 @@ class NavigationMissionManager:
             target_action_timeout=rospy.get_param(
                 "~mission/target_action_timeout", 90.0),
             motion_action_timeout=rospy.get_param(
-                "~mission/motion_action_timeout", 90.0),
+                "~mission/motion_action_timeout", 60.0),
+            landing_action_timeout=rospy.get_param(
+                "~mission/landing_action_timeout", 90.0),
             result_future_tolerance=rospy.get_param(
                 "~mission/result_future_tolerance", 0.1),
             home_xy=rospy.get_param("~mission/home_xy", [0.0, 0.0]),
-            post_delivery_route=tuple(post_delivery_route),
-            post_delivery_route_revision=rospy.get_param(
-                "~mission/post_delivery_route_revision", "direct-home-v1"),
-            landing_xy=rospy.get_param(
-                "~mission/landing_xy", [0.0, 0.0]),
-            landing_anchor_tolerance=rospy.get_param(
-                "~mission/landing_anchor_tolerance", 0.15),
         )
 
     def _new_runtime(self):
         config = self._mission_config()
         profile = load_profile(self._profile_path, self._profile_name)
-        manual_wp = rospy.get_param(
-            "~search/manual_waypoints", None)
-        if manual_wp is not None:
-            if not isinstance(manual_wp, (list, tuple)):
-                raise ValueError(
-                    "search/manual_waypoints must be a list of [x,y,z]")
-            search = SearchPolicy(
-                min_x=0, max_x=1, min_y=0, max_y=1,
-                lane_spacing=1, altitude=1,
-                manual_waypoints=manual_wp,
-            )
-        else:
-            search = SearchPolicy(
-                min_x=rospy.get_param("~search/min_x", -3.6),
-                max_x=rospy.get_param("~search/max_x", 2.6),
-                min_y=rospy.get_param("~search/min_y", -2.0),
-                max_y=rospy.get_param("~search/max_y", 6.0),
-                lane_spacing=rospy.get_param("~search/lane_spacing", 1.2),
-                altitude=rospy.get_param("~search/altitude", 2.2),
-            )
+        search = SearchPolicy(
+            min_x=rospy.get_param("~search/min_x", -3.6),
+            max_x=rospy.get_param("~search/max_x", 2.6),
+            min_y=rospy.get_param("~search/min_y", -2.0),
+            max_y=rospy.get_param("~search/max_y", 6.0),
+            lane_spacing=rospy.get_param("~search/lane_spacing", 1.2),
+            altitude=rospy.get_param("~search/altitude", 2.2),
+        )
         route = CoverageRoute(
             search.waypoints,
             str(rospy.get_param(
@@ -269,18 +210,12 @@ class NavigationMissionManager:
         return MissionRuntime(MissionCore(profile, config), route)
 
     @staticmethod
-    def _age_state(stamp, now, max_age, future_tolerance):
+    def _age_is_valid(stamp, now, max_age):
         stamp_sec = stamp.to_sec()
         if stamp_sec <= 0.0:
-            return "stale"
+            return False
         age = now - stamp_sec
-        if not math.isfinite(age):
-            return "stale"
-        if age < -future_tolerance:
-            return "future"
-        if age > max_age:
-            return "stale"
-        return "fresh"
+        return math.isfinite(age) and 0.0 <= age <= max_age
 
     def _readiness(self, now):
         if not math.isfinite(now) or now <= 0.0:
@@ -291,23 +226,14 @@ class NavigationMissionManager:
             return False, "pose_missing"
         if self._pose.header.frame_id != config.mission_frame:
             return False, "pose_frame_mismatch"
-        pose_age_state = self._age_state(
-            self._pose.header.stamp,
-            now,
-            self._pose_max_age,
-            self._stamp_future_tolerance,
-        )
-        if pose_age_state == "future":
-            return False, "pose_stamp_in_future"
-        if pose_age_state != "fresh":
+        if not self._age_is_valid(
+                self._pose.header.stamp, now, self._pose_max_age):
             return False, "pose_stale"
         position = self._pose.pose.position
         if not all(math.isfinite(value) for value in
                    (position.x, position.y, position.z)):
             return False, "pose_non_finite"
-        # camera_init is a local estimator frame, not a ground-clearance
-        # datum.  A small negative z during touchdown is therefore valid.
-        if position.z > 4.0:
+        if position.z < 0.0 or position.z > 4.0:
             return False, "pose_altitude_out_of_bounds"
         if not self._require_map:
             return True, "ready"
@@ -315,15 +241,8 @@ class NavigationMissionManager:
             return False, "map_missing"
         if self._map.header.frame_id != config.mission_frame:
             return False, "map_frame_mismatch"
-        map_age_state = self._age_state(
-            self._map.header.stamp,
-            now,
-            self._map_max_age,
-            self._stamp_future_tolerance,
-        )
-        if map_age_state == "future":
-            return False, "map_stamp_in_future"
-        if map_age_state != "fresh":
+        if not self._age_is_valid(
+                self._map.header.stamp, now, self._map_max_age):
             return False, "map_stale"
         width = int(self._map.width)
         height = int(self._map.height)
@@ -501,12 +420,7 @@ class NavigationMissionManager:
                     now_stamp.nsecs,
                     self._mission_counter,
                 )
-                if self._start_mode == "post_delivery":
-                    outcome = runtime.start_post_delivery_validation(
-                        mission_id, now, self._current_xy())
-                else:
-                    outcome = runtime.start(
-                        mission_id, now, self._current_xy())
+                outcome = runtime.start(mission_id, now, self._current_xy())
             except Exception as exc:  # pylint: disable=broad-except
                 self._runtime = None
                 self._last_reason = "start_rejected:%s" % exc
@@ -554,13 +468,6 @@ class NavigationMissionManager:
                         MissionPhase.COMPLETE, MissionPhase.ABORTED):
                     ready, reason = self._readiness(now)
                     if not ready:
-                        if reason in TRANSIENT_READINESS_FAILURES:
-                            # Do not turn one delayed transport sample into a
-                            # flight abort. Hold scheduling; the active action
-                            # and mission deadlines remain authoritative.
-                            self._last_reason = "runtime_waiting_for_%s" % reason
-                            self._publish_status()
-                            return
                         outcome = self._runtime.abort(reason, now)
                         self._last_reason = outcome.reason
                         self._publish_action(outcome.action)
@@ -578,17 +485,6 @@ class NavigationMissionManager:
             return
         if action.command not in COMMAND_VALUES:
             raise ValueError("unsupported core command: %s" % action.command)
-        # This is the task owner's existing route cursor, not simulator truth.
-        # Stages are applied before publishing the next goal, after the prior
-        # waypoint has satisfied the normal execution arrival check.
-        if action.command == "RETURN_HOME" and action.reason.startswith("post_delivery_route:"):
-            completed = self._runtime.core.post_delivery_route_index
-            for stage in rospy.get_param("~mission/post_delivery_parameter_stages", []):
-                if completed == int(stage["after_completed_waypoints"]):
-                    for name, value in stage["parameters"].items():
-                        rospy.set_param(name, value)
-                    rospy.loginfo("Flight parameter stage after %d waypoints: %s",
-                                  completed, stage["parameters"])
         message = NavigationDecision()
         message.header.seq = int(action.decision_seq)
         message.header.stamp = rospy.Time.from_sec(action.issued_at)
@@ -620,8 +516,6 @@ class NavigationMissionManager:
             message.goal.pose.position.x = action.goal.x
             message.goal.pose.position.y = action.goal.y
             message.goal.pose.position.z = action.goal.z
-            message.goal.pose.orientation.z = math.sin(action.goal.yaw / 2.0)
-            message.goal.pose.orientation.w = math.cos(action.goal.yaw / 2.0)
         message.reason = action.reason
         self._decision_pub.publish(message)
         rospy.loginfo(
@@ -637,7 +531,6 @@ class NavigationMissionManager:
             "last_reason": self._last_reason,
             "manual_start_required": True,
             "profile": self._profile_name,
-            "start_mode": self._start_mode,
         }
         if self._runtime is None:
             payload.update({"mission_id": "", "phase": "IDLE"})
@@ -653,14 +546,6 @@ class NavigationMissionManager:
                 "route_complete": snapshot.route_complete,
                 "route_active_decision_seq":
                     snapshot.route_active_decision_seq,
-                "post_delivery_route_revision":
-                    snapshot.post_delivery_route_revision,
-                "post_delivery_route_index":
-                    snapshot.post_delivery_route_index,
-                "post_delivery_route_size":
-                    snapshot.post_delivery_route_size,
-                "post_delivery_route_complete":
-                    snapshot.post_delivery_route_complete,
                 "committed_slots": snapshot.committed_slots,
                 "mission_failed": snapshot.mission_failed,
                 "slot_status": [slot.status.value for slot in core.slots],
