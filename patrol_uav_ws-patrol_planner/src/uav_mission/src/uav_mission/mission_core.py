@@ -49,7 +49,6 @@ class MissionPhase(Enum):
     INIT = "INIT"
     SEARCH = "SEARCH"
     EXECUTING = "EXECUTING"
-    POST_DELIVERY_ROUTE = "POST_DELIVERY_ROUTE"
     RETURN_HOME = "RETURN_HOME"
     LAND = "LAND"
     COMPLETE = "COMPLETE"
@@ -127,13 +126,12 @@ class GoalSnapshot:
     x: float
     y: float
     z: float
-    yaw: float = 0.0  # radians in mission frame; historical goals keep yaw=0
 
     def __post_init__(self):
         if not self.frame_id.strip():
             raise ValueError("goal frame must not be empty")
         if not all(math.isfinite(float(value)) for value in
-                   (self.x, self.y, self.z, self.yaw)):
+                   (self.x, self.y, self.z)):
             raise ValueError("goal coordinates must be finite")
         if self.z < 0.0 or self.z > MAX_FLIGHT_Z:
             raise ValueError("goal altitude is outside the competition limit")
@@ -213,18 +211,12 @@ class MissionConfig:
     approach_altitude: float = 1.2
     return_altitude: float = 2.2
     target_action_timeout: float = 90.0
-    motion_action_timeout: float = 90.0
+    motion_action_timeout: float = 60.0
+    landing_action_timeout: float = 90.0
     result_future_tolerance: float = 0.1
     home_xy: Tuple[float, float] = (0.0, 0.0)
-    post_delivery_route: Tuple[GoalSnapshot, ...] = ()
-    post_delivery_route_revision: str = "direct-home-v1"
-    landing_xy: Tuple[float, float] = (0.0, 0.0)
-    landing_anchor_tolerance: float = 0.15
-    early_return_enabled: bool = True
 
     def __post_init__(self):
-        if not isinstance(self.early_return_enabled, bool):
-            raise ValueError("early_return_enabled must be boolean")
         positive = {
             "candidate_max_age": self.candidate_max_age,
             "transform_max_age": self.transform_max_age,
@@ -241,7 +233,7 @@ class MissionConfig:
             "return_altitude": self.return_altitude,
             "target_action_timeout": self.target_action_timeout,
             "motion_action_timeout": self.motion_action_timeout,
-            "landing_anchor_tolerance": self.landing_anchor_tolerance,
+            "landing_action_timeout": self.landing_action_timeout,
         }
         for name, value in positive.items():
             if (isinstance(value, bool) or not isinstance(value, Real) or
@@ -288,39 +280,8 @@ class MissionConfig:
                 len(self.home_xy) != 2 or
                 not all(math.isfinite(float(value)) for value in self.home_xy)):
             raise ValueError("home_xy must contain two finite coordinates")
-        if (not isinstance(self.landing_xy, (tuple, list)) or
-                len(self.landing_xy) != 2 or
-                not all(math.isfinite(float(value))
-                        for value in self.landing_xy)):
-            raise ValueError("landing_xy must contain two finite coordinates")
-        if (not isinstance(self.post_delivery_route, (tuple, list)) or
-                not all(isinstance(goal, GoalSnapshot)
-                        for goal in self.post_delivery_route)):
-            raise ValueError(
-                "post_delivery_route must contain GoalSnapshot values")
-        route = tuple(self.post_delivery_route)
-        if any(goal.frame_id != self.mission_frame for goal in route):
-            raise ValueError(
-                "post_delivery_route frame must match mission_frame")
-        if (not isinstance(self.post_delivery_route_revision, str) or
-                not self.post_delivery_route_revision.strip()):
-            raise ValueError(
-                "post_delivery_route_revision must not be empty")
         object.__setattr__(
             self, "home_xy", tuple(float(value) for value in self.home_xy))
-        object.__setattr__(
-            self, "landing_xy",
-            tuple(float(value) for value in self.landing_xy))
-        object.__setattr__(self, "post_delivery_route", route)
-        if route:
-            final_goal = route[-1]
-            final_error = math.hypot(
-                final_goal.x - self.landing_xy[0],
-                final_goal.y - self.landing_xy[1],
-            )
-            if final_error > self.landing_anchor_tolerance:
-                raise ValueError(
-                    "post_delivery_route must end at the landing anchor")
 
 
 def validate_candidate(candidate: CandidateSnapshot, now: float,
@@ -592,7 +553,6 @@ class MissionCore:
         self.slots = [PayloadSlot(index=index) for index in
                       range(1, profile.required_deliveries + 1)]
         self.mission_failed = False
-        self.post_delivery_route_index = 0
 
     def start(self, mission_id: str, now: float) -> None:
         if self.phase != MissionPhase.INIT:
@@ -604,23 +564,6 @@ class MissionCore:
         self.mission_id = mission_id
         self.started_at = float(now)
         self.phase = MissionPhase.SEARCH
-
-    def start_post_delivery_validation(self, mission_id: str,
-                                       now: float) -> CoreAction:
-        """Start the explicit post-delivery integration stage.
-
-        This entry point deliberately does not mark payload slots committed.
-        It exists so corridor, landing-marker and LAND behavior can be tested
-        independently without manufacturing delivery evidence.  The normal
-        :meth:`start` path remains the only full-mission entry point.
-        """
-
-        if not self.config.post_delivery_route:
-            raise RuntimeError(
-                "post-delivery validation requires a configured route")
-        self.start(mission_id, now)
-        return self._post_delivery_route_action(
-            "stage_validation_start", now, start=True)
 
     @property
     def committed_slots(self) -> int:
@@ -642,10 +585,6 @@ class MissionCore:
     def _next_free_slot(self) -> Optional[PayloadSlot]:
         return next((slot for slot in self.slots
                      if slot.status == SlotStatus.FREE), None)
-
-    def _search_cutoff(self) -> float:
-        return (self.config.forced_return_at if self.config.early_return_enabled
-                else self.config.mission_timeout)
 
     def _elapsed(self, now: float) -> float:
         return max(0.0, float(now) - self.started_at)
@@ -698,7 +637,6 @@ class MissionCore:
 
     def _return_action(self, reason: str, now: float) -> CoreAction:
         self.phase = MissionPhase.RETURN_HOME
-        self.post_delivery_route_index = 0
         goal = GoalSnapshot(
             self.config.mission_frame,
             self.config.home_xy[0],
@@ -707,28 +645,6 @@ class MissionCore:
         )
         return self._new_action(
             "RETURN_HOME", reason, now, goal=goal,
-            timeout=self.config.motion_action_timeout)
-
-    def _post_delivery_route_action(
-            self, reason: str, now: float, start: bool = False
-            ) -> CoreAction:
-        route = self.config.post_delivery_route
-        if not route:
-            return self._return_action(reason, now)
-        if start:
-            self.post_delivery_route_index = 0
-        if not 0 <= self.post_delivery_route_index < len(route):
-            raise RuntimeError("post-delivery route cursor is out of range")
-        self.phase = MissionPhase.POST_DELIVERY_ROUTE
-        index = self.post_delivery_route_index
-        action_reason = "post_delivery_route:%d/%d:%s:%s" % (
-            index + 1,
-            len(route),
-            self.config.post_delivery_route_revision,
-            reason,
-        )
-        return self._new_action(
-            "RETURN_HOME", action_reason, now, goal=route[index],
             timeout=self.config.motion_action_timeout)
 
     def dispatch_search_motion(self, command: str, goal: GoalSnapshot,
@@ -741,12 +657,12 @@ class MissionCore:
             raise RuntimeError("another navigation decision is still active")
         if goal.frame_id != self.config.mission_frame:
             raise ValueError("search goal frame does not match mission frame")
-        if self._elapsed(now) >= self._search_cutoff():
+        if self._elapsed(now) >= self.config.forced_return_at:
             raise RuntimeError("forced return is due; search motion is forbidden")
         action = self._new_action(
             command, reason, now, goal=goal,
             timeout=self.config.motion_action_timeout)
-        search_deadline = self.started_at + self._search_cutoff()
+        search_deadline = self.started_at + self.config.forced_return_at
         if action.deadline_at > search_deadline:
             action = replace(action, deadline_at=search_deadline)
             self.active_action = action
@@ -782,8 +698,6 @@ class MissionCore:
 
     def should_stop_search(self, now: float,
                            current_xy: Tuple[float, float]) -> bool:
-        if not self.config.early_return_enabled:
-            return False
         ranked = self.queue.ranked(now, current_xy)
         if not ranked:
             return False
@@ -803,8 +717,6 @@ class MissionCore:
     def _candidate_fits(self, entry: CandidateEntry, now: float,
                         current_xy: Tuple[float, float]) -> bool:
         elapsed = self._elapsed(now)
-        if not self.config.early_return_enabled:
-            return elapsed < self.config.mission_timeout
         return (
             elapsed + self._delivery_work_eta([entry], current_xy) <=
             self.config.forced_return_at and
@@ -823,7 +735,7 @@ class MissionCore:
             return None
         if self.committed_slots >= self.profile.required_deliveries:
             return self._return_action("required_deliveries_complete", now)
-        if self._elapsed(now) >= self._search_cutoff():
+        if self._elapsed(now) >= self.config.forced_return_at:
             return self._return_action("forced_return_deadline", now)
 
         interrupt = self.queue.ranked(
@@ -877,8 +789,8 @@ class MissionCore:
             "APPROACH", reason, now, entry, slot, goal,
             self.config.target_action_timeout)
         hard_target_deadline = (
-            self.started_at + self._search_cutoff() -
-            (self.config.decision_guard if self.config.early_return_enabled else 0.0))
+            self.started_at + self.config.forced_return_at -
+            self.config.decision_guard)
         if action.deadline_at > hard_target_deadline:
             action = replace(action, deadline_at=hard_target_deadline)
             self.active_action = action
@@ -900,10 +812,10 @@ class MissionCore:
             return "event_duplicate_or_out_of_order"
         return "accepted"
 
-    def _validate_result_against_action(self, event: ResultEvent,
+    @staticmethod
+    def _validate_result_against_action(event: ResultEvent,
                                         action: CoreAction) -> str:
-        if (event.event_time + self.config.result_future_tolerance <
-                action.issued_at):
+        if event.event_time < action.issued_at:
             return "result_precedes_decision"
         if event.decision_seq != action.decision_seq:
             return "decision_mismatch"
@@ -1070,24 +982,10 @@ class MissionCore:
             if event.status != "SUCCEEDED":
                 return True, "return_home_failed", self._abort_action(
                     "return_home_failed", now)
-            if self.phase == MissionPhase.POST_DELIVERY_ROUTE:
-                self.post_delivery_route_index += 1
-                if (self.post_delivery_route_index <
-                        len(self.config.post_delivery_route)):
-                    return (True, "post_delivery_route_segment_complete",
-                            self._post_delivery_route_action(
-                                "segment_complete", now))
-                self.phase = MissionPhase.LAND
-                return True, "post_delivery_route_complete", self._new_action(
-                    "LAND", "post_delivery_route_complete", now,
-                    # LAND is the terminal mission stage.  It consumes the
-                    # remaining competition-time budget instead of inventing
-                    # a second, shorter recapture deadline.
-                    timeout=self.config.mission_timeout)
             self.phase = MissionPhase.LAND
             return True, "return_home_complete", self._new_action(
                 "LAND", "return_home_complete", now,
-                timeout=self.config.mission_timeout)
+                timeout=self.config.landing_action_timeout)
         if action.command == "LAND":
             if event.status != "SUCCEEDED":
                 return True, "landing_failed", self._abort_action(
@@ -1140,9 +1038,8 @@ class MissionCore:
                 return True, "committed_recovery_failed", self._return_action(
                     "committed_recovery_failed", now)
             if self.committed_slots >= self.profile.required_deliveries:
-                return (True, "required_deliveries_complete",
-                        self._post_delivery_route_action(
-                            "required_deliveries_complete", now, start=True))
+                return True, "required_deliveries_complete", self._return_action(
+                    "required_deliveries_complete", now)
             self.phase = MissionPhase.SEARCH
             return True, "delivery_complete", None
 
@@ -1222,7 +1119,7 @@ class MissionCore:
             return True, "target_action_timed_out_uncertain", self._return_action(
                 "target_action_timed_out_uncertain", now)
         if action.command in ("SEARCH", "RESUME"):
-            if self._elapsed(now) >= self._search_cutoff():
+            if self._elapsed(now) >= self.config.forced_return_at:
                 return True, "forced_return_deadline", self._return_action(
                     "forced_return_deadline", now)
             self.phase = MissionPhase.SEARCH

@@ -1,0 +1,2147 @@
+<?xml version='1.0'?>
+<sdf version='1.7'>
+  <model name='Untitled'>
+    <model name='Oak_tree'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>28.7148 -17.0684 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_0'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>24.0325 -6.40638 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-18.2811 -15.7229 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-16.2075 12.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_0'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-26.2075 -25.9553 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-25.6689 -16.5239 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-25.2075 1.87802 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_3'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-15.7368 3.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_4'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>7.79247 11.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_5'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>25.2408 7.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_6'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>35.7925 2.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Oak_tree_1_clone_7'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/branch_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Oak_tree/meshes/oak_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Oak_tree/materials/scripts/</uri>
+              <uri>model://Oak_tree/materials/textures/</uri>
+              <name>OakTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Oak_tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>38.267 -5.5239 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-0.682713 -13.2047 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_0'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-4.28896 -18.0697 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-4.71019 -24.4298 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-6.48181 -28.597 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>0.450534 15.0278 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-2.16013 6.7032 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_0'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>8.79247 15.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_1'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-4.20753 23.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_10'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>42.7925 8.00583 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_11'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>32.7925 15.0063 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_12'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>24.7925 13.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_13'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>16.7925 12.9189 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_14'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>37.7925 -30.5239 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_2'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-10.2075 21.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_3'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-18.2075 -5.5239 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_4'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-24.6398 -6.86755 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_5'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-29.2075 -11.5239 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_6'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-29.2075 5.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_7'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-28.2075 14.4761 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_8'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-20.2454 20.6155 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_3_clone_9'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-20.2457 7.29333 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_4'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-8.71657 10.2763 0 0 -0 0</pose>
+    </model>
+    <model name='Pine_Tree_5'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='branch'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Branch</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <double_sided>1</double_sided>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Branch</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/branch_2_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <visual name='bark'>
+          <geometry>
+            <mesh>
+              <uri>model://Pine_Tree/meshes/pine_tree.dae</uri>
+              <submesh>
+                <name>Bark</name>
+              </submesh>
+            </mesh>
+          </geometry>
+          <material>
+            <diffuse>1 1 1 1</diffuse>
+            <script>
+              <uri>model://Pine_Tree/materials/scripts/</uri>
+              <uri>model://Pine_Tree/materials/textures/</uri>
+              <name>PineTree/Bark</name>
+            </script>
+            <pbr>
+              <metal>
+                <albedo_map>model://Pine_Tree/materials/textures/bark_diffuse.png</albedo_map>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+      </link>
+      <pose>-10.1635 3.01767 0 0 -0 0</pose>
+    </model>
+    <model name='radio_tower'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://radio_tower/meshes/radio_tower.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://radio_tower/meshes/radio_tower.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <pose>30.0514 -13.5148 0 0 -0 0</pose>
+    </model>
+    <model name='radio_tower_clone'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <mesh>
+              <uri>model://radio_tower/meshes/radio_tower.dae</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <uri>model://radio_tower/meshes/radio_tower.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <pose>-5.20753 7.4761 0 0 -0 0</pose>
+    </model>
+    <static>0</static>
+    <allow_auto_disable>1</allow_auto_disable>
+  </model>
+</sdf>

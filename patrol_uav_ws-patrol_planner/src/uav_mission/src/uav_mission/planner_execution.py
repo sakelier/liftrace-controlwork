@@ -1,10 +1,9 @@
-"""Deterministic, ROS-free execution policy for navigation decisions.
+"""Deterministic, ROS-free execution policy for navigation motion decisions.
 
-The class owns planner motion and the single typed-result sequence.  A ROS
-adapter performs the existing target-alignment and landing handoffs, then
-reports their observed stages back through the narrow methods in this module.
-This module never imports ROS and never operates a flight mode, payload
-mechanism or actuator.
+The class in this module deliberately stops at planner motion. A ROS adapter
+publishes its selected goal and exposes LAND/HOLD/ABORT/target-stage handoff
+states to separate executors. This module never imports ROS and never
+operates a flight mode, payload mechanism or actuator.
 
 All clocks and source stamps are integer nanoseconds.  Decision identity is
 copied into an immutable ``ExecutionEvent`` when the decision is accepted, so
@@ -18,10 +17,10 @@ from typing import Dict, Optional, Tuple
 
 
 MOTION_COMMANDS = frozenset((
-    "SEARCH", "RESUME", "APPROACH", "RETURN_HOME", "ABORT",
+    "SEARCH", "RESUME", "APPROACH", "RETURN_HOME",
 ))
-EXTERNAL_COMMANDS = frozenset(("LAND",))
-REJECTED_COMMANDS = frozenset(("ALIGN", "HOLD"))
+EXTERNAL_COMMANDS = frozenset(("LAND", "ABORT", "HOLD"))
+REJECTED_COMMANDS = frozenset(("ALIGN",))
 KNOWN_COMMANDS = MOTION_COMMANDS | EXTERNAL_COMMANDS | REJECTED_COMMANDS
 
 PLANNER_STATUSES = (
@@ -212,14 +211,13 @@ class OdomSample:
     vx: float
     vy: float
     vz: float
-    yaw: float = 0.0
 
     def __post_init__(self):
         object.__setattr__(
             self, "stamp_ns", _integer("odom stamp_ns", self.stamp_ns, 1))
         if not isinstance(self.frame_id, str) or not self.frame_id.strip():
             raise ValueError("odom frame_id must not be empty")
-        for field_name in ("x", "y", "z", "vx", "vy", "vz", "yaw"):
+        for field_name in ("x", "y", "z", "vx", "vy", "vz"):
             object.__setattr__(
                 self, field_name, _finite("odom %s" % field_name,
                                          getattr(self, field_name)))
@@ -231,14 +229,13 @@ class PlannerMotionConfig:
     mission_frame: str = "camera_init"
     max_z_m: float = 4.0
     source_future_tolerance_ns: int = 100_000_000
-    planner_accept_timeout_ns: int = 5_000_000_000
+    planner_accept_timeout_ns: int = 2_000_000_000
     max_effective_goal_offset_m: float = 1.10
+    max_planning_attempts: int = 20
     arrival_distance_m: float = 0.30
-    approach_arrival_distance_m: float = 0.35
     arrival_speed_mps: float = 0.20
     arrival_dwell_ns: int = 500_000_000
     odom_max_age_ns: int = 200_000_000
-    return_yaw_tolerance_rad: float = math.pi
 
     def __post_init__(self):
         if not isinstance(self.executor_id, str) or not self.executor_id.strip():
@@ -260,26 +257,18 @@ class PlannerMotionConfig:
             raise ValueError("effective goal offset exceeds the audited bound")
         object.__setattr__(
             self, "max_effective_goal_offset_m", effective_offset)
+        object.__setattr__(self, "max_planning_attempts", _integer(
+            "max_planning_attempts", self.max_planning_attempts, 1))
         distance = _finite("arrival_distance_m", self.arrival_distance_m)
-        approach_distance = _finite(
-            "approach_arrival_distance_m",
-            self.approach_arrival_distance_m)
         speed = _finite("arrival_speed_mps", self.arrival_speed_mps)
-        if (distance <= 0.0 or approach_distance <= 0.0 or
-                approach_distance > 0.50 or speed < 0.0):
+        if distance <= 0.0 or speed < 0.0:
             raise ValueError("arrival thresholds are invalid")
         object.__setattr__(self, "arrival_distance_m", distance)
-        object.__setattr__(
-            self, "approach_arrival_distance_m", approach_distance)
         object.__setattr__(self, "arrival_speed_mps", speed)
         object.__setattr__(self, "arrival_dwell_ns", _integer(
             "arrival_dwell_ns", self.arrival_dwell_ns, 1))
         object.__setattr__(self, "odom_max_age_ns", _integer(
             "odom_max_age_ns", self.odom_max_age_ns, 1))
-        yaw_tolerance = _finite("return_yaw_tolerance_rad", self.return_yaw_tolerance_rad)
-        if not 0.0 < yaw_tolerance <= math.pi:
-            raise ValueError("return yaw tolerance must be in (0, pi]")
-        object.__setattr__(self, "return_yaw_tolerance_rad", yaw_tolerance)
 
 
 @dataclass(frozen=True)
@@ -342,8 +331,6 @@ class _GoalLifecycle:
     planning_attempt: int = 0
     planner_accepted: bool = False
     trajectory_ready: bool = False
-    trajectory_ever_ready: bool = False
-    trajectory_ready_stamp_ns: int = 0
     trajectory_finished: bool = False
     finished_stamp_ns: int = 0
     dwell_start_ns: int = 0
@@ -351,8 +338,6 @@ class _GoalLifecycle:
     terminal: bool = False
     handed_off: bool = False
     retired: bool = False
-    payload_committed: bool = False
-    late_payload_commit_allowed: bool = False
 
 
 class PlannerMotionExecutor:
@@ -372,10 +357,6 @@ class PlannerMotionExecutor:
         self._last_now_ns = 0
         self._last_odom: Optional[OdomSample] = None
         self._active: Optional[_GoalLifecycle] = None
-        # At most one physically uncertain release may outlive the active
-        # navigation action.  This is a fact-reconciliation fence, not a
-        # retry/history queue.
-        self._pending_release: Optional[_GoalLifecycle] = None
         self._awaiting_cancel_goal_seq = 0
 
     def snapshot(self) -> ExecutorSnapshot:
@@ -398,27 +379,6 @@ class PlannerMotionExecutor:
             awaiting_cancel_goal_seq=self._awaiting_cancel_goal_seq,
         )
 
-    def resolve_goal_seq_by_stamp(self, requested_stamp_ns: int) -> int:
-        """Resolve planner transport telemetry to a retained mission goal.
-
-        ROS publishers overwrite ``Header.seq`` on ``PoseStamped`` messages,
-        so the planner's echoed sequence is a transport counter rather than
-        the navigation ``decision_seq``.  The bridge preserves
-        ``decision.issued_at_ns`` in the goal stamp; that stamp is therefore
-        the cross-node generation key.  Unknown retired generations are
-        intentionally returned as zero so callers can ignore their telemetry.
-        """
-
-        stamp_ns = _integer(
-            "planner requested goal stamp", requested_stamp_ns, 1)
-        matches = [
-            goal_seq for goal_seq, state in self._goals.items()
-            if state.decision.issued_at_ns == stamp_ns
-        ]
-        if len(matches) > 1:
-            raise RuntimeError("planner_goal_stamp_ambiguous")
-        return matches[0] if matches else 0
-
     def _outcome(self, accepted: bool, reason: str,
                  events: Tuple[ExecutionEvent, ...] = (),
                  planner_goal: Optional[MotionDecision] = None,
@@ -434,9 +394,7 @@ class PlannerMotionExecutor:
 
     def _result(self, state: _GoalLifecycle, now_ns: int, status: str,
                 stage: str, terminal: bool, retryable: bool,
-                reason: str, payload_committed: bool = False,
-                evidence_source: str = "planner_motion_executor"
-                ) -> ExecutionEvent:
+                reason: str) -> ExecutionEvent:
         self._executor_event_seq += 1
         decision = state.decision
         target = decision.target
@@ -451,7 +409,7 @@ class PlannerMotionExecutor:
             stage=stage,
             terminal=terminal,
             retryable=retryable,
-            payload_committed=bool(payload_committed),
+            payload_committed=False,
             has_target=target is not None,
             target_id=(target.target_id if target else 0),
             target_first_seen_ns=(target.first_seen_ns if target else 0),
@@ -459,7 +417,7 @@ class PlannerMotionExecutor:
             attempt=(target.attempt if target else 0),
             payload_slot=(target.payload_slot if target else 0),
             reason=reason,
-            evidence_source=evidence_source,
+            evidence_source="planner_motion_executor",
         )
 
     def _validate_now(self, now_ns: int) -> Optional[ExecutorOutcome]:
@@ -547,8 +505,6 @@ class PlannerMotionExecutor:
             self, decision: MotionDecision) -> Optional[str]:
         if decision.command == "ALIGN":
             return "align_not_owned_by_motion_executor"
-        if decision.command == "HOLD":
-            return "hold_not_supported"
         goal = decision.goal
         if goal is not None:
             if goal.frame_id != self.config.mission_frame:
@@ -589,34 +545,20 @@ class PlannerMotionExecutor:
         if (prior is not None and prior.mission_id == decision.mission_id and
                 decision.decision_seq < prior.decision_seq):
             return self._outcome(False, "stale_decision_ignored")
-        if (decision.issued_at_ns > int(now_ns) +
-                self.config.source_future_tolerance_ns):
+        if int(now_ns) < decision.issued_at_ns:
             return self._fail_closed("decision_from_future")
         if int(now_ns) >= decision.deadline_ns:
             return self._fail_closed("decision_received_after_deadline")
-
-        if any(
-                state.decision.decision_seq != decision.decision_seq and
-                state.decision.issued_at_ns == decision.issued_at_ns
-                for state in self._goals.values()):
-            return self._fail_closed("decision_issue_stamp_conflict")
 
         active = self._active
         replacement_requires_cancel = (
             active is not None and
             active.decision.command in MOTION_COMMANDS and
             active.decision.decision_seq != decision.decision_seq and
-            active.planner_accepted and
             not active.trajectory_finished
         )
         if replacement_requires_cancel:
             self._awaiting_cancel_goal_seq = active.decision.decision_seq
-        if (active is not None and active.late_payload_commit_allowed and
-                not active.payload_committed):
-            if (self._pending_release is not None and
-                    self._pending_release is not active):
-                return self._fail_closed("pending_release_fence_conflict")
-            self._pending_release = active
         if active is not None:
             active.retired = True
 
@@ -662,21 +604,6 @@ class PlannerMotionExecutor:
         if prepared is not None:
             return prepared
 
-        # Old planner work can finish after replacement or visual handoff.
-        # Its geometry/freshness cannot invalidate the current decision.
-        state = self._goals.get(event.goal_seq)
-        if state is None:
-            return self._outcome(False, "foreign_planner_goal_ignored")
-        if state.retired or state.handed_off:
-            if event.event_seq > self._last_planner_event_seq:
-                self._last_planner_event = event
-                self._last_planner_event_seq = event.event_seq
-            if (event.goal_seq == self._awaiting_cancel_goal_seq and
-                    event.status == "CANCELLED"):
-                self._awaiting_cancel_goal_seq = 0
-                return self._outcome(True, "replacement_cancel_confirmed")
-            return self._outcome(True, "retired_goal_event_ignored")
-
         prior = self._last_planner_event
         if prior is not None and prior.event_seq == event.event_seq:
             if prior == event:
@@ -691,12 +618,7 @@ class PlannerMotionExecutor:
         state = self._goals.get(event.goal_seq)
         if state is None:
             return self._outcome(False, "foreign_planner_goal_ignored")
-        # Planner status is stamped by roscpp before the rospy decision
-        # callback finishes recording dispatch_ns.  Keep the generation and
-        # echoed-goal fences below, but tolerate the same bounded source-clock
-        # skew already accepted for decisions and future-dated telemetry.
-        if (event.stamp_ns + self.config.source_future_tolerance_ns <
-                state.dispatch_ns):
+        if event.stamp_ns < state.dispatch_ns:
             return self._fail_closed("planner_event_precedes_dispatch")
         requested = event.requested_goal
         effective = event.effective_goal
@@ -733,41 +655,36 @@ class PlannerMotionExecutor:
         status = event.status
         if status == "ACCEPTED":
             if self._awaiting_cancel_goal_seq:
-                # The single planner replaces its active goal atomically.  A
-                # dropped CANCELLED telemetry message must not reject the
-                # positively identified acceptance of the new generation.
-                self._awaiting_cancel_goal_seq = 0
+                return self._fail_closed(
+                    "replacement_accepted_before_cancel")
             if event.planning_attempt != 0:
-                return self._outcome(
-                    False, "planner_attempt_invalid_for_accept_ignored")
+                return self._fail_closed("planner_attempt_invalid_for_accept")
             if state.planner_accepted or state.trajectory_finished:
-                return self._outcome(
-                    False, "planner_accepted_duplicate_ignored")
+                return self._fail_closed("planner_accepted_out_of_order")
             state.planner_accepted = True
             state.effective_goal = effective.goal
             return self._outcome(True, "planner_goal_accepted", events=(
                 self._result(state, int(now_ns), "STARTED", "PLANNER",
                              False, False, "planner_goal_accepted"),))
         if not state.planner_accepted:
-            return self._outcome(False, "planner_status_before_accepted_ignored")
+            return self._fail_closed("planner_status_before_accepted")
         if state.trajectory_finished:
-            return self._outcome(False, "planner_status_after_finished_ignored")
+            return self._fail_closed("planner_status_after_finished")
         if status in ("PLANNING", "REPLANNING"):
-            if event.planning_attempt <= state.planning_attempt:
-                return self._outcome(False, "stale_planner_attempt_ignored")
+            expected_attempt = state.planning_attempt + 1
+            if event.planning_attempt != expected_attempt:
+                return self._fail_closed("planner_attempt_not_monotonic")
+            if event.planning_attempt > self.config.max_planning_attempts:
+                return self._fail_closed("planner_attempt_limit_exceeded")
             state.planning_attempt = event.planning_attempt
             state.trajectory_ready = False
+            state.dwell_start_ns = 0
+            state.last_qualified_odom_ns = 0
             state.effective_goal = effective.goal
+        elif (event.planning_attempt != state.planning_attempt or
+              event.planning_attempt < 1):
+            return self._fail_closed("planner_attempt_inconsistent")
         else:
-            if event.planning_attempt < 1:
-                return self._outcome(
-                    False, "planner_attempt_invalid_ignored")
-            if event.planning_attempt < state.planning_attempt:
-                return self._outcome(False, "stale_planner_attempt_ignored")
-            # A bounded ROS subscriber queue may omit the begin-attempt
-            # progress sample.  The current-generation READY/FAILED/FINISHED
-            # fact is sufficient to advance the observed attempt number.
-            state.planning_attempt = event.planning_attempt
             state.effective_goal = effective.goal
         if status == "PLANNING":
             return self._outcome(True, "planner_attempt_started")
@@ -775,8 +692,6 @@ class PlannerMotionExecutor:
             return self._outcome(True, "planner_replanning")
         if status == "TRAJECTORY_READY":
             state.trajectory_ready = True
-            state.trajectory_ever_ready = True
-            state.trajectory_ready_stamp_ns = event.stamp_ns
             return self._outcome(True, "planner_trajectory_ready", events=(
                 self._result(state, int(now_ns), "PROGRESS", "PLANNER",
                              False, False, "planner_trajectory_ready"),))
@@ -786,6 +701,8 @@ class PlannerMotionExecutor:
                     state, int(now_ns), "PROGRESS", "PLANNER", False, False,
                     "planner_attempt_failed_nonterminal"),))
         if status == "TRAJECTORY_FINISHED":
+            if not state.trajectory_ready:
+                return self._fail_closed("trajectory_finished_without_ready")
             state.trajectory_finished = True
             state.finished_stamp_ns = event.stamp_ns
             state.dwell_start_ns = 0
@@ -829,129 +746,6 @@ class PlannerMotionExecutor:
         return self._outcome(
             True, "motion_succeeded", events=(event,))
 
-    def report_target_stage(self, decision_seq: int, now_ns: int,
-                            status: str, stage: str,
-                            terminal: bool = False,
-                            retryable: bool = False,
-                            payload_committed: bool = False,
-                            reason: str = "",
-                            evidence_source: str =
-                            "target_transaction_executor") -> ExecutorOutcome:
-        """Record one observed stage for the handed-off APPROACH decision.
-
-        The ROS adapter owns no result counter.  Planner, capture, release and
-        recovery facts all pass through this method and therefore share the
-        executor's one ``executor_id/event_seq`` stream.
-        """
-
-        invalid_now = self._validate_now(now_ns)
-        if invalid_now is not None:
-            return invalid_now
-        state = self._active
-        if (state is None or state.decision.command != "APPROACH" or
-                state.decision.decision_seq != int(decision_seq)):
-            pending = self._pending_release
-            if (pending is not None and
-                    pending.decision.decision_seq == int(decision_seq)):
-                state = pending
-        if (state is None or state.decision.command != "APPROACH" or
-                state.decision.decision_seq != int(decision_seq) or
-                not state.handed_off):
-            return self._outcome(False, "target_transaction_not_active")
-
-        status = str(status).strip().upper()
-        stage = str(stage).strip().upper()
-        terminal = bool(terminal)
-        retryable = bool(retryable)
-        payload_committed = bool(payload_committed)
-        late_payload_commit = (
-            payload_committed and state.terminal and state.retired and
-            state.late_payload_commit_allowed and
-            not state.payload_committed
-        )
-        if ((state.terminal or state.retired) and
-                not late_payload_commit):
-            return self._outcome(False, "target_transaction_not_active")
-        if stage not in ("CAPTURE", "ALIGNMENT", "RELEASE", "RECOVERY"):
-            return self._outcome(False, "target_stage_invalid")
-        if not str(reason).strip() or not str(evidence_source).strip():
-            return self._outcome(False, "target_result_evidence_missing")
-
-        if payload_committed:
-            valid = (
-                status == "PROGRESS" and stage == "RELEASE" and
-                not terminal and not retryable and
-                reason == "release_ack_success" and
-                not state.payload_committed
-            )
-            if not valid:
-                return self._outcome(False, "payload_commit_shape_invalid")
-            state.payload_committed = True
-            state.late_payload_commit_allowed = False
-            if self._pending_release is state:
-                self._pending_release = None
-        elif terminal:
-            if status not in (
-                    "SUCCEEDED", "FAILED", "REJECTED", "CANCELLED",
-                    "TIMED_OUT"):
-                return self._outcome(False, "target_terminal_status_invalid")
-            if status == "SUCCEEDED" and not state.payload_committed:
-                return self._outcome(False, "target_success_without_commit")
-            if state.payload_committed and (stage != "RECOVERY" or retryable):
-                return self._outcome(False, "committed_recovery_shape_invalid")
-        else:
-            if status not in ("ACCEPTED", "STARTED", "PROGRESS"):
-                return self._outcome(False, "target_progress_status_invalid")
-            if retryable:
-                return self._outcome(False, "target_progress_must_not_retry")
-
-        event = self._result(
-            state, int(now_ns), status, stage, terminal, retryable, reason,
-            payload_committed=payload_committed,
-            evidence_source=str(evidence_source),
-        )
-        if terminal:
-            state.terminal = True
-            state.retired = True
-            state.late_payload_commit_allowed = (
-                status == "TIMED_OUT" and stage == "RELEASE" and
-                not state.payload_committed and not retryable and
-                reason == "release_result_deadline_reached"
-            )
-        return self._outcome(True, "target_stage_recorded", events=(event,))
-
-    def report_landing(self, decision_seq: int, now_ns: int, status: str,
-                       terminal: bool, reason: str) -> ExecutorOutcome:
-        """Record observed landing progress for the handed-off LAND command."""
-
-        invalid_now = self._validate_now(now_ns)
-        if invalid_now is not None:
-            return invalid_now
-        state = self._active
-        if (state is None or state.decision.command != "LAND" or
-                state.decision.decision_seq != int(decision_seq) or
-                not state.handed_off or state.terminal or state.retired):
-            return self._outcome(False, "landing_not_active")
-        status = str(status).strip().upper()
-        terminal = bool(terminal)
-        if not str(reason).strip():
-            return self._outcome(False, "landing_reason_missing")
-        if terminal:
-            if status not in (
-                    "SUCCEEDED", "FAILED", "REJECTED", "CANCELLED",
-                    "TIMED_OUT"):
-                return self._outcome(False, "landing_terminal_status_invalid")
-        elif status not in ("ACCEPTED", "STARTED", "PROGRESS"):
-            return self._outcome(False, "landing_progress_status_invalid")
-        event = self._result(
-            state, int(now_ns), status, "LANDING", terminal, False, reason,
-            evidence_source="patrol_control_landing",
-        )
-        if terminal:
-            state.terminal = True
-            state.retired = True
-        return self._outcome(True, "landing_stage_recorded", events=(event,))
-
     def apply_odom(self, sample: OdomSample, now_ns: int) -> ExecutorOutcome:
         """Use fresh same-frame odometry to confirm distance/speed/dwell."""
 
@@ -987,22 +781,14 @@ class PlannerMotionExecutor:
                 self.config.odom_max_age_ns):
             self._reset_dwell(state)
             return self._outcome(False, "odom_stale")
-        if not state.trajectory_finished and not state.trajectory_ever_ready:
+        if not state.trajectory_finished:
             self._reset_dwell(state)
             return self._outcome(True, "waiting_for_trajectory_finished")
-        if (state.trajectory_finished and
-                sample.stamp_ns < state.finished_stamp_ns):
+        if sample.stamp_ns < state.finished_stamp_ns:
             self._reset_dwell(state)
             return self._outcome(False, "odom_precedes_trajectory_finish")
-        if (not state.trajectory_finished and
-                sample.stamp_ns < state.trajectory_ready_stamp_ns):
-            self._reset_dwell(state)
-            return self._outcome(False, "odom_precedes_trajectory_ready")
 
-        # Return legs encode door approach/clear geometry. Reaching an
-        # obstacle-adjusted surrogate must not advance the portal sequence.
-        goal = (state.decision.goal if state.decision.command in
-                ("RETURN_HOME", "ABORT") else state.effective_goal)
+        goal = state.effective_goal
         if goal is None:
             return self._fail_closed("planner_effective_goal_missing")
         if sample.frame_id != goal.frame_id:
@@ -1015,24 +801,10 @@ class PlannerMotionExecutor:
             (sample.z - goal.z) ** 2
         )
         speed = math.sqrt(sample.vx ** 2 + sample.vy ** 2 + sample.vz ** 2)
-        arrival_distance = (
-            self.config.approach_arrival_distance_m
-            if state.decision.command == "APPROACH"
-            else self.config.arrival_distance_m
-        )
-        if (distance > arrival_distance or
+        if (distance > self.config.arrival_distance_m or
                 speed > self.config.arrival_speed_mps):
             self._reset_dwell(state)
             return self._outcome(True, "arrival_threshold_not_met")
-
-        if state.decision.command == "RETURN_HOME":
-            goal_yaw = math.atan2(2.0 * (goal.qw * goal.qz + goal.qx * goal.qy),
-                                 1.0 - 2.0 * (goal.qy ** 2 + goal.qz ** 2))
-            yaw_error = math.atan2(math.sin(sample.yaw - goal_yaw),
-                                   math.cos(sample.yaw - goal_yaw))
-            if abs(yaw_error) > self.config.return_yaw_tolerance_rad:
-                self._reset_dwell(state)
-                return self._outcome(True, "arrival_yaw_not_met")
 
         if (state.last_qualified_odom_ns and
                 sample.stamp_ns - state.last_qualified_odom_ns >
