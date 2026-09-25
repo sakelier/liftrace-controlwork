@@ -1,0 +1,124 @@
+<launch>
+  <!-- 飞行调试日志记录器（独立、可后挂）。
+       - 不启动任何飞控/规划/视觉业务节点，只做两件事：
+         1) 拉起 yolo_live_view，把 /camera/image_raw + /uav_vision/detections
+            实时叠加成带框的 /uav_vision/yolo_debug（即使业务 launch 没开 live view，
+            这里也能保证有 yolo_debug 可看/可录）；
+         2) rosbag record 录制"视觉 + 对准 + 释放裁决 + 任务/规划桥 + 飞行状态 +
+            TF"全链路证据，用于事后复查"找到目标却悬停不投放"。
+       使用前提：MAVROS、MID360、相机、minimal_delivery_test.launch 已在跑。
+       启动：roslaunch uav_mission flight_debug_record.launch
+       关闭：在本终端 Ctrl+C（rosbag 会正常收尾写索引，勿 kill -9）。 -->
+
+  <!-- ========== 开关 ========== -->
+  <arg name="record" default="true" />
+  <arg name="start_live_view" default="true" />
+  <!-- headless（SSH 无 X）时设 false；有 yolo_debug 订阅者(rosbag)也会正常出图 -->
+  <arg name="show_window" default="false" />
+  <!-- 图像默认只录 JPEG 压缩话题（体积约为 raw 的 1/10~1/20）。
+       需要无压缩原始帧做像素级复盘时再设 true（bag 会大很多）。 -->
+  <arg name="record_raw_image" default="false" />
+
+  <!-- ========== 话题名（与 minimal_delivery_test / phase_d_board 默认一致） ========== -->
+  <arg name="image_topic" default="/camera/image_raw" />
+  <arg name="image_compressed_topic" default="/camera/image_raw/compressed" />
+  <arg name="camera_info_topic" default="/camera/camera_info" />
+  <arg name="detections_topic" default="/uav_vision/detections" />
+  <arg name="yolo_debug_topic" default="/uav_vision/yolo_debug" />
+  <arg name="pose_topic" default="/mavros/local_position/pose" />
+
+  <!-- ========== 输出目录 / 文件前缀 ========== -->
+  <!-- 默认写到工程 logs 目录，文件名形如 flight_debug_YYYY-MM-DD-HH-MM-SS.bag.active -->
+  <arg name="record_dir"
+       default="/home/orangepi/liftrace_r64_onboard_405bda42/logs/flight_debug" />
+  <arg name="record_prefix" default="flight_debug" />
+  <!-- 分段：单文件超过该 MB 自动切片，防止单个 bag 过大/损坏丢全部 -->
+  <arg name="split_size_mb" default="2048" />
+
+  <!-- ========== 1) YOLO 带框可视化（保证 yolo_debug 一定有发布者） ========== -->
+  <!-- 仅当业务 launch 没开 live view 时才需要；若已开会重名，可 start_live_view:=false -->
+  <include if="$(arg start_live_view)"
+           file="$(find uav_vision)/launch/yolo_live_view.launch">
+    <arg name="image_topic" value="$(arg image_topic)" />
+    <arg name="detections_topic" value="$(arg detections_topic)" />
+    <arg name="output_topic" value="$(arg yolo_debug_topic)" />
+    <arg name="show_window" value="$(arg show_window)" />
+  </include>
+
+  <!-- ========== 1b) 把 yolo_debug(raw) 转成 JPEG 压缩版再录 ========== -->
+  <!-- yolo_live_view 只发 raw；用 image_transport 生成 yolo_debug/compressed，
+       录压缩图大幅省盘。in:=原始话题(裸名,不带/image_transport后缀)，out:=compressed。 -->
+  <node if="$(arg start_live_view)" pkg="image_transport" type="republish"
+        name="yolo_debug_compress" output="screen"
+        args="raw in:=$(arg yolo_debug_topic) compressed out:=$(arg yolo_debug_topic)/compressed">
+    <param name="compressed/jpeg_quality" value="80" />
+  </node>
+
+  <!-- ========== 2) rosbag 全链路证据录制 ========== -->
+  <!-- record_raw_image=false 时 raw_image_topics 解析为空，rosbag 忽略多余空 token；
+       =true 时追加两路无压缩 raw（体积大）。 -->
+  <arg name="raw_image_topics"
+       value="$(eval '/camera/image_raw /uav_vision/yolo_debug' if record_raw_image else '')" />
+  <!--
+    分组说明（排查"悬停不投"的判读顺序）：
+    A. 看得见目标吗 —— 压缩图/内参/原始与融合检测/地图投影/候选与选定目标/带框视频
+    B. 对准过了吗 —— align_mode、drop_offset(像素偏差/稳定计数)、drop_ready、
+                     alignment_target_context（对准上下文围栏）
+    C. 释放裁决卡在哪 —— release_evidence(_context)、release_permission(_active)、
+                         release_commitment_evidence、release_result、/detect/point_class
+    D. 任务/规划桥为什么不下指令 —— mission_status/result/command_raw、
+                         planner_bridge_status、/mission/command
+    E. 飞机为什么悬在那 —— 位姿/里程计、setpoint、飞控 state/extended_state、
+                         fastplanner goal、规划轨迹、膨胀栅格点云
+    F. 坐标链 —— /tf /tf_static（复算投影/高度必备）
+  -->
+  <node if="$(arg record)" pkg="rosbag" type="record" name="flight_debug_recorder"
+        output="screen" required="false"
+        args="--lz4 --split --size=$(arg split_size_mb)
+              -o $(arg record_dir)/$(arg record_prefix)
+
+              /tf
+              /tf_static
+
+              $(arg camera_info_topic)
+              $(arg image_compressed_topic)
+              $(arg yolo_debug_topic)/compressed
+              $(arg raw_image_topics)
+
+              /uav_vision/detections
+              /uav_vision/detections_resolved
+              /uav_vision/detections_refined
+              /uav_vision/detections_mapped
+              /uav_vision/targets
+              /uav_vision/selected_target
+              /uav_vision/align_mode
+
+              /uav_vision/drop_offset
+              /uav_vision/drop_ready
+              /uav_vision/alignment_target_context
+              /uav_vision/release_evidence
+              /uav_vision/release_evidence_context
+
+              /mission/release_permission
+              /mission/release_permission_active
+              /mission/release_commitment_evidence
+              /mission/release_result
+              /detect/point_class
+
+              /navigation/mission_status
+              /navigation/mission_result
+              /navigation/mission_command_raw
+              /navigation/planner_bridge_status
+              /mission/command
+
+              $(arg pose_topic)
+              /mavros/local_position/odom
+              /mavros/setpoint_position/local
+              /mavros/state
+              /mavros/extended_state
+
+              /fastplanner/goal
+              /planning/bspline
+              /planning_vis/trajectory
+              /sdf_map/occupancy_inflate" />
+</launch>
