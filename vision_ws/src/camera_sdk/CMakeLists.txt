@@ -8,7 +8,6 @@ project(camera_sdk)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  cv_bridge
   roscpp
   rospy
   sensor_msgs
