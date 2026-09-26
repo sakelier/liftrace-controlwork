@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test-only completed-mission handoff to PX4 AUTO.LAND; never arms/disarms."""
+"""Test-only completed-mission handoff to an allowed PX4 mode."""
 import json
 import math
 import threading
@@ -54,11 +54,14 @@ class AutoLand:
         self.z = configured_cruise_z(rospy.has_param, rospy.get_param)
         self.start_mode = rospy.get_param('~start_mode', 'post_delivery')
         self.revision = rospy.get_param('~route_revision', '')
+        self.handoff_mode = str(rospy.get_param(
+            '~handoff_mode', 'AUTO.LAND')).strip().upper()
         self.dwell = float(rospy.get_param('~settle_seconds', 1.0))
         self.xy_tol = float(rospy.get_param('~xy_tolerance', .18))
         self.z_tol = float(rospy.get_param('~z_tolerance', .15))
         self.speed = float(rospy.get_param('~max_speed', .12))
         if (not self.frame or self.start_mode not in ('full', 'post_delivery')
+                or self.handoff_mode not in ('AUTO.LAND', 'POSCTL')
                 or (self.start_mode == 'post_delivery' and not self.revision)
                 or len(self.xy) != 2
                 or not all(math.isfinite(float(v)) for v in
@@ -123,12 +126,16 @@ class AutoLand:
             self.attempts += 1
             self.last_attempt = now
             try:
-                response = self.mode(base_mode=0, custom_mode='AUTO.LAND')
+                response = self.mode(
+                    base_mode=0, custom_mode=self.handoff_mode)
                 self.handed_over = bool(response.mode_sent)
-                rospy.logwarn('Mission test AUTO.LAND request %d accepted=%s; check MAVROS mode/landed state',
-                              self.attempts, self.handed_over)
+                rospy.logwarn(
+                    'Mission test %s handoff request %d accepted=%s; '
+                    'check MAVROS mode and pilot control',
+                    self.handoff_mode, self.attempts, self.handed_over)
             except rospy.ServiceException as error:
-                rospy.logerr('Mission test AUTO.LAND request failed: %s', error)
+                rospy.logerr('Mission test %s handoff request failed: %s',
+                             self.handoff_mode, error)
 
 
 if __name__ == '__main__':

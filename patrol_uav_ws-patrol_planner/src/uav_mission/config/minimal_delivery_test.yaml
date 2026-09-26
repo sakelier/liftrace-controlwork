@@ -40,10 +40,10 @@ traj_server:
 land_height: 0.05
 align_height: 1.0            # 视觉对准高度（与 approach_altitude 配合）
 external_landing:
-  # LAND 只保持返航完成时的 home 位姿；下降完全交给独立任务门控节点请求
-  # PX4 AUTO.LAND，不等待 H 证据，也不由 patrol_control 启动第二条下降链。
+  # LAND 只保持返航完成时的 home 位姿；独立任务门控节点随后切换 PX4
+  # POSCTL，由飞手人工下降，不等待 H 证据，也不启动第二条自动下降链。
   hold_for_external_auto_land: true
-  capture_height: 0.5
+  capture_height: 0.1
   auto_land_height: 0.15
 switch:
   flag_landing_detect: 0
@@ -110,17 +110,17 @@ fast_planner_node:
     tracking_replan_distance: 0.45
     min_replan_interval: 0.75
   manager:
-    max_vel: 1.20
+    max_vel: 0.60
     max_acc: 1.00
     clearance_threshold: 0.05
   search:
-    max_vel: 1.20
+    max_vel: 0.60
     max_acc: 1.00
   optimization:
-    max_vel: 1.20
+    max_vel: 0.60
     max_acc: 1.00
   bspline:
-    limit_vel: 1.20
+    limit_vel: 0.60
     limit_acc: 1.00
   sdf_map:
     ground_height: -0.2
@@ -147,7 +147,7 @@ navigation:
   mission_manager:
     # 前视距离不是承诺空速；它控制位置模式下 PX4 看到的目标误差。
     following_speed_profile:
-      cruise_lead_m: 1.00       # SEARCH/RESUME 快速巡航
+      cruise_lead_m: 0.8       # SEARCH/RESUME 快速巡航
       precision_lead_m: 0.40    # APPROACH 及普通 RETURN_HOME
       corridor_lead_m: 0.25     # LAND/HOLD/ABORT；投递对准使用 0.40 m
     search:
@@ -178,7 +178,7 @@ navigation:
       home_xy: [0.0, 0.0]
       candidate_max_age: 0.5
       transform_max_age: 0.5
-      min_streak: 3
+      min_streak: 2
       max_target_z: 4.0
       target_action_timeout: 90.0
       motion_action_timeout: 60.0

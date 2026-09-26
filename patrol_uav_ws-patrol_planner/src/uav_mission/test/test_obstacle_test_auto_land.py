@@ -37,6 +37,7 @@ class LandTests(unittest.TestCase):
         n.lock = threading.RLock()
         n.frame, n.xy, n.z = 'camera_init', [0, .6], .28
         n.start_mode, n.revision = 'post_delivery', 'test-r2'
+        n.handoff_mode = 'AUTO.LAND'
         n.dwell, n.xy_tol, n.z_tol, n.speed = 1., .18, .15, .12
         n.status = dict(start_mode='post_delivery', mission_id='one', phase='LAND',
                         active_command='LAND', post_delivery_route_revision='test-r2',
@@ -77,6 +78,15 @@ class LandTests(unittest.TestCase):
                              active_command='LAND', mission_failed=False)
         self.tick(10); self.tick(11.1)
         self.n.mode.assert_called_once_with(base_mode=0, custom_mode='AUTO.LAND')
+
+    def test_full_mission_can_handoff_to_posctl(self):
+        self.n.start_mode = 'full'
+        self.n.revision = ''
+        self.n.handoff_mode = 'POSCTL'
+        self.n.status = dict(start_mode='full', mission_id='one', phase='LAND',
+                             active_command='LAND', mission_failed=False)
+        self.tick(10); self.tick(11.1)
+        self.n.mode.assert_called_once_with(base_mode=0, custom_mode='POSCTL')
 
     def test_full_mission_rejects_pre_land_and_wrong_mode(self):
         self.n.start_mode = 'full'

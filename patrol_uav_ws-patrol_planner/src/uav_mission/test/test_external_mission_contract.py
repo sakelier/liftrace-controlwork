@@ -168,6 +168,7 @@ class ExternalMissionContractTest(unittest.TestCase):
         self.assertEqual(
             parameters["cruise_z_param"],
             "/navigation/mission_manager/mission/return_altitude")
+        self.assertEqual(parameters["handoff_mode"], "POSCTL")
 
         init_start = source.index("void LLController::initializeNode")
         init_end = source.index("void LLController::positionCallback",
