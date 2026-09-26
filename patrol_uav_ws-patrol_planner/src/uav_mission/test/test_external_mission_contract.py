@@ -145,6 +145,30 @@ class ExternalMissionContractTest(unittest.TestCase):
         self.assertIn("!detection.geometry_verified", source)
         self.assertIn("landMarkCallback(mark)", source)
 
+        minimal_config = yaml.safe_load(
+            (PACKAGE / "config" / "minimal_delivery_test.yaml").read_text(
+                encoding="utf-8"))
+        self.assertTrue(minimal_config["external_landing"][
+            "hold_for_external_auto_land"])
+        self.assertFalse(minimal_config["switch"]["flag_landing_detect"])
+        self.assertFalse(minimal_config["switch"]["auto_land"])
+        self.assertIn("external_landing_hold_for_external_auto_land_", header)
+        self.assertIn("holding home for external AUTO.LAND", source)
+
+        minimal_launch = ET.parse(str(
+            PACKAGE / "launch" / "minimal_delivery_test.launch")).getroot()
+        auto_land_node = next(
+            node for node in minimal_launch.findall("node")
+            if node.attrib.get("name") == "minimal_delivery_auto_land")
+        parameters = {
+            item.attrib["name"]: item.attrib.get("value")
+            for item in auto_land_node.findall("param")
+        }
+        self.assertNotIn("cruise_z", parameters)
+        self.assertEqual(
+            parameters["cruise_z_param"],
+            "/navigation/mission_manager/mission/return_altitude")
+
         init_start = source.index("void LLController::initializeNode")
         init_end = source.index("void LLController::positionCallback",
                                 init_start)
@@ -399,6 +423,8 @@ class ExternalMissionContractTest(unittest.TestCase):
             source)
         self.assertIn("controller_landing_watchdog_timeout", source)
         self.assertIn("failed closed and holding position", source)
+        self.assertIn(
+            "if (!external_mission_mode_ || !flag_landing_detect)", source)
         self.assertIn("if (external_mission_mode_ && !mode_accepted)", source)
         self.assertIn("flag_land = false;", source)
         self.assertIn("duplicate LAND command ignored", source)

@@ -415,6 +415,16 @@ void LLController::externalLandingTick() {
         return;
     }
 
+    // Some hardware test entries delegate the complete descent to an
+    // independent, mission-gated PX4 AUTO.LAND requester. In that mode this
+    // controller has exactly one job after RETURN_HOME: keep the accepted
+    // home pose in OFFBOARD until PX4 accepts the mode handoff. It must not
+    // wait for H evidence or start a second descent path of its own.
+    if (external_landing_hold_for_external_auto_land_) {
+        patrol_cmd = external_landing_goal_;
+        return;
+    }
+
     std_msgs::Bool landing_enable;
     landing_enable.data = true;
     publishLegacyVisionControl(landing_detect_control_pub_, landing_enable);
@@ -846,7 +856,7 @@ void LLController::crossMarkCallback(const geometry_msgs::PoseStamped& msg) {
 void LLController::landingDetectionsCallback(
     const uav_vision::TargetDetectionArray::ConstPtr& msg)
 {
-    if (!external_mission_mode_) {
+    if (!external_mission_mode_ || !flag_landing_detect) {
         return;
     }
 
@@ -1535,6 +1545,8 @@ void LLController::load_params() {
         "external_landing/auto_land_retry_sec", 1.0);
     external_landing_stable_frames_ = nh_.param(
         "external_landing/stable_frames", 10);
+    external_landing_hold_for_external_auto_land_ = nh_.param(
+        "external_landing/hold_for_external_auto_land", false);
     if (external_landing_frame_.empty() ||
         (external_mission_mode_ &&
          external_landing_detections_topic_.empty()) ||
@@ -1547,7 +1559,9 @@ void LLController::load_params() {
         external_landing_max_mark_offset_ <
             external_landing_alignment_tolerance_ ||
         external_landing_auto_land_retry_sec_ <= 0.0 ||
-        external_landing_stable_frames_ <= 0) {
+        external_landing_stable_frames_ <= 0 ||
+        (external_landing_hold_for_external_auto_land_ &&
+         (flag_landing_detect || auto_land))) {
         ROS_FATAL("[ExternalLanding] invalid fail-closed landing parameters");
         throw std::invalid_argument("invalid external_landing parameters");
     }
@@ -2826,7 +2840,9 @@ void LLController::missionCommandCallback(
             external_landing_goal_ = msg->goal;
             external_landing_goal_.header.frame_id = external_landing_frame_;
             external_landing_goal_.pose.position.z =
-                external_landing_capture_height_;
+                external_landing_hold_for_external_auto_land_
+                    ? uav_pose.pose.position.z
+                    : external_landing_capture_height_;
             if (!isQuaternionNormalized(
                     external_landing_goal_.pose.orientation)) {
                 external_landing_goal_.pose.orientation =
@@ -2845,18 +2861,24 @@ void LLController::missionCommandCallback(
             external_landing_last_auto_land_attempt_ = ros::Time(0);
             have_land_mark = false;
             flag_land = false;
-            align_height = external_landing_capture_height_;
+            align_height = external_landing_goal_.pose.position.z;
             adjust_target_position[0] =
                 external_landing_goal_.pose.position.x;
             adjust_target_position[1] =
                 external_landing_goal_.pose.position.y;
-            adjust_target_position[2] = external_landing_capture_height_;
+            adjust_target_position[2] =
+                external_landing_goal_.pose.position.z;
             adjust_target_position[3] =
                 tf::getYaw(external_landing_goal_.pose.orientation);
             patrol_cmd = external_landing_goal_;
             Drone_mode = Land;
-            ROS_INFO(
-                "[PatrolControl] External LAND command accepted; awaiting fresh H evidence");
+            if (external_landing_hold_for_external_auto_land_) {
+                ROS_INFO(
+                    "[PatrolControl] External LAND command accepted; holding home for external AUTO.LAND");
+            } else {
+                ROS_INFO(
+                    "[PatrolControl] External LAND command accepted; awaiting fresh H evidence");
+            }
             break;
         }
 

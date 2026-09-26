@@ -15,13 +15,13 @@ delivery:
   search_altitude: 1.0       # 搜索航线高度 (camera_init Z)
   approach_altitude: 1.0     # 逼近目标上方高度
   return_altitude: 1.0       # 返航航线高度
-  recovery_height: 0.85      # 投放后恢复完成判定高度
-  standard_recovery_setpoint_height: 1.00  # 标准靶投后上升目标
-  cross_recovery_setpoint_height: 1.00     # 红十字/动态靶投后上升目标
+  recovery_height: 0.85       # 投放后恢复完成判定高度
+  standard_recovery_setpoint_height: 1.0  # 标准靶投后上升目标
+  cross_recovery_setpoint_height: 1.0     # 红十字/动态靶投后上升目标
   land_height: 0.05          # 降落高度
 
 # ---- 控制器全局参数（patrol_control 运行时 getParamCached 重读）----
-# 初始/终止阶段保持 0.15 m 前视；任务启动后由 following_speed_profile 动态切换。
+# 初始/终止阶段保持 0.25 m 前视；任务启动后由 following_speed_profile 动态切换。
 px4_max_distance: 0.25
 # 快速巡航前视为 1.0 m，接纳上限需留出跟踪保护余量。
 external_planner_start_max_distance: 1.20
@@ -30,7 +30,7 @@ external_planner_max_command_z: 2.0
 # traj_server 的初始前视；任务管理器会与 px4_max_distance 同步更新。
 traj_server:
   traj_server:
-    target_dist: 0.15
+    target_dist: 0.25
 
 # ---- 投放相关参数 ----
 # patrol_control 收到投放指令后降落到 capture_height 执行释放，
@@ -40,15 +40,20 @@ traj_server:
 land_height: 0.05
 align_height: 1.0            # 视觉对准高度（与 approach_altitude 配合）
 external_landing:
-  capture_height: 0.85       # 接近目标后悬停对准高度
+  # LAND 只保持返航完成时的 home 位姿；下降完全交给独立任务门控节点请求
+  # PX4 AUTO.LAND，不等待 H 证据，也不由 patrol_control 启动第二条下降链。
+  hold_for_external_auto_land: true
+  capture_height: 0.5
   auto_land_height: 0.15
 switch:
-  flag_landing_detect: 1
-  auto_land: true            # 自动降落开启
+  flag_landing_detect: 0
+  # 关闭依赖 H 视觉证据的 patrol_control 降落分支；minimal_delivery_test.launch
+  # 使用任务状态 + home 点里程计稳定门控直接请求 PX4 AUTO.LAND。
+  auto_land: false
 uav_vision:
-  recovery_height: 0.85      # patrol_control 恢复完成判定高度
-  standard_recovery_setpoint_height: 1.00
-  cross_recovery_setpoint_height: 1.00
+  recovery_height: 0.85       # patrol_control 恢复完成判定高度
+  standard_recovery_setpoint_height: 1.0
+  cross_recovery_setpoint_height: 1.0
   # 2026-09-23 实测安装：图像向右=-body_x（机尾方向），图像向下=+body_y（机体左侧）；
   # 与 launch 里 camera_quat_xyzw="0 1 0 0" 配套，旧的 [0,-1,-1,0] 已作废。
   # 本文件在 launch 末尾二次加载，会压过 vcl06_horizontal_control.yaml 里的旧值。
@@ -152,7 +157,7 @@ navigation:
       manual_waypoints:
         - [0.0,  0.0, 1.0]
         - [4.0,  0.0, 1.0]
-        - [6.0,  0.0, 1.0]       
+        - [6.0,  0.0, 1.0]
       route_revision: minimal-delivery-test-manual-r1
       max_failures_per_waypoint: 2
     mission:
@@ -170,7 +175,7 @@ navigation:
       decision_guard: 15.0
       max_attempts: 2
       retry_cooldown: 20.0
-      home_xy: [4.0, 0.0]
+      home_xy: [0.0, 0.0]
       candidate_max_age: 0.5
       transform_max_age: 0.5
       min_streak: 3

@@ -215,6 +215,7 @@ private:
     double external_landing_auto_land_height_ = 0.40;
     double external_landing_auto_land_retry_sec_ = 1.0;
     int external_landing_stable_frames_ = 10;
+    bool external_landing_hold_for_external_auto_land_ = false;
     bool external_landing_active_ = false;
     bool external_landing_new_mark_ = false;
     bool external_landing_alignment_complete_ = false;

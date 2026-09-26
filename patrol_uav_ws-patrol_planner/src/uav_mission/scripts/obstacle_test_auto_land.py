@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test-only final-waypoint handoff to PX4 AUTO.LAND; never arms/disarms."""
+"""Test-only completed-mission handoff to PX4 AUTO.LAND; never arms/disarms."""
 import json
 import math
 import threading
@@ -10,14 +10,19 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import String
 
 
-def route_finished(status, revision):
-    return (status.get('start_mode') == 'post_delivery'
-            and bool(status.get('mission_id'))
-            and status.get('phase') == 'LAND'
-            and status.get('active_command') == 'LAND'
+def mission_ready_to_land(status, start_mode, revision=''):
+    common = (status.get('start_mode') == start_mode
+              and bool(status.get('mission_id'))
+              and status.get('phase') == 'LAND'
+              and status.get('active_command') == 'LAND'
+              and status.get('mission_failed') is False)
+    if not common:
+        return False
+    if start_mode == 'full':
+        return True
+    return (start_mode == 'post_delivery'
             and status.get('post_delivery_route_revision') == revision
-            and status.get('post_delivery_route_complete') is True
-            and status.get('mission_failed') is False)
+            and status.get('post_delivery_route_complete') is True)
 
 
 def settled(odom, frame, xy, z, xy_tolerance, z_tolerance, max_speed):
@@ -30,17 +35,32 @@ def settled(odom, frame, xy, z, xy_tolerance, z_tolerance, max_speed):
             and math.sqrt(v.x*v.x+v.y*v.y+v.z*v.z) <= max_speed)
 
 
+def configured_cruise_z(has_param, get_param):
+    """Resolve one altitude authority while retaining older launch support."""
+    if has_param('~cruise_z'):
+        return float(get_param('~cruise_z'))
+    parameter = get_param(
+        '~cruise_z_param',
+        '/navigation/mission_manager/mission/return_altitude')
+    if not isinstance(parameter, str) or not parameter.startswith('/'):
+        raise ValueError('invalid cruise altitude parameter name')
+    return float(get_param(parameter))
+
+
 class AutoLand:
     def __init__(self):
         self.frame = rospy.get_param('~frame', 'camera_init')
         self.xy = rospy.get_param('~landing_xy')
-        self.z = float(rospy.get_param('~cruise_z'))
-        self.revision = rospy.get_param('~route_revision')
+        self.z = configured_cruise_z(rospy.has_param, rospy.get_param)
+        self.start_mode = rospy.get_param('~start_mode', 'post_delivery')
+        self.revision = rospy.get_param('~route_revision', '')
         self.dwell = float(rospy.get_param('~settle_seconds', 1.0))
         self.xy_tol = float(rospy.get_param('~xy_tolerance', .18))
         self.z_tol = float(rospy.get_param('~z_tolerance', .15))
         self.speed = float(rospy.get_param('~max_speed', .12))
-        if (not self.frame or not self.revision or len(self.xy) != 2
+        if (not self.frame or self.start_mode not in ('full', 'post_delivery')
+                or (self.start_mode == 'post_delivery' and not self.revision)
+                or len(self.xy) != 2
                 or not all(math.isfinite(float(v)) for v in
                            list(self.xy)+[self.z, self.dwell, self.xy_tol, self.z_tol, self.speed])
                 or min(self.dwell, self.xy_tol, self.z_tol, self.speed) <= 0):
@@ -83,7 +103,8 @@ class AutoLand:
             if self.handed_over or self.attempts >= 3:
                 return
             # Only request from OFFBOARD; never counter a pilot's mode takeover.
-            valid = (route_finished(self.status, self.revision)
+            valid = (mission_ready_to_land(
+                         self.status, self.start_mode, self.revision)
                      and 0 <= now-self.status_at <= 15.0
                      and self.state is not None and self.state.connected
                      and self.state.armed and self.state.mode == 'OFFBOARD'
@@ -104,10 +125,10 @@ class AutoLand:
             try:
                 response = self.mode(base_mode=0, custom_mode='AUTO.LAND')
                 self.handed_over = bool(response.mode_sent)
-                rospy.logwarn('Obstacle test AUTO.LAND request %d accepted=%s; check MAVROS mode/landed state',
+                rospy.logwarn('Mission test AUTO.LAND request %d accepted=%s; check MAVROS mode/landed state',
                               self.attempts, self.handed_over)
             except rospy.ServiceException as error:
-                rospy.logerr('Obstacle test AUTO.LAND request failed: %s', error)
+                rospy.logerr('Mission test AUTO.LAND request failed: %s', error)
 
 
 if __name__ == '__main__':

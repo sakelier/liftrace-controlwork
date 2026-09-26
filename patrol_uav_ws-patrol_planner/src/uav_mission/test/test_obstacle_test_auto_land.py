@@ -14,10 +14,29 @@ spec.loader.exec_module(land)
 
 
 class LandTests(unittest.TestCase):
+    def test_cruise_height_uses_shared_return_altitude(self):
+        values = {
+            '~cruise_z_param':
+                '/navigation/mission_manager/mission/return_altitude',
+            '/navigation/mission_manager/mission/return_altitude': 1.0,
+        }
+        self.assertEqual(
+            land.configured_cruise_z(
+                values.__contains__, lambda name, default=None:
+                values.get(name, default)),
+            1.0)
+
+    def test_legacy_private_cruise_height_remains_supported(self):
+        values = {'~cruise_z': .3}
+        self.assertEqual(
+            land.configured_cruise_z(values.__contains__, values.__getitem__),
+            .3)
+
     def setUp(self):
         n = self.n = land.AutoLand.__new__(land.AutoLand)
         n.lock = threading.RLock()
-        n.frame, n.xy, n.z, n.revision = 'camera_init', [0, .6], .28, 'test-r2'
+        n.frame, n.xy, n.z = 'camera_init', [0, .6], .28
+        n.start_mode, n.revision = 'post_delivery', 'test-r2'
         n.dwell, n.xy_tol, n.z_tol, n.speed = 1., .18, .15, .12
         n.status = dict(start_mode='post_delivery', mission_id='one', phase='LAND',
                         active_command='LAND', post_delivery_route_revision='test-r2',
@@ -50,6 +69,25 @@ class LandTests(unittest.TestCase):
             original = self.n.status[key]; self.n.status[key] = value
             self.tick(10); self.tick(11.1)
             self.n.mode.assert_not_called(); self.n.status[key] = original
+
+    def test_full_mission_land_does_not_require_post_delivery_route(self):
+        self.n.start_mode = 'full'
+        self.n.revision = ''
+        self.n.status = dict(start_mode='full', mission_id='one', phase='LAND',
+                             active_command='LAND', mission_failed=False)
+        self.tick(10); self.tick(11.1)
+        self.n.mode.assert_called_once_with(base_mode=0, custom_mode='AUTO.LAND')
+
+    def test_full_mission_rejects_pre_land_and_wrong_mode(self):
+        self.n.start_mode = 'full'
+        self.n.revision = ''
+        self.n.status = dict(start_mode='full', mission_id='one', phase='RETURN',
+                             active_command='RETURN_HOME', mission_failed=False)
+        self.tick(10); self.tick(11.1)
+        self.n.status.update(start_mode='post_delivery', phase='LAND',
+                             active_command='LAND')
+        self.tick(12); self.tick(13.1)
+        self.n.mode.assert_not_called()
 
     def test_manual_mode_or_disarmed(self):
         self.n.state.mode = 'STABILIZED'; self.tick(10); self.tick(11.1)

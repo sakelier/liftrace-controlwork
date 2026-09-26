@@ -168,6 +168,17 @@
     </include>
   </group>
 
+  <!-- full 任务完成返航并进入 LAND 后，在 home 点稳定 1 s 才请求 PX4
+       AUTO.LAND。节点只从已解锁 OFFBOARD 交接，不解锁且不抢回飞手模式。 -->
+  <node pkg="uav_mission" type="obstacle_test_auto_land.py"
+        name="minimal_delivery_auto_land" output="screen" required="true">
+    <param name="start_mode" value="full" />
+    <param name="frame" value="$(arg map_frame)" />
+    <param name="cruise_z_param"
+           value="/navigation/mission_manager/mission/return_altitude" />
+    <rosparam param="landing_xy">[0.0, 0.0]</rosparam>
+  </node>
+
   <!-- ========== 投放安全守卫 ========== -->
   <!-- release_guard.launch 在 remap group 外，直接订阅原始 MAVROS 话题 -->
   <include file="$(find uav_mission)/launch/release_guard.launch">
