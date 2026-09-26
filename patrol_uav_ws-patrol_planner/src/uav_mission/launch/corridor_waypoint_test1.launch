@@ -92,6 +92,17 @@
 
   </group>
 
+  <!-- This test has no H-marker detector.  Hand the settled final waypoint
+       directly to PX4 AUTO.LAND only after the mission status confirms that
+       the configured post-delivery route completed successfully. -->
+  <node pkg="uav_mission" type="obstacle_test_auto_land.py"
+        name="obstacle_test_auto_land" output="screen" required="true">
+    <param name="frame" value="$(arg map_frame)" />
+    <param name="cruise_z" value="0.3" />
+    <param name="route_revision" value="corridor-waypoint-test-r1" />
+    <rosparam param="landing_xy">[4.20, 0.0]</rosparam>
+  </node>
+
   <!-- Phase 2: re-assert the same file after the control group so its values
        win over the included launches' defaults and the runtime profile
        (vcl06_runtime.yaml). patrol_control re-reads its globals with
@@ -100,8 +111,7 @@
        inline overrides relied on, verified in the 2026-09-19 flight log). -->
   <rosparam file="$(arg test_config)" command="load" />
 
-  <!-- 末点仅悬停，等待遥控器切换 POSCTL 等手动模式后由飞手降落。
-       不启动 obstacle_test_auto_land；test_config 保持 switch/auto_land=false。
-       任务层 LAND 只进入既有 capture_height 悬停等待，不代表 PX4 AUTO.LAND。
-       本入口不启动视觉降落节点，capture_height 与航线高度保持一致。 -->
+  <!-- 末点稳定后由 obstacle_test_auto_land 请求 PX4 AUTO.LAND。
+       test_config 保持 switch/auto_land=false：该开关属于需要 H 视觉证据的
+       patrol_control 降落链，本入口无视觉降落节点，不经该链触发。 -->
 </launch>

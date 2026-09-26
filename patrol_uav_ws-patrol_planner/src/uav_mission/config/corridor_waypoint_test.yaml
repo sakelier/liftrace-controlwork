@@ -21,11 +21,11 @@ px4_max_distance: 0.15
 # 外部规划器输出 Z 上限（安全上限，不是目标高度）。
 external_planner_max_command_z: 0.65
 
-# ---- 末点悬停，由飞手手动降落 ----
-# 本测试无 H 标志/视觉节点，launch 不启动 obstacle_test_auto_land.py。
-# patrol_control 收到任务层 LAND 后只在 capture_height（=巡航高度）悬停等待，
-# 不自动请求 PX4 AUTO.LAND；飞手须用遥控器切换 POSCTL 等手动模式后降落。
-# switch/auto_land 必须保持 false；capture_height 必须与航线 z 一致。
+# ---- 末点稳定后自动降落 ----
+# 本测试无 H 标志/视觉节点；launch 启动 obstacle_test_auto_land.py，它仅在
+# 航线成功完成、飞机仍为已解锁 OFFBOARD，且在末点稳定后请求 PX4 AUTO.LAND。
+# switch/auto_land 属于需要 H 视觉证据的 patrol_control 降落链，本入口必须保持
+# false，防止无视觉证据时误走该分支；capture_height 必须与航线 z 一致。
 # 参数校验约束（patrol_control load_params）：
 #   capture_height > auto_land_height >= land_height；
 #   drop_height_threshold < uav_vision/recovery_height <= align_height。
