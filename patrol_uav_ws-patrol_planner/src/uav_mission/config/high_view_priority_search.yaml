@@ -1,0 +1,178 @@
+# 高位优先搜索集中配置 —— high_view_priority_search.launch
+#
+# 飞行、视觉、投放和返航配置沿用 minimal_delivery_test.yaml；仅将搜索段改为
+# “低位接入安全点 → 原地升高 → 高位优先搜索”。发现目标后仍由原任务管理器
+# 使用 approach_altitude=1.0 m 下降、对准并投递。该配置不引入来源仓库中仅限
+# 仿真的 high_view manager，也不把高位线索当成无需低位确认的投递许可。
+#
+# 高位 local Z=2.38 m 对应当前 ground_z=-0.22 m 时约 2.60 m AGL，取自
+# liftrace-visionwork 高位策略的默认 high_agl=2.6 m。若现场地面零点变化，必须
+# 重新换算本文件中的所有 2.38 m 高度，不能直接照搬。
+
+delivery:
+  search_altitude: 2.4
+  approach_altitude: 1.0
+  return_altitude: 1.0
+  recovery_height: 0.85
+  standard_recovery_setpoint_height: 1.0
+  cross_recovery_setpoint_height: 1.0
+  land_height: 0.05
+
+# 控制器初始/终止阶段保持 0.25 m 前视；任务启动后由速度档案动态切换。
+px4_max_distance: 0.25
+external_planner_start_max_distance: 1.20
+# 高位搜索点 2.38 m 上方保留规划与跟踪余量。
+external_planner_max_command_z: 2.78
+
+traj_server:
+  traj_server:
+    target_dist: 0.25
+
+land_height: 0.05
+align_height: 1.0
+external_landing:
+  hold_for_external_auto_land: true
+  capture_height: 0.1
+  auto_land_height: 0.15
+switch:
+  flag_landing_detect: 0
+  auto_land: false
+uav_vision:
+  recovery_height: 0.85
+  standard_recovery_setpoint_height: 1.0
+  cross_recovery_setpoint_height: 1.0
+  # 与 high_view_priority_search.launch 的 camera_quat_xyzw="0 1 0 0" 配套。
+  pixel_to_body_matrix: [-1.0, 0.0, 0.0, 1.0]
+drop_system:
+  enable_drop: true
+  slot_offsets:
+    - [-0.12, 0.0]
+    - [0.0, -0.12]
+    - [0.0, 0.12]
+  dynamic_slot_offsets:
+    - [-0.12, 0.0]
+    - [0.0, -0.12]
+    - [0.0, 0.12]
+
+feature_extract_enable: true
+point_filter_num: 3
+max_iteration: 3
+filter_size_surf: 0.15
+filter_size_map: 0.15
+cube_side_length: 20.0
+runtime_pos_log_enable: false
+
+# 起飞阶段先保持原最简投递测试的 1.0 m 低位；任务路线到达接入点后再升高。
+waypoints:
+  - {x: 0.0, y: 0.0, z: 2.4, yaw: 0.0, pointmode: Takeoff_point, hover_time: 0.0}
+
+freedom:
+  sensor:
+    max_range: 6.0
+    min_z: -1.0
+    max_z: 3.2
+  map:
+    sub_voxel_size: 0.1
+    voxel_depth: 2
+    block_depth: 5
+    raycast_max_range: 6.0
+    raycast_min_z: -1.0
+    raycast_max_z: 3.2
+    counts_to_free: 6
+    counts_to_revert: 20
+
+fast_planner_node:
+  fsm:
+    tracking_replan_distance: 0.45
+    min_replan_interval: 0.75
+  manager:
+    max_vel: 0.60
+    max_acc: 1.00
+    clearance_threshold: 0.05
+  search:
+    max_vel: 0.60
+    max_acc: 1.00
+  optimization:
+    max_vel: 0.60
+    max_acc: 1.00
+  bspline:
+    limit_vel: 0.60
+    limit_acc: 1.00
+  sdf_map:
+    ground_height: -0.2
+    obstacles_inflation: 0.10
+    resolution: 0.10
+    map_size_x: 18.0
+    map_size_y: 6.0
+    map_size_z: 4.0
+    local_update_range_x: 4.0
+    local_update_range_y: 4.0
+    local_update_range_z: 2
+    visualization_rate: 2.0
+    # 参考高位策略保留全高障碍柱，禁止因搜索高度提高而从树/立柱上方翻越。
+    # 这些 XY 边界只限定障碍柱生成范围，不是地理围栏。
+    horizontal_avoidance:
+      enabled: true
+      min_x: -0.5
+      max_x: 8.0
+      min_y: -2.5
+      max_y: 2.5
+      obstacle_min_z: 0.20
+      floor_z: -0.12
+      support_min_points: 3
+      support_radius: 0.15
+      support_min_vertical_span: 0.20
+    # 高于 2.38 m 搜索面 0.50 m，同时不允许借高度越过未知障碍。
+    virtual_ceil_height: 2.88
+    visualization_truncate_height: 3.0
+
+navigation:
+  planner_bridge:
+    target:
+      recovery_height: 0.85
+  mission_manager:
+    following_speed_profile:
+      cruise_lead_m: 0.8
+      precision_lead_m: 0.40
+      corridor_lead_m: 0.25
+    search:
+      # 延续 minimal_delivery_test 的 X 正前方、Y=0 直线路线。
+      # 先在低位移动到接入点，再原地升高，避免贴着起飞边界直接爬升；
+      # 障碍物仍由三维规划器和同一膨胀地图否决，不允许从上方翻越。
+      manual_waypoints:
+        - [0.0,  0.0, 2.4]
+        - [0.0,  -1.5, 2.4]
+        - [2.0,  -1.5, 2.40]
+        - [4.0,  -1.5, 2.40]
+        - [6.0,  -1.5, 2.40]
+        - [7.2,  -1.5, 2.40]
+        - [7.2,  0.0, 2.40]
+        - [7.2,  1.5, 2.40]
+        - [6.0,  1.5, 2.40]
+        - [4.0,  1.5, 2.40]
+        - [2.0,  1.5, 2.40]
+        - [0.0,  1.5, 2.40]
+
+      route_revision: high-view-priority-staged-manual-r1
+      max_failures_per_waypoint: 2
+    mission:
+      approach_altitude: 1.0
+      return_altitude: 1.0
+      timeout: 600.0
+      forced_return_at: 510.0
+      return_land_reserve: 90.0
+      delivery_reserve_per_slot: 60.0
+      path_factor: 1.5
+      nominal_speed: 1.0
+      decision_guard: 15.0
+      max_attempts: 2
+      retry_cooldown: 20.0
+      home_xy: [0.0, 0.0]
+      candidate_max_age: 0.5
+      transform_max_age: 0.5
+      min_streak: 2
+      max_target_z: 4.0
+      target_action_timeout: 90.0
+      motion_action_timeout: 60.0
+      landing_action_timeout: 90.0
+      result_future_tolerance: 0.1

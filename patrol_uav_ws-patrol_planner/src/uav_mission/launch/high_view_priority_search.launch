@@ -1,0 +1,58 @@
+<launch>
+  <!-- 高位优先搜索硬件入口。
+       完整飞行、视觉、投放和返航链复用 minimal_delivery_test.launch；
+       本入口只替换集中参数，使搜索阶段先低位接入、再升至高位巡航，
+       发现目标后仍由原 mission_manager 下降到投递高度执行。 -->
+
+  <arg name="test_config"
+       default="$(find uav_mission)/config/high_view_priority_search.yaml" />
+  <arg name="lio_config"
+       default="$(find uav_mission)/config/mid360_hardware.yaml" />
+  <arg name="control_config"
+       default="$(find uav_mission)/config/vcl06_horizontal_control.yaml" />
+  <arg name="runtime_config"
+       default="$(find uav_mission)/config/vcl06_runtime.yaml" />
+
+  <arg name="map_frame" default="camera_init" />
+  <arg name="camera_optical_frame" default="downward_camera_optical_frame" />
+  <arg name="body_to_imu_xyz" default="0 0 0.05" />
+  <arg name="imu_to_camera_z" default="-0.21" />
+  <arg name="camera_quat_xyzw" default="0 1 0 0" />
+
+  <arg name="image_topic" default="/camera/image_raw" />
+  <arg name="camera_info_topic" default="/camera/camera_info" />
+  <arg name="ground_z" default="-0.22" />
+  <arg name="model_path"
+       default="/home/orangepi/liftrace_r64_onboard_405bda42/runtime_models/merged_standard_fp32.rknn" />
+  <arg name="raw_servo_service" default="/legacy/Servo_raw" />
+
+  <arg name="start_yolo_live_view" default="true" />
+  <arg name="record_debug" default="false" />
+  <arg name="record_dir"
+       default="/home/orangepi/liftrace_r64_onboard_405bda42/logs/high_view_priority_search" />
+  <arg name="map_to_mission_xyz" default="0 0 0" />
+  <arg name="map_to_mission_quat_xyzw" default="0 0 0 1" />
+
+  <include file="$(find uav_mission)/launch/minimal_delivery_test.launch">
+    <arg name="test_config" value="$(arg test_config)" />
+    <arg name="lio_config" value="$(arg lio_config)" />
+    <arg name="control_config" value="$(arg control_config)" />
+    <arg name="runtime_config" value="$(arg runtime_config)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
+    <arg name="camera_optical_frame" value="$(arg camera_optical_frame)" />
+    <arg name="body_to_imu_xyz" value="$(arg body_to_imu_xyz)" />
+    <arg name="imu_to_camera_z" value="$(arg imu_to_camera_z)" />
+    <arg name="camera_quat_xyzw" value="$(arg camera_quat_xyzw)" />
+    <arg name="image_topic" value="$(arg image_topic)" />
+    <arg name="camera_info_topic" value="$(arg camera_info_topic)" />
+    <arg name="ground_z" value="$(arg ground_z)" />
+    <arg name="model_path" value="$(arg model_path)" />
+    <arg name="raw_servo_service" value="$(arg raw_servo_service)" />
+    <arg name="start_yolo_live_view" value="$(arg start_yolo_live_view)" />
+    <arg name="record_debug" value="$(arg record_debug)" />
+    <arg name="record_dir" value="$(arg record_dir)" />
+    <arg name="map_to_mission_xyz" value="$(arg map_to_mission_xyz)" />
+    <arg name="map_to_mission_quat_xyzw"
+         value="$(arg map_to_mission_quat_xyzw)" />
+  </include>
+</launch>
