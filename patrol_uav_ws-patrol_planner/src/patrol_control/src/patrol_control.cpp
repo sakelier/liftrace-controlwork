@@ -83,7 +83,8 @@ bool loadSlotOffsets(ros::NodeHandle& nh, const std::string& param_name,
 
 }  // namespace
 
-LLController::LLController(ros::NodeHandle nh):nh_(nh) {
+LLController::LLController(ros::NodeHandle nh)
+    : nh_(nh), cross_tf_listener_(cross_tf_buffer_) {
     initializeNode();
 
     // 默认禁用圆形检测
@@ -219,6 +220,11 @@ void LLController::initializeNode() {
     }
     drop_offset_sub_ = nh_.subscribe("/uav_vision/drop_offset", 1,
                                      &LLController::dropOffsetCallback, this);
+    if (cross_metric_scale_enabled_) {
+        cross_camera_info_sub_ = nh_.subscribe(
+            cross_camera_info_topic_, 1,
+            &LLController::crossCameraInfoCallback, this);
+    }
     drop_ready_sub_ = nh_.subscribe("/uav_vision/drop_ready", 1,
                                     &LLController::dropReadyCallback, this);
     mission_release_permission_sub_ = nh_.subscribe(
@@ -1593,6 +1599,25 @@ void LLController::load_params() {
         "uav_vision/release_permission_state_topic",
         "/mission/release_permission_active");
     pixel_to_meter_ratio_ = nh_.param("uav_vision/pixel_to_meter_ratio", 0.0015);
+    cross_metric_scale_enabled_ = nh_.param(
+        "uav_vision/cross_metric_scale_enabled", false);
+    cross_camera_info_topic_ = nh_.param<std::string>(
+        "uav_vision/cross_camera_info_topic", "/camera/camera_info");
+    cross_camera_frame_ = nh_.param<std::string>(
+        "uav_vision/cross_camera_frame", "downward_camera_optical_frame");
+    cross_map_frame_ = nh_.param<std::string>(
+        "uav_vision/cross_map_frame", "camera_init");
+    cross_ground_z_ = nh_.param("uav_vision/cross_ground_z", 0.0);
+    cross_tf_max_age_sec_ = nh_.param(
+        "uav_vision/cross_tf_max_age_sec", 0.20);
+    if (cross_metric_scale_enabled_ &&
+        (cross_camera_info_topic_.empty() || cross_camera_frame_.empty() ||
+         cross_map_frame_.empty() || !std::isfinite(cross_ground_z_) ||
+         !std::isfinite(cross_tf_max_age_sec_) ||
+         cross_tf_max_age_sec_ <= 0.0)) {
+        ROS_FATAL("[UavVision] invalid cross camera metric-scale configuration");
+        throw std::invalid_argument("invalid cross camera metric-scale configuration");
+    }
     {
         XmlRpc::XmlRpcValue pixel_to_body_matrix;
         if (nh_.getParam("uav_vision/pixel_to_body_matrix", pixel_to_body_matrix) &&
@@ -1607,6 +1632,14 @@ void LLController::load_params() {
         }
     }
     max_alignment_move_distance_ = nh_.param("uav_vision/max_movement_distance", 0.5);
+    drop_circle_max_movement_distance_ = nh_.param(
+        "uav_vision/drop_circle_max_movement_distance",
+        max_alignment_move_distance_);
+    if (!std::isfinite(drop_circle_max_movement_distance_) ||
+        drop_circle_max_movement_distance_ <= 0.0) {
+        ROS_FATAL("[UavVision] drop_circle_max_movement_distance must be positive and finite");
+        throw std::invalid_argument("invalid drop_circle alignment limit");
+    }
     drop_circle_radius_m_ = nh_.param("uav_vision/drop_circle_radius_m", 0.5);
     drop_cross_radius_m_ = nh_.param("uav_vision/drop_cross_radius_m", 0.5);
     landing_pad_radius_m_ = nh_.param("uav_vision/landing_pad_radius_m", 0.3);
@@ -1650,6 +1683,14 @@ void LLController::load_params() {
              mission_release_permission_topic_.c_str());
     ROS_INFO("\033[36m[UavVision] pixel_to_meter_ratio: %.4f, max_alignment_move_distance: %.2f\033[0m",
              pixel_to_meter_ratio_, max_alignment_move_distance_);
+    if (cross_metric_scale_enabled_) {
+        ROS_INFO("[UavVision] drop_cross scale from CameraInfo=%s camera=%s plane=%s z=%.3f",
+                 cross_camera_info_topic_.c_str(), cross_camera_frame_.c_str(),
+                 cross_map_frame_.c_str(), cross_ground_z_);
+    }
+    ROS_INFO("[UavVision] drop_circle max movement per correction: %.2f m",
+             std::min(max_alignment_move_distance_,
+                      drop_circle_max_movement_distance_));
     ROS_INFO("[UavVision] pixel_to_body_matrix: [%.2f %.2f; %.2f %.2f]",
              pixel_to_body_matrix_[0], pixel_to_body_matrix_[1],
              pixel_to_body_matrix_[2], pixel_to_body_matrix_[3]);
@@ -2609,6 +2650,67 @@ void LLController::updateGoalFromSelectedTarget(const std::string& class_name)
     ROS_INFO("[UavVision] active standard target -> %s", class_name.c_str());
 }
 
+void LLController::crossCameraInfoCallback(
+    const sensor_msgs::CameraInfo::ConstPtr& msg)
+{
+    cross_camera_info_valid_ =
+        msg->width > 0 && msg->height > 0 &&
+        msg->header.frame_id == cross_camera_frame_ &&
+        std::isfinite(msg->K[0]) && msg->K[0] > 0.0 &&
+        std::isfinite(msg->K[4]) && msg->K[4] > 0.0;
+    if (!cross_camera_info_valid_) {
+        ROS_WARN_THROTTLE(5.0,
+            "[UavVision] invalid CameraInfo for drop_cross frame=%s expected=%s",
+            msg->header.frame_id.c_str(), cross_camera_frame_.c_str());
+        return;
+    }
+    cross_fx_ = msg->K[0];
+    cross_fy_ = msg->K[4];
+}
+
+bool LLController::crossPixelScales(
+    const ros::Time& stamp,
+    double* horizontal_meter_per_pixel,
+    double* vertical_meter_per_pixel)
+{
+    if (!cross_camera_info_valid_ || stamp.isZero()) {
+        ROS_WARN_THROTTLE(5.0,
+            "[UavVision] drop_cross needs CameraInfo and a stamped observation");
+        return false;
+    }
+
+    geometry_msgs::TransformStamped camera_pose;
+    try {
+        camera_pose = cross_tf_buffer_.lookupTransform(
+            cross_map_frame_, cross_camera_frame_, ros::Time(0),
+            ros::Duration(0.05));
+    } catch (const tf2::TransformException& error) {
+        ROS_WARN_THROTTLE(5.0, "[UavVision] drop_cross camera TF unavailable: %s",
+                          error.what());
+        return false;
+    }
+    if (camera_pose.header.stamp.isZero() ||
+        std::abs((stamp - camera_pose.header.stamp).toSec()) >
+            cross_tf_max_age_sec_) {
+        ROS_WARN_THROTTLE(5.0, "[UavVision] drop_cross camera TF is stale");
+        return false;
+    }
+
+    const double height = camera_pose.transform.translation.z - cross_ground_z_;
+    if (!std::isfinite(height) || height <= 0.05) {
+        ROS_WARN_THROTTLE(5.0,
+            "[UavVision] invalid drop_cross camera-to-plane height: %.3f m",
+            height);
+        return false;
+    }
+    *horizontal_meter_per_pixel = height / cross_fx_;
+    *vertical_meter_per_pixel = height / cross_fy_;
+    ROS_INFO_THROTTLE(2.0,
+        "[UavVision] drop_cross camera height=%.3f m, scale_x=%.6f m/px, scale_y=%.6f m/px",
+        height, *horizontal_meter_per_pixel, *vertical_meter_per_pixel);
+    return true;
+}
+
 void LLController::projectDropOffsetToTarget(const uav_vision::DropOffset& msg)
 {
     if (current_align_mode_ == "disabled") {
@@ -2634,14 +2736,24 @@ void LLController::projectDropOffsetToTarget(const uav_vision::DropOffset& msg)
         real_target_radius = landing_pad_radius_m_;
     }
 
-    double dynamic_pixel_to_meter_ratio = pixel_to_meter_ratio_;
-    if (radius_px > 10.0) {
-        dynamic_pixel_to_meter_ratio = real_target_radius / radius_px;
+    double horizontal_meter_per_pixel = pixel_to_meter_ratio_;
+    double vertical_meter_per_pixel = pixel_to_meter_ratio_;
+    if (current_align_mode_ == "drop_cross" && cross_metric_scale_enabled_) {
+        if (!crossPixelScales(msg.header.stamp,
+                              &horizontal_meter_per_pixel,
+                              &vertical_meter_per_pixel)) {
+            have_cross_mark = false;
+            return;
+        }
+    } else if (radius_px > 10.0) {
+        horizontal_meter_per_pixel = real_target_radius / radius_px;
+        vertical_meter_per_pixel = horizontal_meter_per_pixel;
     }
 
     const std::array<double, 2> body_offset =
         projectPixelOffsetToBody(pixel_error_x, pixel_error_y,
-                                 dynamic_pixel_to_meter_ratio,
+                                 horizontal_meter_per_pixel,
+                                 vertical_meter_per_pixel,
                                  pixel_to_body_matrix_);
     const double yaw = tf::getYaw(uav_pose.pose.orientation);
     double world_offset_x = std::cos(yaw) * body_offset[0] -
@@ -2650,8 +2762,11 @@ void LLController::projectDropOffsetToTarget(const uav_vision::DropOffset& msg)
                             std::cos(yaw) * body_offset[1];
 
     const double move_distance = std::sqrt(world_offset_x * world_offset_x + world_offset_y * world_offset_y);
-    if (move_distance > max_alignment_move_distance_ && move_distance > 1e-6) {
-        const double scale = max_alignment_move_distance_ / move_distance;
+    const double movement_limit = current_align_mode_ == "drop_circle"
+        ? std::min(max_alignment_move_distance_, drop_circle_max_movement_distance_)
+        : max_alignment_move_distance_;
+    if (move_distance > movement_limit && move_distance > 1e-6) {
+        const double scale = movement_limit / move_distance;
         world_offset_x *= scale;
         world_offset_y *= scale;
     }

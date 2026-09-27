@@ -76,9 +76,13 @@ uav_vision:
   selected_target_timeout: 1.0
   drop_offset_timeout: 1.0
   pixel_to_meter_ratio: 0.0015
+  # 红十字高度换算由具备相机 TF 的任务入口显式启用；此值保留给旧入口。
+  cross_tf_max_age_sec: 0.20
   # 新机架安装方向：图像向右=-body_y，图像向下=-body_x。
   pixel_to_body_matrix: [0.0, -1.0, -1.0, 0.0]
   max_movement_distance: 0.5
+  # drop_circle 每次依据新视觉偏差生成的水平修正目标，最多移动 0.12 m。
+  drop_circle_max_movement_distance: 0.12
   # 蓝色投递圆环的目标半径；视觉同心轮廓按与该尺寸的误差选择。
   drop_circle_radius_m: 0.3
   drop_cross_radius_m: 0.5

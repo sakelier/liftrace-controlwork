@@ -144,6 +144,11 @@
       <arg name="simulation_auto_land" value="false" />
       <arg name="start_waypoint_generator" value="false" />
       <arg name="waypoint_config" value="$(arg control_config)" />
+      <arg name="cross_metric_scale_enabled" value="true" />
+      <arg name="cross_camera_info_topic" value="$(arg camera_info_topic)" />
+      <arg name="cross_camera_frame" value="$(arg camera_optical_frame)" />
+      <arg name="cross_map_frame" value="$(arg map_frame)" />
+      <arg name="cross_ground_z" value="$(arg ground_z)" />
     </include>
 
     <!-- Fast-Planner 限制参数，阶段二会被 test_config 覆盖 -->

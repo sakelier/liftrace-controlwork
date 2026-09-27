@@ -81,6 +81,16 @@ TEST(DropActionTest, ProjectsPixelOffsetThroughConfiguredCameraAxes) {
   EXPECT_NEAR(body_offset[1], 0.075, 1e-9);
 }
 
+TEST(DropActionTest, ProjectsDifferentCameraAxisScalesBeforeBodyRotation) {
+  const std::array<double, 4> downward_camera_axes{{0.0, -1.0, -1.0, 0.0}};
+  const std::array<double, 2> body_offset =
+      patrol_control::projectPixelOffsetToBody(
+          100.0, 50.0, 1.0 / 725.0, 1.0 / 723.0,
+          downward_camera_axes);
+  EXPECT_NEAR(body_offset[0], -50.0 / 723.0, 1e-9);
+  EXPECT_NEAR(body_offset[1], -100.0 / 725.0, 1e-9);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {

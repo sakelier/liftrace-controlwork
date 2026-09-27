@@ -8,6 +8,9 @@
 #include <mavros_msgs/SetMode.h>
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/CommandLong.h>
@@ -80,6 +83,8 @@ private:
     };
 
     ros::NodeHandle nh_;
+    tf2_ros::Buffer cross_tf_buffer_;
+    tf2_ros::TransformListener cross_tf_listener_;
     /** publish the goal waypoint to the avoidance **/
     ros::Publisher setplanner_goal_pub_;
     /** publish the flag that arouse the circle detection with task C**/
@@ -111,6 +116,7 @@ private:
     ros::ServiceClient servo_client;
     ros::Subscriber selected_target_sub_;
     ros::Subscriber drop_offset_sub_;
+    ros::Subscriber cross_camera_info_sub_;
     ros::Subscriber drop_ready_sub_;
     ros::Subscriber mission_release_permission_sub_;
     ros::Subscriber mission_command_sub_;
@@ -316,8 +322,18 @@ private:
     double drop_offset_timeout_ = 1.0;
     double mission_release_permission_timeout_ = 0.25;
     double pixel_to_meter_ratio_ = 0.0015;
+    bool cross_metric_scale_enabled_ = false;
+    bool cross_camera_info_valid_ = false;
+    double cross_fx_ = 0.0;
+    double cross_fy_ = 0.0;
+    double cross_ground_z_ = 0.0;
+    double cross_tf_max_age_sec_ = 0.20;
+    std::string cross_camera_info_topic_ = "/camera/camera_info";
+    std::string cross_camera_frame_ = "downward_camera_optical_frame";
+    std::string cross_map_frame_ = "camera_init";
     std::array<double, 4> pixel_to_body_matrix_{{0.0, -1.0, -1.0, 0.0}};
     double max_alignment_move_distance_ = 0.5;
+    double drop_circle_max_movement_distance_ = 0.5;
     double drop_circle_radius_m_ = 0.5;
     double drop_cross_radius_m_ = 0.5;
     double landing_pad_radius_m_ = 0.3;
@@ -357,6 +373,9 @@ private:
     void clearUavVisionAlignmentState();
     void updateGoalFromSelectedTarget(const std::string& class_name);
     void projectDropOffsetToTarget(const uav_vision::DropOffset& msg);
+    bool crossPixelScales(const ros::Time& stamp,
+                          double* horizontal_meter_per_pixel,
+                          double* vertical_meter_per_pixel);
     void patrol();
     void pub_goal(geometry_msgs::PoseStamped goal_msg);
     void externalMissionTick();
@@ -410,6 +429,7 @@ private:
     void servoCompleteCallback(const std_msgs::Bool::ConstPtr& msg);
     void selectedTargetCallback(const uav_vision::TargetCandidate::ConstPtr& msg);
     void dropOffsetCallback(const uav_vision::DropOffset::ConstPtr& msg);
+    void crossCameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg);
     void dropReadyCallback(const uav_vision::DropReady::ConstPtr& msg);
     void missionReleasePermissionCallback(
         const std_msgs::Bool::ConstPtr& msg);

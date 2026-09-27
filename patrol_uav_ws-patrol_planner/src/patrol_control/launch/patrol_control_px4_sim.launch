@@ -17,6 +17,11 @@
     <arg name="planner_clearance_threshold" default="0.20" />
     <arg name="start_waypoint_generator" default="true" />
     <arg name="waypoint_config" default="$(find patrol_control)/config/patrol_sim.yaml" />
+    <arg name="cross_metric_scale_enabled" default="false" />
+    <arg name="cross_camera_info_topic" default="/camera/camera_info" />
+    <arg name="cross_camera_frame" default="downward_camera_optical_frame" />
+    <arg name="cross_map_frame" default="camera_init" />
+    <arg name="cross_ground_z" default="0.0" />
     <!-- Keep the historical 5 cm precision default.  The full toudi3 SITL
          entry overrides this with a slightly wider tolerance because the
          WSL Gazebo/PX4 pose loop does not settle exactly at the setpoint. -->
@@ -24,6 +29,11 @@
 
     <rosparam param="debug">true</rosparam>
     <rosparam file="$(arg waypoint_config)" />
+    <param name="uav_vision/cross_metric_scale_enabled" value="$(arg cross_metric_scale_enabled)" />
+    <param name="uav_vision/cross_camera_info_topic" value="$(arg cross_camera_info_topic)" />
+    <param name="uav_vision/cross_camera_frame" value="$(arg cross_camera_frame)" />
+    <param name="uav_vision/cross_map_frame" value="$(arg cross_map_frame)" />
+    <param name="uav_vision/cross_ground_z" value="$(arg cross_ground_z)" />
     <param name="switch/flag_planner_px4" value="$(arg waypoint_mode)" />
     <param name="external_mission_mode" value="$(arg external_mission_mode)" />
     <param name="simulation/enable_auto_land" value="$(arg simulation_auto_land)" />
