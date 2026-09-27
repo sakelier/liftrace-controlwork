@@ -37,6 +37,7 @@
   <!-- ==== 视觉模型路径 === -->
   <arg name="model_path" default="/home/orangepi/liftrace_r64_onboard_405bda42/runtime_models/merged_standard_fp32.rknn" />
   <arg name="raw_servo_service" default="/legacy/Servo_raw" />
+  <arg name="release_altitude_config_namespace" default="" />
 
   <!-- ==== YOLO 调试图 + 录像 ==== -->
   <arg name="start_yolo_live_view" default="true" />
@@ -190,6 +191,8 @@
   <!-- release_guard.launch 在 remap group 外，直接订阅原始 MAVROS 话题 -->
   <include file="$(find uav_mission)/launch/release_guard.launch">
     <arg name="raw_service_name" value="$(arg raw_servo_service)" />
+    <arg name="altitude_config_namespace"
+         value="$(arg release_altitude_config_namespace)" />
     <arg name="require_evidence_context" value="true" />
     <arg name="class_profile" value="r2026" />
   </include>

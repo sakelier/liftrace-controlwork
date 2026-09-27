@@ -48,6 +48,7 @@
     <arg name="ground_z" value="$(arg ground_z)" />
     <arg name="model_path" value="$(arg model_path)" />
     <arg name="raw_servo_service" value="$(arg raw_servo_service)" />
+    <arg name="release_altitude_config_namespace" value="/release_guard" />
     <arg name="start_yolo_live_view" value="$(arg start_yolo_live_view)" />
     <arg name="record_debug" value="$(arg record_debug)" />
     <arg name="record_dir" value="$(arg record_dir)" />

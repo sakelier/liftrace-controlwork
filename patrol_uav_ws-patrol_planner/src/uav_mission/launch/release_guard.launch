@@ -3,6 +3,7 @@
   <arg name="raw_service_name" default="/legacy/Servo_raw" />
   <arg name="public_service_name" default="/Servo" />
   <arg name="pose_topic" default="/mavros/local_position/pose" />
+  <arg name="altitude_config_namespace" default="" />
   <arg name="require_evidence_context" default="false" />
   <arg name="class_profile" default="r2026" />
   <arg name="evidence_context_topic"
@@ -11,6 +12,8 @@
   <node pkg="uav_mission" type="release_permission_arbiter.py"
         name="release_permission_arbiter" output="screen">
     <rosparam file="$(find uav_mission)/config/release_guard.yaml" />
+    <param name="altitude_config_namespace"
+           value="$(arg altitude_config_namespace)" />
     <param name="pose_topic" value="$(arg pose_topic)" />
     <param name="require_evidence_context"
            value="$(arg require_evidence_context)" />

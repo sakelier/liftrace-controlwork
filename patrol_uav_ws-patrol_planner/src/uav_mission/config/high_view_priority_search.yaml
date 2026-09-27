@@ -45,14 +45,22 @@ uav_vision:
   pixel_to_body_matrix: [-1.0, 0.0, 0.0, 1.0]
 drop_system:
   enable_drop: true
+  # camera_init 局部 Z；投递下降目标，不保证舵机恰在该高度动作。
+  release_setpoint_height: 0.10
   slot_offsets:
-    - [-0.12, 0.0]
-    - [0.0, -0.12]
+    - [0.12, 0.0]
     - [0.0, 0.12]
+    - [0.0, -0.12]
   dynamic_slot_offsets:
-    - [-0.12, 0.0]
-    - [0.0, -0.12]
+    - [0.12, 0.0]
     - [0.0, 0.12]
+    - [0.0, -0.12]
+
+# 仅高位优先搜索入口覆盖释放许可高度；其他入口继续使用 release_guard.yaml。
+# 当前 0.10 m 下降目标恰好等于许可上界；位姿高于上界时继续等待。
+release_guard:
+  min_release_altitude: 0.05
+  max_release_altitude: 0.15
 
 feature_extract_enable: true
 point_filter_num: 3
@@ -140,18 +148,13 @@ navigation:
       # 先在低位移动到接入点，再原地升高，避免贴着起飞边界直接爬升；
       # 障碍物仍由三维规划器和同一膨胀地图否决，不允许从上方翻越。
       manual_waypoints:
-        - [0.0,  0.0, 1.8]
-        - [0.0,  -1.5, 1.8]
-        - [2.0,  -1.5, 1.8]
-        - [4.0,  -1.5, 1.80]
-        - [6.0,  -1.5, 1.80]
-        - [7.2,  -1.5, 1.80]
-        - [7.2,  0.0, 1.80]
-        - [7.2,  1.5, 1.80]
-        - [6.0,  1.5, 1.80]
-        - [4.0,  1.5, 1.80]
-        - [2.0,  1.5, 1.80]
-        - [0.0,  1.5, 1.80]
+        - [0.0,  0.0, 1.6]
+        - [0.0,  -1.5, 1.6]
+        - [4.0,  -1.5, 1.60]
+        - [6.0,  -1.5, 1.60]
+        - [6.0,  1.5, 1.60]
+        - [4.0,  1.5, 1.60]
+        - [0.0,  1.5, 1.60]
 
       route_revision: high-view-priority-staged-manual-r1
       max_failures_per_waypoint: 2
@@ -170,7 +173,7 @@ navigation:
       home_xy: [0.0, 0.0]
       candidate_max_age: 0.5
       transform_max_age: 0.5
-      min_streak: 2
+      min_streak: 1
       max_target_z: 4.0
       target_action_timeout: 90.0
       motion_action_timeout: 60.0

@@ -1653,7 +1653,7 @@ void LLController::load_params() {
         !std::isfinite(external_cross_recovery_setpoint_height_) ||
         drop_height_threshold <= 0.0 || drop_height_threshold > 1.0 ||
         drop_position_threshold_ <= 0.0 || drop_position_threshold_ > 1.0 ||
-        drop_release_setpoint_height_ <= 0.05 ||
+        drop_release_setpoint_height_ < 0.05 ||
         drop_release_setpoint_height_ > drop_height_threshold ||
         external_recovery_height_ <= drop_height_threshold ||
         external_recovery_height_ > align_height ||

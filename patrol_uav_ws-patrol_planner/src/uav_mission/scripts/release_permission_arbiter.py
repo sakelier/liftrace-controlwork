@@ -5,6 +5,7 @@ The vision node publishes ReleaseEvidence.  This arbiter adds mission mode,
 vehicle pose, payload sequencing and replay checks, then publishes a short
 lived ReleasePermission.  It never calls an actuator.
 """
+import math
 import os
 import sys
 
@@ -37,10 +38,28 @@ class ReleasePermissionArbiter:
         self._permission_lifetime = float(
             rospy.get_param("~permission_lifetime", 0.25))
         self._publish_rate = float(rospy.get_param("~publish_rate", 20.0))
-        self._min_altitude = float(
-            rospy.get_param("~min_release_altitude", -0.05))
-        self._max_altitude = float(
-            rospy.get_param("~max_release_altitude", 0.25))
+        altitude_config_namespace = str(rospy.get_param(
+            "~altitude_config_namespace", "")).rstrip("/")
+        if altitude_config_namespace:
+            if not altitude_config_namespace.startswith("/"):
+                raise ValueError("altitude_config_namespace must be absolute")
+            self._min_altitude = float(rospy.get_param(
+                altitude_config_namespace + "/min_release_altitude"))
+            self._max_altitude = float(rospy.get_param(
+                altitude_config_namespace + "/max_release_altitude"))
+        else:
+            self._min_altitude = float(
+                rospy.get_param("~min_release_altitude", -0.05))
+            self._max_altitude = float(
+                rospy.get_param("~max_release_altitude", 0.25))
+        if (not math.isfinite(self._min_altitude) or
+                not math.isfinite(self._max_altitude) or
+                self._min_altitude >= self._max_altitude):
+            raise ValueError("invalid release altitude window")
+        if altitude_config_namespace:
+            # Report the effective window through the node's private params too.
+            rospy.set_param("~min_release_altitude", self._min_altitude)
+            rospy.set_param("~max_release_altitude", self._max_altitude)
         self._payload_slots = int(rospy.get_param("~payload_slots", 3))
         self._next_slot = int(rospy.get_param("~first_payload_slot", 1))
         self._required_control_state = int(
