@@ -10,7 +10,7 @@
 # 重新换算本文件中的所有 2.38 m 高度，不能直接照搬。
 
 delivery:
-  search_altitude: 2.4
+  search_altitude: 1.8
   approach_altitude: 1.0
   return_altitude: 1.0
   recovery_height: 0.85
@@ -32,8 +32,8 @@ land_height: 0.05
 align_height: 1.0
 external_landing:
   hold_for_external_auto_land: true
-  capture_height: 0.1
-  auto_land_height: 0.15
+  capture_height: 0.2
+  auto_land_height: 0.10
 switch:
   flag_landing_detect: 0
   auto_land: false
@@ -64,7 +64,7 @@ runtime_pos_log_enable: false
 
 # 起飞阶段先保持原最简投递测试的 1.0 m 低位；任务路线到达接入点后再升高。
 waypoints:
-  - {x: 0.0, y: 0.0, z: 2.4, yaw: 0.0, pointmode: Takeoff_point, hover_time: 0.0}
+  - {x: 0.0, y: 0.0, z: 1.8, yaw: 0.0, pointmode: Takeoff_point, hover_time: 0.0}
 
 freedom:
   sensor:
@@ -112,7 +112,7 @@ fast_planner_node:
     # 参考高位策略保留全高障碍柱，禁止因搜索高度提高而从树/立柱上方翻越。
     # 这些 XY 边界只限定障碍柱生成范围，不是地理围栏。
     horizontal_avoidance:
-      enabled: true
+      enabled: false
       min_x: -0.5
       max_x: 8.0
       min_y: -2.5
@@ -140,24 +140,24 @@ navigation:
       # 先在低位移动到接入点，再原地升高，避免贴着起飞边界直接爬升；
       # 障碍物仍由三维规划器和同一膨胀地图否决，不允许从上方翻越。
       manual_waypoints:
-        - [0.0,  0.0, 2.4]
-        - [0.0,  -1.5, 2.4]
-        - [2.0,  -1.5, 2.40]
-        - [4.0,  -1.5, 2.40]
-        - [6.0,  -1.5, 2.40]
-        - [7.2,  -1.5, 2.40]
-        - [7.2,  0.0, 2.40]
-        - [7.2,  1.5, 2.40]
-        - [6.0,  1.5, 2.40]
-        - [4.0,  1.5, 2.40]
-        - [2.0,  1.5, 2.40]
-        - [0.0,  1.5, 2.40]
+        - [0.0,  0.0, 1.8]
+        - [0.0,  -1.5, 1.8]
+        - [2.0,  -1.5, 1.8]
+        - [4.0,  -1.5, 1.80]
+        - [6.0,  -1.5, 1.80]
+        - [7.2,  -1.5, 1.80]
+        - [7.2,  0.0, 1.80]
+        - [7.2,  1.5, 1.80]
+        - [6.0,  1.5, 1.80]
+        - [4.0,  1.5, 1.80]
+        - [2.0,  1.5, 1.80]
+        - [0.0,  1.5, 1.80]
 
       route_revision: high-view-priority-staged-manual-r1
       max_failures_per_waypoint: 2
     mission:
       approach_altitude: 1.0
-      return_altitude: 1.0
+      return_altitude: 1.8
       timeout: 600.0
       forced_return_at: 510.0
       return_land_reserve: 90.0

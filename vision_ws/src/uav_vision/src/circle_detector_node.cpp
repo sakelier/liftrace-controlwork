@@ -2,11 +2,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+
+#include <geometry_msgs/PointStamped.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 namespace uav_vision {
 
 CircularDetectorNode::CircularDetectorNode(const ros::NodeHandle &nh)
-    : nh_(nh), it_(nh)
+    : nh_(nh), it_(nh), tf_listener_(tf_buffer_)
 {
   loadParameters();
 
@@ -45,8 +49,14 @@ void CircularDetectorNode::loadParameters()
   nh_.param("circle_radius_max", radius_max_, 300.0);
   nh_.param("circle_min_quality", min_quality_, 0.70);
   nh_.param("circle_duplicate_center_ratio", duplicate_center_ratio_, 0.45);
+  nh_.param("circle_preferred_radius_m", preferred_radius_m_, 0.30);
   nh_.param("circle_max_candidates", max_candidates_, 12);
   nh_.param("circle_reject_border_clipped", reject_border_clipped_, true);
+
+  // 将轮廓像素投影到靶标所在的地面平面，得到可与 0.30 m 比较的半径。
+  nh_.param<std::string>("map_frame", map_frame_, "map");
+  nh_.param("ground_z", ground_z_, 0.0);
+  nh_.param("circle_tf_timeout", tf_timeout_, 0.05);
 
   // 预处理
   nh_.param("circle_blur_kernel_size", blur_kernel_size_, 5);
@@ -125,6 +135,12 @@ void CircularDetectorNode::imageCallback(const sensor_msgs::ImageConstPtr &msg)
   std::vector<CircleCandidate> candidates;
 
   bool found = detectBlueCircles(image, candidates, debug_mask, contours);
+  if (found) {
+    selectConcentricCandidates(candidates, scale_x, scale_y,
+                               offset_x, offset_y,
+                               msg->header.stamp, msg->header.frame_id);
+    found = !candidates.empty();
+  }
   ROS_DEBUG_THROTTLE(2.0, "[CircleDetector] contours=%zu candidates=%zu resized=%dx%d",
                      contours.size(), candidates.size(), image.cols, image.rows);
 
@@ -151,6 +167,171 @@ void CircularDetectorNode::imageCallback(const sensor_msgs::ImageConstPtr &msg)
         cv_bridge::CvImage(msg->header, "bgr8", dbg).toImageMsg();
     debug_pub_.publish(dbg_msg);
   }
+}
+
+// ---------------------------------------------------------------------------
+bool CircularDetectorNode::projectPixelToGround(
+    const cv::Point2d &pixel,
+    const geometry_msgs::TransformStamped &camera_to_map,
+    cv::Point2d &ground_point) const
+{
+  const cv::Point2d rectified = camera_model_.rectifyPoint(pixel);
+  const cv::Point3d ray = camera_model_.projectPixelTo3dRay(rectified);
+
+  geometry_msgs::PointStamped origin;
+  origin.header.frame_id = camera_to_map.child_frame_id;
+  origin.point.x = 0.0;
+  origin.point.y = 0.0;
+  origin.point.z = 0.0;
+  geometry_msgs::PointStamped endpoint = origin;
+  endpoint.point.x = ray.x;
+  endpoint.point.y = ray.y;
+  endpoint.point.z = ray.z;
+
+  geometry_msgs::PointStamped map_origin;
+  geometry_msgs::PointStamped map_endpoint;
+  tf2::doTransform(origin, map_origin, camera_to_map);
+  tf2::doTransform(endpoint, map_endpoint, camera_to_map);
+  const double dx = map_endpoint.point.x - map_origin.point.x;
+  const double dy = map_endpoint.point.y - map_origin.point.y;
+  const double dz = map_endpoint.point.z - map_origin.point.z;
+  if (std::abs(dz) < 1e-6) return false;
+
+  const double scale = (ground_z_ - map_origin.point.z) / dz;
+  if (scale <= 0.0) return false;
+  ground_point.x = map_origin.point.x + scale * dx;
+  ground_point.y = map_origin.point.y + scale * dy;
+  return true;
+}
+
+bool CircularDetectorNode::estimatePhysicalRadius(
+    const CircleCandidate &candidate,
+    double scale_x,
+    double scale_y,
+    double offset_x,
+    double offset_y,
+    const geometry_msgs::TransformStamped &camera_to_map,
+    double &radius_m) const
+{
+  const double angle = candidate.ellipse.angle * CV_PI / 180.0;
+  const double cos_angle = std::cos(angle);
+  const double sin_angle = std::sin(angle);
+  const double half_width = candidate.ellipse.size.width * 0.5;
+  const double half_height = candidate.ellipse.size.height * 0.5;
+  const cv::Point2d center(candidate.ellipse.center.x,
+                           candidate.ellipse.center.y);
+  const cv::Point2d width_axis(half_width * cos_angle,
+                               half_width * sin_angle);
+  const cv::Point2d height_axis(-half_height * sin_angle,
+                                half_height * cos_angle);
+  const cv::Point2d processed_points[] = {
+      center + width_axis, center - width_axis,
+      center + height_axis, center - height_axis};
+
+  cv::Point2d ground_points[4];
+  for (int i = 0; i < 4; ++i) {
+    const cv::Point2d original_pixel(
+        (processed_points[i].x - offset_x) * scale_x,
+        (processed_points[i].y - offset_y) * scale_y);
+    if (!projectPixelToGround(original_pixel, camera_to_map,
+                              ground_points[i])) {
+      return false;
+    }
+  }
+
+  const double width_m = cv::norm(ground_points[0] - ground_points[1]);
+  const double height_m = cv::norm(ground_points[2] - ground_points[3]);
+  radius_m = (width_m + height_m) / 4.0;
+  return std::isfinite(radius_m) && radius_m > 0.0;
+}
+
+void CircularDetectorNode::selectConcentricCandidates(
+    std::vector<CircleCandidate> &candidates,
+    double scale_x,
+    double scale_y,
+    double offset_x,
+    double offset_y,
+    const ros::Time &stamp,
+    const std::string &frame_id)
+{
+  std::vector<double> radii_m(
+      candidates.size(), std::numeric_limits<double>::quiet_NaN());
+  const std::string source_frame = frame_id.empty()
+      ? camera_model_.tfFrame() : frame_id;
+  geometry_msgs::TransformStamped camera_to_map;
+  bool metric_geometry_available = false;
+  try {
+    camera_to_map = tf_buffer_.lookupTransform(
+        map_frame_, source_frame, stamp, ros::Duration(tf_timeout_));
+    metric_geometry_available = true;
+  } catch (const tf2::TransformException &error) {
+    ROS_WARN_THROTTLE(
+        5.0,
+        "[CircleDetector] cannot rank concentric circles by %.3f m: %s; preserving candidates",
+        preferred_radius_m_, error.what());
+  }
+
+  if (metric_geometry_available) {
+    for (std::size_t i = 0; i < candidates.size(); ++i) {
+      double radius_m = 0.0;
+      if (estimatePhysicalRadius(candidates[i], scale_x, scale_y,
+                                 offset_x, offset_y, camera_to_map,
+                                 radius_m)) {
+        radii_m[i] = radius_m;
+      }
+    }
+  }
+
+  std::vector<CircleCandidate> selected;
+  std::vector<double> selected_radii_m;
+  for (std::size_t i = 0; i < candidates.size(); ++i) {
+    bool merged = false;
+    for (std::size_t kept_index = 0;
+         kept_index < selected.size(); ++kept_index) {
+      const CircleCandidate &kept = selected[kept_index];
+      const double dx = kept.ellipse.center.x - candidates[i].ellipse.center.x;
+      const double dy = kept.ellipse.center.y - candidates[i].ellipse.center.y;
+      const double distance = std::sqrt(dx * dx + dy * dy);
+      const double kept_diameter = std::max(kept.ellipse.size.width,
+                                            kept.ellipse.size.height);
+      const double candidate_diameter =
+          std::max(candidates[i].ellipse.size.width,
+                   candidates[i].ellipse.size.height);
+      const double duplicate_radius =
+          std::max(kept_diameter, candidate_diameter) *
+          duplicate_center_ratio_;
+      if (distance >= duplicate_radius ||
+          !std::isfinite(radii_m[i]) ||
+          !std::isfinite(selected_radii_m[kept_index])) {
+        continue;
+      }
+
+      const double candidate_error =
+          std::abs(radii_m[i] - preferred_radius_m_);
+      const double kept_error =
+          std::abs(selected_radii_m[kept_index] - preferred_radius_m_);
+      if (candidate_error < kept_error ||
+          (std::abs(candidate_error - kept_error) < 1e-6 &&
+           candidates[i].quality > kept.quality)) {
+        selected[kept_index] = candidates[i];
+        selected_radii_m[kept_index] = radii_m[i];
+      }
+      merged = true;
+      break;
+    }
+    if (!merged) {
+      selected.push_back(candidates[i]);
+      selected_radii_m.push_back(radii_m[i]);
+    }
+  }
+
+  candidates.swap(selected);
+  std::sort(candidates.begin(), candidates.end(),
+            [](const CircleCandidate &a, const CircleCandidate &b) {
+              return a.quality > b.quality;
+            });
+  if (static_cast<int>(candidates.size()) > max_candidates_)
+    candidates.resize(max_candidates_);
 }
 
 // ---------------------------------------------------------------------------
@@ -270,29 +451,8 @@ bool CircularDetectorNode::detectBlueCircles(
         0.15 * border_quality));
     if (quality < min_quality_) continue;
 
-    bool duplicate = false;
-    for (const CircleCandidate &kept : candidates) {
-      const double dx = kept.ellipse.center.x - ellipse.center.x;
-      const double dy = kept.ellipse.center.y - ellipse.center.y;
-      const double distance = std::sqrt(dx * dx + dy * dy);
-      const double duplicate_radius = std::max(kept.ellipse.size.width,
-                                                kept.ellipse.size.height) *
-                                      duplicate_center_ratio_;
-      if (distance < duplicate_radius) {
-        duplicate = true;
-        break;
-      }
-    }
-    if (!duplicate)
-      candidates.push_back(CircleCandidate{ellipse, quality});
+    candidates.push_back(CircleCandidate{ellipse, quality});
   }
-
-  std::sort(candidates.begin(), candidates.end(),
-            [](const CircleCandidate &a, const CircleCandidate &b) {
-              return a.quality > b.quality;
-            });
-  if (static_cast<int>(candidates.size()) > max_candidates_)
-    candidates.resize(max_candidates_);
   return !candidates.empty();
 }
 

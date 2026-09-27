@@ -14,6 +14,9 @@ circle_radius_min: 10.0
 circle_radius_max: 300.0
 circle_min_quality: 0.70
 circle_duplicate_center_ratio: 0.45
+# 同心候选投影到 ground_z 平面后，保留实际半径最接近该值的圆。
+circle_preferred_radius_m: 0.30
+circle_tf_timeout: 0.05
 circle_max_candidates: 12
 circle_reject_border_clipped: true
 

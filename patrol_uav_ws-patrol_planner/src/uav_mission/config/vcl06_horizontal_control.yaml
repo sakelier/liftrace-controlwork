@@ -79,7 +79,8 @@ uav_vision:
   # 新机架安装方向：图像向右=-body_y，图像向下=-body_x。
   pixel_to_body_matrix: [0.0, -1.0, -1.0, 0.0]
   max_movement_distance: 0.5
-  drop_circle_radius_m: 0.5
+  # 蓝色投递圆环的目标半径；视觉同心轮廓按与该尺寸的误差选择。
+  drop_circle_radius_m: 0.3
   drop_cross_radius_m: 0.5
   landing_pad_radius_m: 0.30
   enable_tank_interrupt: false

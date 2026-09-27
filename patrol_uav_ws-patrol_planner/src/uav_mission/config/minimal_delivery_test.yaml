@@ -43,8 +43,8 @@ external_landing:
   # LAND 只保持返航完成时的 home 位姿；独立任务门控节点随后切换 PX4
   # POSCTL，由飞手人工下降，不等待 H 证据，也不启动第二条自动下降链。
   hold_for_external_auto_land: true
-  capture_height: 0.1
-  auto_land_height: 0.15
+  capture_height: 0.2
+  auto_land_height: 0.10
 switch:
   flag_landing_detect: 0
   # 关闭依赖 H 视觉证据的 patrol_control 降落分支；minimal_delivery_test.launch
