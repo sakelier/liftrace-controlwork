@@ -74,7 +74,9 @@ class CompetitionSpeedCLI(unittest.TestCase):
             self.assertTrue(r['motion_optimization']['enabled'])
             self.assertTrue(r['high_view_full']['policy']['resume_survey_enabled'])
             self.assert_corridor(r);self.assert_h(c,1.,1.2)
-            self.assertAlmostEqual(c['drop_system']['release_setpoint_height']-(REFERENCE[2]-.22),.35)
+            self.assertAlmostEqual(c['drop_system']['release_setpoint_height']-(REFERENCE[2]-.22),.40)
+            self.assertAlmostEqual(c['drop_system']['release_min_height']-(REFERENCE[2]-.22),.35)
+            self.assertAlmostEqual(c['drop_system']['height_threshold']-(REFERENCE[2]-.22),.45)
             vel,acc=(1.2,1.) if profile=='competition' else (.5,.35)
             for ns,v,a in [('manager','max_vel','max_acc'),('search','max_vel','max_acc'),
                            ('optimization','max_vel','max_acc'),('bspline','limit_vel','limit_acc')]:
@@ -162,11 +164,13 @@ class CompetitionSpeedCLI(unittest.TestCase):
                 self.assert_corridor(r)
                 self.assertEqual(len(r['mission']['post_delivery_route']),len(s['corridor_waypoints'])+2)
 
-    def test_all_actual_delivery_groups_generate_035(self):
+    def test_all_actual_delivery_groups_generate_040(self):
         for trial in ('visual_interrupt','high_view','low_multi','high_priority'):
             e,r,c,o=self.cli(trial,site=False)
-            self.assertEqual(e['drop_agl'],.35)
-            self.assertAlmostEqual(c['drop_system']['release_setpoint_height']-(REFERENCE[2]-.22),.35)
+            self.assertEqual(e['drop_agl'],.40)
+            self.assertAlmostEqual(c['drop_system']['release_setpoint_height']-(REFERENCE[2]-.22),.40)
+            self.assertAlmostEqual(c['drop_system']['release_min_height']-(REFERENCE[2]-.22),.35)
+            self.assertAlmostEqual(c['drop_system']['height_threshold']-(REFERENCE[2]-.22),.45)
             self.assertTrue(c['drop_system']['enable_drop'])
             self.assertEqual((c['px4_max_distance'],o['/traj_server/traj_server/target_dist'],
                               o['/external_planner_start_max_distance']),(.25,.25,.75))
