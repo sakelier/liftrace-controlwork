@@ -1,0 +1,28 @@
+{
+  "core": {
+    "pid": 5432,
+    "command": "roscore",
+    "log": "/home/orangepi/liftrace_board_trials_20260928/deployment_results/ground_preview_20260929_155513/core.log"
+  },
+  "mavros": {
+    "pid": 5520,
+    "command": "roslaunch mavros px4.launch fcu_url:=/dev/ttyACM0:57600",
+    "log": "/home/orangepi/liftrace_board_trials_20260928/deployment_results/ground_preview_20260929_155513/mavros.log"
+  },
+  "lidar": {
+    "pid": 5521,
+    "command": "roslaunch uav_mission mid360_driver2.launch user_config_path:=/home/orangepi/liftrace_board_trials_20260928/deployment/site_20260928/MID360_config.json",
+    "log": "/home/orangepi/liftrace_board_trials_20260928/deployment_results/ground_preview_20260929_155513/lidar.log"
+  },
+  "camera": {
+    "pid": 5527,
+    "command": "bash /home/orangepi/liftrace_board_trials_20260928/deployment/board_trials_4x4/start_camera.sh /dev/video0",
+    "log": "/home/orangepi/liftrace_board_trials_20260928/deployment_results/ground_preview_20260929_155513/camera.log"
+  },
+  "flight": {
+    "pid": 201644,
+    "log": "/home/orangepi/liftrace_board_trials_20260928/deployment_results/ground_preview_20260929_155513/flight_memory.log",
+    "trial": "memory_only",
+    "started": 1790669940.300579
+  }
+}

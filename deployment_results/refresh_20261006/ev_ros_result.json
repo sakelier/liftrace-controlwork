@@ -1,0 +1,37 @@
+{
+  "offline": true,
+  "master_started": false,
+  "nodes_started": false,
+  "board_connected": false,
+  "tests": 18,
+  "failures": 0,
+  "errors": 0,
+  "messages": {
+    "ReleasePermission": {
+      "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/devel/lib/python3/dist-packages/uav_mission/msg/_ReleasePermission.py",
+      "md5": "c586d7b0e3bd7240f4ec00d07b4bebd2",
+      "slots": [
+        "header",
+        "permitted",
+        "payload_slot",
+        "align_mode",
+        "target_id",
+        "target_class",
+        "evidence_stamp",
+        "valid_until",
+        "reason",
+        "mission_id",
+        "decision_seq",
+        "attempt",
+        "target_first_seen",
+        "permission_epoch",
+        "permission_revision"
+      ]
+    },
+    "PredictionState": {
+      "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/devel/lib/python3/dist-packages/fast_lio/msg/_PredictionState.py",
+      "md5": "11c192b1871d7b41750a6892c0ecba33"
+    }
+  },
+  "success": true
+}

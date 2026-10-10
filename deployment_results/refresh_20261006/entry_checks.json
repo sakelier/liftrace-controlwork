@@ -1,0 +1,34 @@
+{
+  "site_entry": {
+    "returncode": 0,
+    "tail": "..........\n----------------------------------------------------------------------\nRan 10 tests in 1.419s\n\nOK\n"
+  },
+  "low_hover": {
+    "returncode": 0,
+    "tail": "..............................................\n----------------------------------------------------------------------\nRan 46 tests in 1.936s\n\nOK\n"
+  },
+  "hover_preview": {
+    "returncode": 0,
+    "tail": "max_height_agl\": 1.0,\n    \"jump_base_m\": 0.2,\n    \"jump_speed_mps\": 1.0,\n    \"yaw_jump_deg\": 15.0,\n    \"profiles\": {\n      \"hover\": [],\n      \"forward\": [\n        [\n          0.5,\n          0.0\n        ],\n        [\n          1.0,\n          0.0\n        ],\n        [\n          1.5,\n          0.0\n        ]\n      ],\n      \"square\": [\n        [\n          1.0,\n          0.0\n        ],\n        [\n          1.0,\n          1.0\n        ],\n        [\n          0.0,\n          1.0\n        ],\n        [\n          0.0,\n          0.0\n        ]\n      ]\n    }\n  }\n}\n"
+  },
+  "forward_preview": {
+    "returncode": 0,
+    "tail": "max_height_agl\": 1.0,\n    \"jump_base_m\": 0.2,\n    \"jump_speed_mps\": 1.0,\n    \"yaw_jump_deg\": 15.0,\n    \"profiles\": {\n      \"hover\": [],\n      \"forward\": [\n        [\n          0.5,\n          0.0\n        ],\n        [\n          1.0,\n          0.0\n        ],\n        [\n          1.5,\n          0.0\n        ]\n      ],\n      \"square\": [\n        [\n          1.0,\n          0.0\n        ],\n        [\n          1.0,\n          1.0\n        ],\n        [\n          0.0,\n          1.0\n        ],\n        [\n          0.0,\n          0.0\n        ]\n      ]\n    }\n  }\n}\n"
+  },
+  "square_preview": {
+    "returncode": 0,
+    "tail": "max_height_agl\": 1.0,\n    \"jump_base_m\": 0.2,\n    \"jump_speed_mps\": 1.0,\n    \"yaw_jump_deg\": 15.0,\n    \"profiles\": {\n      \"hover\": [],\n      \"forward\": [\n        [\n          0.5,\n          0.0\n        ],\n        [\n          1.0,\n          0.0\n        ],\n        [\n          1.5,\n          0.0\n        ]\n      ],\n      \"square\": [\n        [\n          1.0,\n          0.0\n        ],\n        [\n          1.0,\n          1.0\n        ],\n        [\n          0.0,\n          1.0\n        ],\n        [\n          0.0,\n          0.0\n        ]\n      ]\n    }\n  }\n}\n"
+  },
+  "route_rectangle": {
+    "returncode": 0,
+    "tail": "CONFIG_VALID; no ROS nodes started\n"
+  },
+  "route_snake2": {
+    "returncode": 0,
+    "tail": "CONFIG_VALID; no ROS nodes started\n"
+  },
+  "route_snake3": {
+    "returncode": 0,
+    "tail": "CONFIG_VALID; no ROS nodes started\n"
+  }
+}

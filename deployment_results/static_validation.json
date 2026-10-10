@@ -1,0 +1,170 @@
+[
+  {
+    "trial": "visual_interrupt",
+    "mode": "preview",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "visual_interrupt",
+    "mode": "flight",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "high_view",
+    "mode": "preview",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "high_view",
+    "mode": "flight",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "landing",
+    "mode": "preview",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "landing",
+    "mode": "flight",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "corridor_landing",
+    "status": "EXPECTED_BLOCKED",
+    "reason": "Fill corridor_waypoints with at least two measured waypoints; no default route is permitted"
+  },
+  {
+    "trial": "low_multi",
+    "mode": "preview",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "low_multi",
+    "mode": "flight",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "high_priority",
+    "mode": "preview",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "high_priority",
+    "mode": "flight",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "memory_only",
+    "mode": "preview",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "memory_only",
+    "mode": "flight",
+    "status": "PASS",
+    "ground_z": -0.22,
+    "low_z": 1.1799999475479126,
+    "drop_z": 0.38
+  },
+  {
+    "trial": "full_mission",
+    "status": "EXPECTED_BLOCKED",
+    "reason": "Fill corridor_waypoints with at least two measured waypoints; no default route is permitted"
+  },
+  {
+    "localization": "low",
+    "status": "PASS"
+  },
+  {
+    "localization": "high",
+    "status": "PASS"
+  },
+  {
+    "localization": "corridor",
+    "status": "PASS"
+  },
+  {
+    "package": "uav_mission",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/uav_mission",
+    "status": "PASS"
+  },
+  {
+    "package": "uav_high_view",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/vision_ws/src/uav_high_view",
+    "status": "PASS"
+  },
+  {
+    "package": "uav_vision",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/vision_ws/src/uav_vision",
+    "status": "PASS"
+  },
+  {
+    "package": "uav_board_trials",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/vision_ws/src/uav_board_trials",
+    "status": "PASS"
+  },
+  {
+    "package": "fast_lio",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/FAST_LIO",
+    "status": "PASS"
+  },
+  {
+    "package": "freedom",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/FreeDOM",
+    "status": "PASS"
+  },
+  {
+    "package": "plan_manage",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/Fast-Planner/fast_planner/plan_manage",
+    "status": "PASS"
+  },
+  {
+    "package": "patrol_control",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/patrol_control",
+    "status": "PASS"
+  },
+  {
+    "package": "livox_ros_driver2",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/tool/livox_ros_driver2",
+    "status": "PASS"
+  },
+  {
+    "package": "camera_sdk",
+    "path": "/home/orangepi/liftrace_board_trials_20260928/vision_ws/src/camera_sdk",
+    "status": "PASS"
+  }
+]

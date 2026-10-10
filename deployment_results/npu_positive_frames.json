@@ -1,0 +1,42 @@
+[
+  {
+    "frame": "frame_2.jpg",
+    "inference_ms": 105.42388999965624,
+    "detections": [
+      {
+        "name": "panzer",
+        "score": 0.89697265625
+      }
+    ]
+  },
+  {
+    "frame": "frame_3.jpg",
+    "inference_ms": 53.73071699978027,
+    "detections": [
+      {
+        "name": "panzer",
+        "score": 0.9140625
+      }
+    ]
+  },
+  {
+    "frame": "frame_4.jpg",
+    "inference_ms": 55.82397099988157,
+    "detections": [
+      {
+        "name": "bridge",
+        "score": 0.9306640625
+      }
+    ]
+  },
+  {
+    "frame": "frame_5.jpg",
+    "inference_ms": 57.472439999401104,
+    "detections": [
+      {
+        "name": "bridge",
+        "score": 0.93017578125
+      }
+    ]
+  }
+]

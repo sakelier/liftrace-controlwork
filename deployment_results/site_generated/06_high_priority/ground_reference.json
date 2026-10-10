@@ -1,0 +1,167 @@
+{
+  "mode": "high_priority",
+  "mapping_profile": "high",
+  "fc_xyz": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "ground_z": -0.22,
+  "low_z": 1.1799999475479126,
+  "high_z": 2.38,
+  "drop_z": 0.38,
+  "known_rig": {
+    "mission_frame": "camera_init",
+    "mavros_frame": "map",
+    "body_to_imu_xyz": [
+      0.0,
+      0.0,
+      0.05
+    ],
+    "imu_to_camera_xyz": [
+      0.0,
+      0.0,
+      -0.21
+    ],
+    "camera_quat_xyzw": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    "pixel_to_body_matrix": [
+      -1.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "fc_ground_clearance": 0.22,
+    "source": "Flight team minimal_delivery_test at fa621262 (camera rotation verified 20260923); slot offsets inherited; AGL uses measured stationary reference",
+    "slot_offsets": [
+      [
+        -0.12,
+        0.0
+      ],
+      [
+        0.0,
+        -0.12
+      ],
+      [
+        0.0,
+        0.12
+      ]
+    ],
+    "dynamic_slot_offsets": [
+      [
+        -0.12,
+        0.0
+      ],
+      [
+        0.0,
+        -0.12
+      ],
+      [
+        0.0,
+        0.12
+      ]
+    ]
+  },
+  "settings": {
+    "mode": "high_priority",
+    "low_agl": 1.4,
+    "high_agl": 2.6,
+    "drop_agl": 0.6,
+    "landing_transit_agl": 1.0,
+    "landing_capture_agl": 1.8,
+    "landing_xy": [
+      2.0,
+      0.0
+    ],
+    "cruise_speed": 0.5,
+    "cruise_acceleration": 0.35,
+    "virtual_ceiling_enabled": false,
+    "alignment_mode": "legacy_static",
+    "actuator_mode": "mock",
+    "raw_servo_service": "/legacy/Servo_raw",
+    "flight_area": {
+      "center_bounds": [
+        -0.35,
+        6.0,
+        -1.5,
+        1.5
+      ],
+      "target_bounds": [
+        -0.35,
+        6.0,
+        -1.5,
+        1.5
+      ],
+      "search_bounds": [
+        0.6,
+        6.0,
+        -1.5,
+        1.5
+      ],
+      "staging_xy": [
+        0.6,
+        0.0
+      ],
+      "survey_xy": [
+        [
+          0.6,
+          -1.5
+        ],
+        [
+          3.5,
+          -1.5
+        ],
+        [
+          6.0,
+          -1.5
+        ],
+        [
+          6.0,
+          0.0
+        ],
+        [
+          6.0,
+          1.5
+        ],
+        [
+          3.5,
+          1.5
+        ],
+        [
+          0.6,
+          1.5
+        ],
+        [
+          0.6,
+          0.0
+        ],
+        [
+          0.6,
+          -1.5
+        ]
+      ],
+      "map_size": [
+        16.0,
+        6.0,
+        3.8
+      ]
+    },
+    "search_line_x": [
+      0.6,
+      1.2,
+      1.8,
+      2.4,
+      3.0,
+      3.6,
+      4.2,
+      4.8,
+      5.4,
+      6.0
+    ],
+    "compressed_image_topic": "/camera/image_raw/compressed"
+  }
+}

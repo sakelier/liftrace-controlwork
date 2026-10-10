@@ -1,0 +1,23 @@
+{
+  "revisions": [
+    {
+      "branch": "feat/board-deployment-flight-20260920",
+      "head": "3cc460ba6fd076dfa8415728283c9b9f7c056aa0",
+      "verified_remote": true
+    },
+    {
+      "branch": "板端参考分支",
+      "head": "6fb02e80ea24d72ee3b9a99790112fcd18127b63",
+      "verified_remote": true
+    }
+  ],
+  "compared_files": 391,
+  "mismatches": [],
+  "processes": {
+    "rosmaster": "",
+    "roslaunch": "",
+    "fastlio_mapping": "",
+    "mavros_node": "",
+    "patrol_control": ""
+  }
+}

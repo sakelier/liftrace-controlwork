@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "kind": "offline_frame_no_ROS_nodes",
+  "shapes": [
+    [
+      1,
+      9,
+      8400
+    ]
+  ],
+  "names": {
+    "0": "bridge",
+    "1": "panzer",
+    "2": "pillbox",
+    "3": "tent",
+    "4": "red_cross"
+  },
+  "inference_ms": [
+    109.30823499984399,
+    87.13147600064985,
+    60.040809999918565,
+    53.35709899918584
+  ],
+  "detections": []
+}

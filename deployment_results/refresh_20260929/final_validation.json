@@ -1,0 +1,9 @@
+{
+  "source_revision": "9f07647379b5dcea1adb47b360475673604a6896",
+  "recording": "bag_only_plus_lightweight_state_journal",
+  "removed_scripts_absent": true,
+  "journal_wrapper_present": true,
+  "ros_flight_actuator_processes": [],
+  "board_epoch": 1790664056.844598,
+  "board_model_bytes": 7545013
+}

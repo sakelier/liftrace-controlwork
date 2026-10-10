@@ -1,0 +1,17 @@
+{
+  "source_head": "3bdc0e67bb730a548b238f3da6481d8373e3ff7a",
+  "source_branch": "feat/board-deployment-flight-20260920",
+  "scope": "0928 source overlay; preserve field/device configuration; ARM rebuild required",
+  "model": "runtime_models/flight_5cls_20260928_fp16.rknn",
+  "model_bytes": 7545013,
+  "board_deployed": false,
+  "arm_build_verified": false,
+  "preserve_board_files": [
+    "deployment/site_20260928",
+    "measured camera/MID360 configuration",
+    "existing field YAML"
+  ],
+  "entry": "deployment/competition/start.sh",
+  "build": "deployment/competition/build.sh",
+  "fast_lio_match_threads": 3
+}

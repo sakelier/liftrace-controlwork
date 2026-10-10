@@ -1,0 +1,91 @@
+[
+  {
+    "binary": "patrol_uav_ws-patrol_planner/devel/lib/plan_manage/fast_planner_node",
+    "status": "PASS",
+    "opencv": [
+      "libopencv_core.so.4.2 => /lib/aarch64-linux-gnu/libopencv_core.so.4.2 (0x0000007f850c6000)",
+      "libopencv_imgcodecs.so.4.2 => /lib/aarch64-linux-gnu/libopencv_imgcodecs.so.4.2 (0x0000007f84584000)",
+      "libopencv_imgproc.so.4.2 => /lib/aarch64-linux-gnu/libopencv_imgproc.so.4.2 (0x0000007f841f2000)"
+    ]
+  },
+  {
+    "binary": "patrol_uav_ws-patrol_planner/devel/lib/plan_manage/traj_server",
+    "status": "PASS",
+    "opencv": []
+  },
+  {
+    "binary": "patrol_uav_ws-patrol_planner/devel/lib/patrol_control/patrol_control",
+    "status": "PASS",
+    "opencv": []
+  },
+  {
+    "binary": "patrol_uav_ws-patrol_planner/devel/lib/fast_lio/fastlio_mapping",
+    "status": "PASS",
+    "opencv": []
+  },
+  {
+    "binary": "patrol_uav_ws-patrol_planner/devel/lib/freedom/freedom_node",
+    "status": "PASS",
+    "opencv": [
+      "libopencv_photo.so.4.2 => /lib/aarch64-linux-gnu/libopencv_photo.so.4.2 (0x0000007f7f4c7000)",
+      "libopencv_core.so.4.2 => /lib/aarch64-linux-gnu/libopencv_core.so.4.2 (0x0000007f7f21a000)",
+      "libopencv_imgproc.so.4.2 => /lib/aarch64-linux-gnu/libopencv_imgproc.so.4.2 (0x0000007f7ee88000)",
+      "libopencv_imgcodecs.so.4.2 => /lib/aarch64-linux-gnu/libopencv_imgcodecs.so.4.2 (0x0000007f7ee2e000)"
+    ]
+  },
+  {
+    "binary": "vision_ws/devel/lib/uav_vision/circle_detector_node",
+    "status": "PASS",
+    "opencv": [
+      "libopencv_core.so.4.2 => /lib/aarch64-linux-gnu/libopencv_core.so.4.2 (0x0000007f8fdb1000)",
+      "libopencv_imgproc.so.4.2 => /lib/aarch64-linux-gnu/libopencv_imgproc.so.4.2 (0x0000007f8fa1f000)",
+      "libopencv_imgcodecs.so.4.2 => /lib/aarch64-linux-gnu/libopencv_imgcodecs.so.4.2 (0x0000007f8f137000)",
+      "libopencv_calib3d.so.4.2 => /lib/aarch64-linux-gnu/libopencv_calib3d.so.4.2 (0x0000007f8efdb000)",
+      "libopencv_features2d.so.4.2 => /lib/aarch64-linux-gnu/libopencv_features2d.so.4.2 (0x0000007f8cb4b000)",
+      "libopencv_flann.so.4.2 => /lib/aarch64-linux-gnu/libopencv_flann.so.4.2 (0x0000007f8cae8000)"
+    ]
+  },
+  {
+    "package": "uav_board_trials",
+    "executable": "trial_manager.py",
+    "status": "PASS",
+    "path": [
+      "/home/orangepi/liftrace_board_trials_20260928/vision_ws/devel/lib/uav_board_trials/trial_manager.py"
+    ]
+  },
+  {
+    "package": "uav_board_trials",
+    "executable": "trial_recorder.py",
+    "status": "PASS",
+    "path": [
+      "/home/orangepi/liftrace_board_trials_20260928/vision_ws/devel/lib/uav_board_trials/trial_recorder.py"
+    ]
+  },
+  {
+    "package": "uav_mission",
+    "executable": "navigation_planner_bridge.py",
+    "status": "PASS",
+    "path": [
+      "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/devel/lib/uav_mission/navigation_planner_bridge.py",
+      "/home/orangepi/liftrace_board_trials_20260928/patrol_uav_ws-patrol_planner/src/uav_mission/scripts/navigation_planner_bridge.py"
+    ]
+  },
+  {
+    "package": "camera_sdk",
+    "executable": "camera_sdk.py",
+    "status": "PASS",
+    "path": [
+      "/home/orangepi/liftrace_board_trials_20260928/vision_ws/devel/lib/camera_sdk/camera_sdk.py",
+      "/home/orangepi/liftrace_board_trials_20260928/vision_ws/src/camera_sdk/script/camera_sdk.py"
+    ]
+  },
+  {
+    "package": "uav_vision",
+    "executable": "target_detector_rknn.py",
+    "status": "PASS",
+    "path": [
+      "/home/orangepi/liftrace_board_trials_20260928/vision_ws/devel/lib/uav_vision/target_detector_rknn.py",
+      "/home/orangepi/liftrace_board_trials_20260928/vision_ws/src/uav_vision/scripts/target_detector_rknn.py"
+    ]
+  }
+]

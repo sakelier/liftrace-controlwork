@@ -1,0 +1,168 @@
+profile:
+  name: r2026
+mission:
+  frame: camera_init
+  candidate_max_age: 0.5
+  transform_max_age: 0.5
+  min_streak: 3
+  max_target_z: 4.0
+  max_attempts: 2
+  retry_cooldown: 20.0
+  timeout: 300.0
+  early_return_enabled: false
+  forced_return_at: 240.0
+  return_land_reserve: 45.0
+  delivery_reserve_per_slot: 25.0
+  path_factor: 1.5
+  nominal_speed: 0.5
+  decision_guard: 15.0
+  approach_altitude: 1.1799999475479126
+  return_altitude: 1.1799999475479126
+  target_action_timeout: 60.0
+  motion_action_timeout: 30.0
+  result_future_tolerance: 0.1
+  home_xy:
+  - 0.0
+  - 0.0
+  post_delivery_yaw: 0.0
+  post_delivery_route_revision: board-memory_only
+  landing_xy:
+  - 0.6
+  - 0.0
+  landing_anchor_tolerance: 0.05
+  post_delivery_route:
+  - - 0.6
+    - 0.0
+    - 1.1799999475479126
+  post_delivery_parameter_stages: []
+search:
+  min_x: 0.6
+  max_x: 6.0
+  min_y: -1.5
+  max_y: 1.5
+  lane_spacing: 1.2
+  altitude: 1.1799999475479126
+  route_revision: r2026-r61-full-search-area
+  max_failures_per_waypoint: 2
+readiness:
+  pose_max_age: 0.5
+  map_max_age: 2.0
+  stamp_future_tolerance: 0.05
+  require_map: true
+runtime:
+  tick_hz: 10.0
+  mission_id_prefix: board-memory_only
+  start_mode: full
+trial:
+  mode: memory_only
+  waypoints:
+  - - 0.6
+    - 0.0
+    - 1.1799999475479126
+  - - 1.2
+    - 0.0
+    - 1.1799999475479126
+  - - 1.8
+    - 0.0
+    - 1.1799999475479126
+  - - 2.4
+    - 0.0
+    - 1.1799999475479126
+  - - 3.0
+    - 0.0
+    - 1.1799999475479126
+  - - 3.6
+    - 0.0
+    - 1.1799999475479126
+  - - 4.2
+    - 0.0
+    - 1.1799999475479126
+  - - 4.8
+    - 0.0
+    - 1.1799999475479126
+  - - 5.4
+    - 0.0
+    - 1.1799999475479126
+  - - 6.0
+    - 0.0
+    - 1.1799999475479126
+  camera_info_topic: /camera/camera_info
+  delivery_count: 2
+  actuator_mode: none
+following_speed_profile:
+  cruise_lead_m: 0.5
+  precision_lead_m: 0.25
+  corridor_lead_m: 0.25
+high_view_probe:
+  config:
+    ground_z: -0.22
+    high_agl: 2.6
+    low_agl: 1.4
+    staging_xy:
+    - 0.6
+    - 0.0
+    survey_xy:
+    - - 0.6
+      - -1.5
+    - - 3.5
+      - -1.5
+    - - 6.0
+      - -1.5
+    - - 6.0
+      - 0.0
+    - - 6.0
+      - 1.5
+    - - 3.5
+      - 1.5
+    - - 0.6
+      - 1.5
+    - - 0.6
+      - 0.0
+    - - 0.6
+      - -1.5
+    source_key: board-inherited-camera-static-start
+  camera_info_topic: /camera/camera_info
+  low_stage_parameters:
+  - name: /external_planner_max_command_z
+    value: 1.6300000000000001
+  - name: /fast_planner_node/sdf_map/virtual_ceil_height
+    value: -0.1
+  - name: /fast_planner_node/fsm/goal_adjustment_radius
+    value: 0.15
+high_view_full:
+  policy:
+    high_max_agl: 3.0
+    coarse_enabled: true
+    coarse_min_confidence: 0.6
+    coarse_interrupt_min_interval_ns: 100000000
+    coarse_interrupt_max_gap_ns: 1000000000
+    coarse_interrupt_consistency_m: 0.5
+    interrupt_refined_classes: []
+    recheck_observe_seconds: 5.0
+    recheck_shift_after_seconds: 1.0
+    recheck_shift_radius_m: 0.5
+    candidate_min_streak: 1
+    min_interval_ns: 100000000
+    min_span_ns: 200000000
+    max_uncertainty_m: 0.45
+    direct_descent: true
+    descent_radius_m: 1.0
+    descent_max_candidates: 9
+    survey_stall_seconds: 8.0
+    survey_progress_m: 0.15
+    survey_alternative_radius_m: 0.3
+  grid:
+    bounds:
+    - -0.35
+    - 6.0
+    - -1.5
+    - 1.5
+    resolution: 0.1
+    inflation: 0.25
+  boundary_policy:
+    enabled: true
+    bounds:
+    - -0.35
+    - 6.0
+    - -1.5
+    - 1.5

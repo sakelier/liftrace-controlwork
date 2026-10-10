@@ -1,0 +1,58 @@
+# 2026无人机竞赛整机工程
+
+> 2026-09-27当前：[导航仓板端参考分支与八组交接](docs/deployment/board_reference_20260927/README.md)。现场FAST-LIO/FreeDOM负载档案已继承，水平膨胀0.25m；新配置完成离线验证与构建，不覆盖此前动态验收结论。
+
+> 本分支为 `feat/board-deployment-flight-20260920`，专门用于板端部署与试飞。[部署总览](deployment/BOARD_DEPLOYMENT.md) · [八组专项](deployment/board_trials_4x4/MODULES.md) · [现场旧4×4参考镜像](deployment/onboard_obstacle_reference_20260920/README.md)。下方仿真记录保留来源历史，不代表本分支已实飞验收。
+
+> 2026-09-27：[远端板载代码与八组专项对比](docs/deployment/board_remote_comparison_20260927/REPORT.md)。远端仍为48541a7；TF/相机/槽位已保留，定位建图参数和消息版本仍有差异；两个远端投递入口存在默认降落高度顺序冲突。本次仅文档核查。
+
+> 2026-09-19最新修复验证：[新视场/内环/LAND 50cm三轮报告](docs/verification/fov_landing_inner_20260919/REPORT.md) · [35张图与双视角视频](docs/verification/fov_landing_inner_20260919/index.html)。同seed2672 A/B/C均PASS：251.667/187.733/216.548s，三投/两门/H降落、零碰撞；越树整机投影与搜索内环检查均通过。本轮最快B（2.6m＋已有快走廊）。3m仍有panzer冲突，经低位复核成功；未彻底消除视觉对准等待。九次mock ACK真实FC靶心误差中位8.01cm，非实物落点精度。后续提速只做文档，未替换机载部署。
+
+
+> 最新订正：[高位继承、10s机构预算、走廊高度/分段提速、连续80cm门与4m外墙、双视角、3m几何分析](docs/planning/corridor_presentation_20260919/REPORT.md)。本轮无新增仿真；候选走廊FC上限1.2m/巡航0.9m，高位默认仍2.6m。新录制入口与场景工具完成静态验证，尚未实跑。
+
+> 2026-09-19整机更新：导航弧长投影停滞修复与近墙复访已集成；随机seed2672整场PASS（286.456s，三投/两门/H降落、0碰撞）。[完整报告与视频](docs/verification/reliability_trial_20260919/REPORT.md) · [图表总览](docs/verification/reliability_trial_20260919/index.html)。
+
+2026-09-19前期评审（随后已进入整机实施）：[最新实验、停滞/速度评审与轻量fork评估](docs/planning/reliability_speed_review_20260919/REVIEW.md)完成。该前期阶段为文档与数据重算；按后续指示在liftrace-sim fork新增当前profile和31–40几何预筛，74项测试通过。55cm按已有鲁棒膨胀包络处理，原视觉交付已被上游接收；该前期文档轮未修改整机飞行代码或启动SITL；后续修复与seed2672实跑见顶部最新记录。
+
+2026-09-15修复验证：[理想视场及三轮重跑/32补验报告](docs/verification/high_fallback_repair_20260915/REPORT.md)。理想完整高位路线覆盖约96.8%（不计遮挡）；31/34三投后第二门附近超时，32补验两投后碰墙，未完整通过。保留a12750b下降解耦及记忆/换点/低位兜底，机载部署不变。[走廊复盘](docs/verification/high_fallback_repair_20260915/CORRIDOR_REVIEW.md)发现保持与续规划之间存在可复现的停滞窗口，现场触发细节待确认。
+
+2026-09-15：[五seed高位快速先搜验证与53张图](docs/verification/high_fast_five_20260915/REPORT.md)完成。复用历史全随机31–35同场景低速遍历作对照，完整成功率均2/5，三投完成率由4/5降至2/5；唯一双侧完赛seed35节时38.08%，目前不能稳定替代遍历。综合基线与板端双向坐标修复已核实继承；冗余分支/worktree清理完成，未部署机载。
+
+2026-09-14补充：[固定布局四方案效率对照](docs/verification/high_view_full_20260914/speed_comparison/REPORT.md)完成。提速高位先搜两轮225.762/225.506s、Gate PASS，平均比低速高位快35.67%；seed34保守机体投影疑点单列，尚不作为最终规则合规或实机验收。
+
+2026-09-14早期记录：[高位线索—回降—低位重捕动态验证](docs/verification/high_view_dynamic_probe_20260913/REPORT.md)三次受限SITL通过，修复视觉ID=0兼容问题；修复版seed32/34重捕地图点误差7.4/10.5cm，尚无三投或整场节时结论，机载部署未变。
+
+2026-09-13最新：已完成[两布局四高度Gazebo观测](docs/verification/high_view_render_20260913/REPORT.md)，480张同步图像；高位具备粗发现潜力，位置偏差按低位复访线索处理，优先后续重捕与净节时验证。该批为静态相机实验，尚未执行高位飞行策略。
+
+2026-09-13：用户已批准[高位观测研究](docs/planning/high_view_search_20260913/PLAN.md)。首批[P0评估工具与P1离线原型](docs/verification/high_view_p0_p1_20260913/REPORT.md)完成，59项测试及独立构建通过；949份旧同步样本无高位数据，P0仍待证明。正式飞行链未修改、未仿真或上板。
+
+2026-09-11 驱动迁移：当前源码统一使用 **livox_ros_driver2 + Livox SDK2**；仿真仍由 Gazebo 发布 PointCloud2。两类源码包均需 SDK2 才能编译完整导航工作区，旧版本压缩包不会自动更新。[构建与实机接线说明](docs/deployment/LIVOX_DRIVER2.md)。
+
+
+2026-09-10全随机五seed已完成：2/5完整PASS、4/5三投、3/5两门和9点投后路线；五组靶板布设合法，seed31降落碰墙、33第二门前规划失败、34搜索耗时导致600秒截尾。算法和参数冻结，未补跑。[完整报告与20张图](docs/verification/full_random_five_20260910/REPORT.md)。
+
+**R64固定seed11完整37/37 PASS，任务422.712秒。** 三投、三恢复、9航点、两门、H对准、落地解除武装，零碰撞。最终中心距H中心6.5cm，保守55cm包络在名义黑圈内；未采用空中停机。[报告与视频索引](docs/verification/r64_seed11/REPORT.md)。随后十seed已完成，原始7/10完整PASS；5/7/8有靶板压墙，已修布设检查并保留原结果。近地落地仍有seed3失败，不能称实机已鲁棒。[11轮图表与分析](docs/verification/r64_matrix/REPORT.md)。
+
+当前包含今年导航、视觉、任务、控制与仿真，机械组PWM实现另供。R63修复投后恢复/旧轨迹接管；R64修复PX4自动任务历史EKF重置重复应用，[固件补丁](deployment/px4_patches/README.md)是复现依赖。原始参考与旧快照保留在来源分支，精简分支不重复收录。
+
+场内9.6m内净、四组树箱、两处左右错列0.80m通口，外围简单几何补充点云。相机FC下16cm、IMU下21cm、落地镜头离支撑面6cm；保守包络55×55×40cm。相机刚性随完整机体姿态，无云台。
+
+当前24点固定覆盖路线，搜索范围X[-4.3,4.3]/Y[0,7.1]，名义FC AGL1.4m；不是在线自适应覆盖。本批early_return_enabled=false，420秒提前返航禁用、600秒保留；硬件默认另按现场选配。
+
+```bash
+bash top_level_scripts/build_competition.sh
+# 先按deployment/px4_patches说明构建对应PX4；只在明确授权后运行。
+UAV_VISION_MODEL_PATH=/absolute/path/best.pt SIM_STORAGE_GUARD_PATH=/mnt/f SIM_NO_RECORD=1 SIM_RUN_AUTHORIZED=1 bash top_level_scripts/run_competition_sim.sh field_seed:=11 gui:=false rviz:=false record_camera_video:=false record_overview_video:=false
+```
+
+不启动Gazebo GUI也可录制服务端俯视相机和机载相机。视频/大日志留本地logs，默认0bag；坐标时序以CSV为准。[部署包](deployment/README_ONBOARD.md)、[仿真包](deployment/README_SIMULATION.md)、[任务](VISION_2026_ROADMAP.md)、[验收](docs/VALIDATION.md)、[环境](docs/ENVIRONMENT.md)、[规则](docs/competition/RULES_20260906.md)。
+
+历史：[R60矩阵2/10](docs/verification/r60_full_matrix/REPORT.md)、[R62恢复碰靶](docs/verification/r62_full_seed11/REPORT.md)、[R63降落失败](docs/verification/r63_recovery/REPORT.md)。历史结果保持其源码/世界边界，不代替当前验收。远端main已保留分支合入R64默认验收基线，标签gate/r64-seed11-full；仍保留矩阵失败及未验证范围。
+
+随机世界工具见[使用说明](docs/verification/r64_randomization/README.md)和simulation_tools；默认成功路线不变，随机门首次五seed已完成2/5整场PASS，尚未全组合鲁棒验收。
+
+当前[R64全图/核心/仅飞行rqt拓扑](docs/topology/r64/README.md)已按PASS运行注册快照离线更新。[时间优化、轻量仓复用与辅助相机计划](docs/planning/r64_time_camera/PLAN.md)附10种策略×11布局几何比较；这些优化尚未接入飞行，安全返航仍关闭。
+
+
+2026-09-09最新记录策略：后续无头运行只留日志/关键数据，关闭机载录像、俯视录像、桌面录屏和全场bag，在线机载图像仍供视觉算法使用。已有R64验收录像保留，未删除。

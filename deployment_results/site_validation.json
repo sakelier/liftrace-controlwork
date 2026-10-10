@@ -1,0 +1,62 @@
+[
+  {
+    "folder": "01_visual_interrupt",
+    "control_output": "false",
+    "pass_": true,
+    "nodes": 14
+  },
+  {
+    "folder": "01_visual_interrupt",
+    "control_output": "true",
+    "pass_": true,
+    "nodes": 19
+  },
+  {
+    "folder": "05_low_multi",
+    "control_output": "false",
+    "pass_": true,
+    "nodes": 14
+  },
+  {
+    "folder": "05_low_multi",
+    "control_output": "true",
+    "pass_": true,
+    "nodes": 19
+  },
+  {
+    "folder": "07_memory_only",
+    "control_output": "false",
+    "pass_": true,
+    "nodes": 14
+  },
+  {
+    "folder": "07_memory_only",
+    "control_output": "true",
+    "pass_": true,
+    "nodes": 16
+  },
+  {
+    "folder": "02_high_view_revisit",
+    "control_output": "false",
+    "pass_": true,
+    "nodes": 14
+  },
+  {
+    "folder": "02_high_view_revisit",
+    "control_output": "true",
+    "pass_": true,
+    "nodes": 19
+  },
+  {
+    "folder": "06_high_priority",
+    "control_output": "false",
+    "pass_": true,
+    "nodes": 14
+  },
+  {
+    "folder": "06_high_priority",
+    "control_output": "true",
+    "pass_": true,
+    "nodes": 19
+  }
+]

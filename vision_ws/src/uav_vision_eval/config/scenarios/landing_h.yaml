@@ -1,0 +1,7 @@
+scenario_id: landing_h
+description: toudi4_copy.world 中的主 H 降落标记。
+active_targets: [landing_h_1]
+score_false_positives: true
+require_fully_in_frame: true
+spawn_red_cross: false
+seed: 4

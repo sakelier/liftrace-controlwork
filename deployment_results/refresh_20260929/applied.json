@@ -1,0 +1,11 @@
+{
+  "copied": 34,
+  "removed": [
+    "deployment/board_trials_4x4/common/uav_board_trials/scripts/trial_recorder.py",
+    "deployment/board_trials_4x4/common/uav_board_trials/scripts/finish_recording.py",
+    "deployment/board_trials_4x4/common/uav_board_trials/scripts/render_trial_replay.py",
+    "vision_ws/devel/lib/uav_board_trials/trial_recorder.py"
+  ],
+  "backup": "/home/orangepi/liftrace_board_trials_20260928/deployment_results/refresh_20260929/replaced_source_before.tar.gz",
+  "operation": "source update only; no ROS/flight/servo started"
+}

@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "bags": [
+    "flight_debug_0.bag"
+  ],
+  "active": [],
+  "topic_counts": {
+    "/camera/camera_info": 25,
+    "/camera/image_raw/compressed": 25,
+    "/mavros/local_position/pose": 25,
+    "/tf_static": 1,
+    "/uav_vision/detections": 25
+  },
+  "missing_required": [],
+  "errors": [],
+  "total_bytes": 35556,
+  "stop_reason": "normal_shutdown",
+  "recorder_exit_code": 0,
+  "jpeg_decode": "PASS",
+  "kind": "isolated_synthetic_recorder_test_no_flight"
+}
