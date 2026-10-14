@@ -18,17 +18,38 @@ H_FIELDS = {
  'landing_offboard': {'descent_speed':(.001,1.),'touchdown_overtravel':(.001,.1)},
 }
 
+TASK_FIELDS = {
+ 'cruise_speed': (.1,1.2), 'cruise_acceleration': (.1,1.),
+ 'initialization_timeout': (30.,300.), 'motion_action_timeout': (.001,600.),
+ 'survey_policy': {
+  'coarse_min_confidence': (0.,1.), 'recheck_observe_seconds': (3.,15.),
+  'recheck_shift_after_seconds': (.5,1.), 'recheck_shift_radius_m': (.4,.6),
+  'max_uncertainty_m': (.25,.5), 'descent_radius_m': (.001,2.),
+  'descent_max_candidates': (1,25), 'survey_stall_seconds': (3.,20.),
+  'survey_progress_m': (.05,.3),
+ },
+}
+
 def validate_patch(patch, folder):
     if not isinstance(patch,dict) or not patch:raise ValueError('飞行参数不能为空')
     fields={}
     if folder in DROP_FOLDERS or folder=='competition':fields.update(DROP_FIELDS)
     if folder=='05_low_multi':fields['drop_agl']=(.15,1.)
     if folder in H_FOLDERS or folder=='competition':fields.update(H_FIELDS)
+    if folder in ('08_full_mission','competition'):fields.update(copy.deepcopy(TASK_FIELDS))
+    if folder=='08_full_mission':fields['ordinary_waypoint_dwell_enabled']=bool
+    if folder=='competition':
+        fields.update(lane_spacing=(.2,1.2),target_action_timeout=(.001,600.))
+        fields['survey_policy']['resume_budget_seconds']=(10.,180.)
     if set(patch)-set(fields):raise ValueError('该组不支持参数：'+', '.join(sorted(set(patch)-set(fields))))
     def check(value,rule,key):
         if isinstance(rule,dict):
             if not isinstance(value,dict) or not value or set(value)-set(rule):raise ValueError('未知字段 '+key)
             for k,v in value.items():check(v,rule[k],key+'.'+k)
+        elif rule is bool:
+            if type(value) is not bool:raise ValueError('参数必须是布尔值 '+key)
+        elif key=='survey_policy.descent_max_candidates':
+            if type(value) is not int or not rule[0]<=value<=rule[1]:raise ValueError('候选数量必须为1～25的整数')
         elif rule is None:
             if not isinstance(value,list) or len(value)!=2 or any(type(v) not in (int,float) or not math.isfinite(v) for v in value):raise ValueError('H中心必须为两个有限XY坐标')
         elif key.endswith('_mode'):
