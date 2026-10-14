@@ -1,0 +1,23 @@
+# 本机导入示例：坐标与范围须按实际场地测量确认。
+flight_area:
+  center_bounds: [-0.35, 9.0, -4.0, 2.7]
+  target_bounds: [-0.35, 9.0, -4.0, 2.7]
+  search_bounds: [0.4, 5.8, -2.4, 2.7]
+  staging_xy: [0.8, 0.0]
+  survey_xy:
+    - [1.1, -1.5]
+    - [5.0, -1.5]
+    - [5.0, 1.8]
+    - [1.1, 1.8]
+    - [1.1, -1.5]
+  map_size: [20.0, 12.0, 4.0]
+corridor_waypoints:
+  - {x: 6.5, y: 1.9, agl: 0.9}
+  - {x: 8.14, y: 1.9, agl: 0.9}
+  - {x: 8.14, y: -0.7, agl: 0.9}
+  - {x: 8.14, y: -3.45, agl: 0.9}
+landing_xy: [8.14, -3.45]
+corridor_geometry:
+  wall_axis: 1
+  wall_coordinates: [0.0, -1.4]
+  entry_waypoints: 1

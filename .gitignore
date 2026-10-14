@@ -1,0 +1,7 @@
+.venv
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.preflight_parameters_backup_*/
+logs/
+.DS_Store

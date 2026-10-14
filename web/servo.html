@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>舵机调试 · 飞行工作台</title>
+<link rel="stylesheet" href="/static/servo.css"></head><body>
+<header><a href="/">← 飞行工作台</a><h1>舵机脉宽调试</h1><p>1 后仓 · 2 右仓 · 3 左仓。调整滑块只修改待发送值，点击发送才产生动作。</p></header>
+<main><section class="toolbar"><button id="refresh">读取板端状态</button><button id="start">启动调试后端</button><button id="stop" class="danger">关闭三路 PWM 输出</button><button id="close">关闭输出并退出调试</button></section>
+<p id="status" role="status">连接状态尚未读取</p><p>使用前：在主工作台连接板端，启动 roscore，并完成原 PWM 初始化。调试后端独占 PWM，不能与正式舵机服务或 PWM 初始化同时运行。旧调试节点缺少停止接口时只允许查看状态，需要配套升级。结束调试后退出后端，再进入飞行任务。</p>
+<div id="channels"></div><section><label><input id="ground" type="checkbox">已确认飞机未解锁，机构可进行地面调试</label><p>普通发送输出约 0.3 秒后关闭；保持输出需手动关闭。停止会取消当前和旧排队请求，三路关闭读回全部确认后才报告成功。停止成功后仍需退出调试后端，才能初始化或进入试飞。状态来自板端 PWM 读回，不能证明机械角度或释放成功。</p><p>归位/释放按钮读取板端 SlotCalibration.h 预设；调试不会保存实机投递参数。</p></section>
+<pre id="result" aria-live="polite"></pre><details><summary>调试后端输出</summary><pre id="backend-log"></pre></details></main><script src="/static/servo.js"></script></body></html>

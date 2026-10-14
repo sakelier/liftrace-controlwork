@@ -1,0 +1,8 @@
+.flight-sync-panel { margin: 12px 18px; padding: 14px 18px; background: #fff; border: 1px solid #cbdbe5; border-radius: 8px; color: #173b52; }
+.flight-sync-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.flight-sync-controls label { display: inline-flex; align-items: center; gap: 6px; }
+.flight-sync-panel p { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.flight-sync-panel .sync-note { color: #617787; }
+.flight-sync-panel select { background: #fff; color: #173b52; padding: 4px; border: 1px solid #b7cbd8; }
+.flight-sync-panel button:focus-visible, .flight-sync-panel input:focus-visible, .flight-sync-panel select:focus-visible { outline: 2px solid #17658d; outline-offset: 2px; }
+@media (max-width: 700px) { .flight-sync-panel { margin: 8px; padding: 12px; } }
