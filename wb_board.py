@@ -13,6 +13,7 @@ import time
 
 import yaml
 import wb_geometry
+import wb_competition_geometry
 import wb_flight_settings
 
 from wb_ssh import run_once, quote
@@ -204,7 +205,7 @@ def build_group_command(config, group, mode, route=None, real_release=None,
         if route != "competition":
             raise ValueError("正赛卡片仅允许独立 competition 入口")
         if any(value is not None for value in (capture_speed, capture_lighting, survey_pattern,
-                site_geometry, geometry_revision, speed_profile)) or motion_optimized:
+                speed_profile)) or motion_optimized:
             raise ValueError("正赛使用独立场地配置和 on/off 开关，不接受专项参数")
         if not isinstance(check_config, bool) or (real_release is not None and not isinstance(real_release, bool)):
             raise ValueError("check_config / real_release 必须是布尔值")
@@ -215,6 +216,12 @@ def build_group_command(config, group, mode, route=None, real_release=None,
         if not isinstance(field, str) or not field.strip() or any(ch in field for ch in "\r\n\x00"):
             raise ValueError("请填写独立正赛场地配置路径")
         extra = ""
+        writer = ''
+        if site_geometry is not None:
+            field, writer = wb_competition_geometry.overlay_command(field.strip(), site_geometry, geometry_revision,
+                motion=motion_optimization, columns=obstacle_columns, resume=resume_survey)
+        elif geometry_revision is not None:
+            raise ValueError('坐标版本缺少航点草稿')
         for option, value in (("motion-optimization", motion_optimization), ("resume-survey", resume_survey), ("obstacle-columns", obstacle_columns)):
             if value is not None:
                 if value not in ("on", "off"):
@@ -225,6 +232,8 @@ def build_group_command(config, group, mode, route=None, real_release=None,
             quote(entry), "preview" if check_config else mode, quote(field.strip()), extra)
         if check_config:
             command += " --check-config"
+        if writer:
+            command = writer + ' && ' + command
         return command, "独立正赛实投：所选 YAML 为参数权威；省略开关继承 YAML，on/off 显式覆盖。模板未确认且必填坐标为空；成功测试场地不代表 10×10 正赛。先执行配置检查核对有效参数。"
     if any(value is not None for value in (motion_optimization, obstacle_columns, competition_config)):
         raise ValueError("on/off 开关及正赛配置路径仅支持独立正赛卡片")

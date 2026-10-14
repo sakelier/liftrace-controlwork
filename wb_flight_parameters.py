@@ -35,9 +35,13 @@ def read_current_files(root, source, folder, speed_profile=None, geometry=None):
                 for key in ('drop_agl','release_min_agl','release_max_agl','resume_survey_enabled'):raw.pop(key,None)
             update(settings,raw,label)
     if geometry:
-        for key in ('flight_area','landing_xy','corridor_waypoints','corridor_geometry','search_waypoints_xy'):
+        geometry_keys = (('flight_bounds','search_center_bounds','target_bounds','coverage_bounds',
+                          'staging_xy','survey_xy','landing_xy','corridor_waypoints','corridor_speed_schedule',
+                          'high_agl','landing_transit_agl','landing_capture_agl') if folder=='competition' else
+                         ('flight_area','landing_xy','corridor_waypoints','corridor_geometry','search_waypoints_xy'))
+        for key in geometry_keys:
             if key in geometry:
-                settings[key]=dict(settings.get(key,{}) or {},**geometry[key]) if key=='flight_area' else copy.deepcopy(geometry[key])
+                settings[key]=(dict(settings.get(key,{}) or {},**geometry[key]) if key in ('flight_area','corridor_speed_schedule') and geometry[key] is not None else copy.deepcopy(geometry[key]))
                 labels[key]='本机地图坐标草稿'
     values={};origins={}
     def put(key,value,default='机载代码默认'):
@@ -93,8 +97,12 @@ def read(workbench, body):
     if speed not in (None,'','limited','competition') or speed=='competition' and folder not in ('05_low_multi','08_full_mission'):raise ValueError('无效速度档')
     geometry=body.get('site_geometry')
     if geometry is not None:
-        import wb_geometry
-        geometry=wb_geometry.validate_geometry(geometry)
+        if folder=='competition':
+            import wb_competition_geometry
+            geometry=wb_competition_geometry.validate_patch(geometry)
+        else:
+            import wb_geometry
+            geometry=wb_geometry.validate_geometry(geometry)
     request=dict(root=workbench.board.root,source=source,folder=folder,speed_profile=speed,geometry=geometry)
     script=READ_SOURCE+'\nimport json\nrequest='+repr(request)+'\nprint("WB_FLIGHT_PARAMETERS="+json.dumps(read_current_files(**request),ensure_ascii=True))\n'
     snippet='import base64;exec(base64.b64decode(%r))'%base64.b64encode(script.encode()).decode()

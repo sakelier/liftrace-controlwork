@@ -26,6 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse, unquote
 
 import wb_survey
+import wb_config_summary
 import wb_board
 import wb_status
 import wb_ssh
@@ -774,6 +775,9 @@ class Workbench(object):
                 and (sid is None or sid in ("roscore", "mavros", "lidar", "observation_localization"))):
             raise ValueError("低空观察 flight 尚未退出；先飞手手动落地上锁并等待 OBSERVATION_CLOSED，保留定位与MAVROS")
 
+    def competition_config_summary(self, body):
+        return wb_config_summary.load(self, body)
+
     def trial_command(self, body):
         """Pure command preview: usable offline, no connection or file writes."""
         group = next((g for g in self.config.get("groups", []) if g["id"] == body.get("group_id")), None)
@@ -1413,6 +1417,8 @@ class Handler(BaseHTTPRequestHandler):
                     workbench.stop_probe_recovery()
                 session.send_key(body.get("key", "C-c"))
                 return self._json({"ok": True})
+            if route == "/api/competition/config-summary":
+                return self._json(workbench.competition_config_summary(body))
             if route == "/api/survey/plan":
                 return self._json({"ok": True, "plan": wb_survey.plan(body)})
             if route == '/api/flight-settings/current':
