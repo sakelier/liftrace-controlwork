@@ -35,7 +35,7 @@ def summarize(settings):
                         'key': (block + '.' if block else '') + key}
     geometry_keys = ('flight_bounds', 'search_center_bounds', 'target_bounds', 'coverage_bounds',
                      'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy', 'high_agl',
-                     'landing_transit_agl', 'landing_capture_agl')
+                     'landing_transit_agl', 'landing_capture_agl', 'map_size')
     result['geometry'] = {key: settings.get(key) for key in geometry_keys}
     schedule = settings.get('corridor_speed_schedule') or {}
     result['geometry']['corridor_speed_schedule'] = ({key: schedule.get(key, 1 if key == 'entry_waypoints' else None)
@@ -43,6 +43,7 @@ def summarize(settings):
     result['geometry']['_source_digest'] = hashlib.sha256(json.dumps(settings, sort_keys=True,
         separators=(',', ':'), allow_nan=False).encode()).hexdigest()
     result['site_confirmed'] = settings.get('site_confirmed') is True
+    result['max_agl'] = settings.get('max_agl')
     return result
 
 

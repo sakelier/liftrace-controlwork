@@ -11,7 +11,7 @@ def validate_patch(value):
     allowed = {'flight_bounds', 'search_center_bounds', 'target_bounds', 'coverage_bounds',
                'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy',
                'high_agl', 'landing_transit_agl', 'landing_capture_agl',
-               'corridor_speed_schedule', '_source_digest'}
+               'corridor_speed_schedule', '_source_digest', 'map_size'}
     if not isinstance(value, dict) or not value or set(value) - allowed:
         raise ValueError('仅允许独立正赛的航点、范围、墙面和观察高度')
     def number(v):
@@ -24,6 +24,8 @@ def validate_patch(value):
                 raise ValueError('请先读取场地 YAML')
         elif key.endswith('_bounds'):
             if not vector(v, 4) or v[0] >= v[1] or v[2] >= v[3]:raise ValueError('无效范围：' + key)
+        elif key == 'map_size':
+            if not vector(v, 3) or any(x <= 0 for x in v):raise ValueError('地图尺寸需三个正数')
         elif key in ('staging_xy', 'landing_xy'):
             if not (key == 'landing_xy' and v is None) and not vector(v, 2):raise ValueError('无效 XY：' + key)
         elif key == 'survey_xy':

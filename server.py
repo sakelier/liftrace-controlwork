@@ -27,6 +27,7 @@ from urllib.parse import parse_qs, urlparse, unquote
 
 import wb_survey
 import wb_config_summary
+import wb_competition_map
 import wb_board
 import wb_status
 import wb_ssh
@@ -1417,6 +1418,13 @@ class Handler(BaseHTTPRequestHandler):
                     workbench.stop_probe_recovery()
                 session.send_key(body.get("key", "C-c"))
                 return self._json({"ok": True})
+            if route.startswith('/api/competition-map/'):
+                action = route.rsplit('/', 1)[-1]
+                if action == 'context':return self._json(wb_competition_map.context(workbench, body))
+                if action == 'save':return self._json(wb_competition_map.save(workbench, body))
+                if action == 'preview':return self._json(wb_competition_map.preview(body))
+                if action == 'import':return self._json(wb_competition_map.import_yaml(body))
+                if action == 'export':return self._json(wb_competition_map.export_yaml(body))
             if route == "/api/competition/config-summary":
                 return self._json(workbench.competition_config_summary(body))
             if route == "/api/survey/plan":

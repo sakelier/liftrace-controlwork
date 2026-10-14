@@ -1,5 +1,6 @@
 'use strict';
-let lowMulti=false;
+let lowMulti=false, competition=false;
+function mapApi(action){return (competition?'/api/competition-map/':'/api/waypoints/')+action;}
 function searchPoints(){return lowMulti?site.search_waypoints_xy:site.flight_area.survey_xy;}
 let site, mode='corridor', selected=null, history=[], drag=null, previewTimer, previewVersion=0;
 const $=id=>document.getElementById(id), map=$('map');
@@ -16,7 +17,7 @@ function world(event){const p=map.createSVGPoint();p.x=event.clientX;p.y=event.c
 function snapped(v){const step=Number($('snap').value);return +(step?Math.round(v/step)*step:v).toFixed(3);}
 function svg(tag,attrs,text){const el=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value]of Object.entries(attrs))el.setAttribute(key,value);if(text!=null)el.textContent=text;map.append(el);return el;}
 function draw(){
-  const a=site.flight_area,b=a.target_bounds||a.center_bounds;
+  const a=site.flight_area,b=competition?a.center_bounds:(a.target_bounds||a.center_bounds);
   const boxValid=box=>Array.isArray(box)&&box.length===4&&box.every(Number.isFinite)&&box[0]<box[1]&&box[2]<box[3]&&Math.max(...box.map(Math.abs))<1000;
   // Keep the last map visible while a partially edited range is invalid.
   if(![b,a.center_bounds,a.search_bounds].every(boxValid))return;
@@ -55,11 +56,12 @@ function list(){
 }
 function geometry(){
   $('geometry').replaceChildren();for(const [label,key]of [['飞行边界','center_bounds'],['目标范围','target_bounds'],['搜索范围','search_bounds'],['地图尺寸 X / Y / Z','map_size']]){const lab=document.createElement('label');lab.className='geometry-row';lab.textContent=label+' / m';const input=document.createElement('input');input.value=site.flight_area[key].join(', ');input.onchange=()=>{remember();site.flight_area[key]=input.value.split(/[,，\s]+/).filter(Boolean).map(Number);render();};lab.append(input);$('geometry').append(lab);}
-  for(const [label,key]of []){const lab=document.createElement('label');lab.textContent=label+' / m';const input=document.createElement('input');input.type='number';input.step='.1';input.value=site[key];input.onchange=()=>{remember();site[key]=input.valueAsNumber;render();};lab.append(input);$('geometry').append(lab);}
+  for(const [label,key]of (competition?[['高位搜索FC AGL','high_agl'],['H接近FC AGL','landing_transit_agl'],['H识别FC AGL','landing_capture_agl']]:[])){const lab=document.createElement('label');lab.textContent=label+' / m';const input=document.createElement('input');input.type='number';input.step='.1';input.value=site[key];input.onchange=()=>{remember();site[key]=input.valueAsNumber;render();};lab.append(input);$('geometry').append(lab);}
+  if(competition){const lab=document.createElement('label');lab.className='geometry-row';lab.textContent='覆盖范围 / m';const input=document.createElement('input');input.value=site.coverage_bounds.join(', ');input.onchange=()=>{remember();site.coverage_bounds=input.value.split(/[,，\s]+/).filter(Boolean).map(Number);render();};lab.append(input);$('geometry').append(lab);}
   const g=site.corridor_geometry||{wall_axis:1,wall_coordinates:[0,-1.4],entry_waypoints:1};$('wall-axis').value=g.wall_axis;$('walls').value=g.wall_coordinates.join(', ');$('entry').value=g.entry_waypoints;
 }
 async function api(url,body){const r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});if(!r.ok){const e=await r.json();throw new Error(e.error||'读取失败');}return r;}
-function preview(){const version=++previewVersion;clearTimeout(previewTimer);$('export').disabled=true;previewTimer=setTimeout(async()=>{try{const data=await(await api('/api/waypoints/preview',{site})).json();if(version!==previewVersion)return;$('preview').textContent=data.yaml;$('validation').className=data.errors.length?'invalid':'';$('validation').replaceChildren();for(const text of data.errors.length?data.errors:['坐标检查通过，可保存到工作台']){const p=document.createElement('div');p.textContent=text;$('validation').append(p);}$('export').disabled=!!data.errors.length;}catch(e){if(version!==previewVersion)return;$('validation').className='invalid';$('validation').textContent=e.message;}},180);}
+function preview(){const version=++previewVersion;clearTimeout(previewTimer);$('export').disabled=true;previewTimer=setTimeout(async()=>{try{const data=await(await api(mapApi('preview'),{site})).json();if(version!==previewVersion)return;$('preview').textContent=data.yaml;$('validation').className=data.errors.length?'invalid':'';$('validation').replaceChildren();for(const text of data.errors.length?data.errors:['坐标检查通过，可保存到工作台']){const p=document.createElement('div');p.textContent=text;$('validation').append(p);}$('export').disabled=!!data.errors.length;}catch(e){if(version!==previewVersion)return;$('validation').className='invalid';$('validation').textContent=e.message;}},180);}
 function render(){draw();list();geometry();preview();$('undo').disabled=!history.length;$('import-status').hidden=!importName;if(importName)$('import-status').textContent='当前地图来源：'+importName+'。点击“保存并用于本组”后应用；飞行参数仍沿用工作台设置。';window.parent.postMessage({type:'waypoint-imported',name:importName},location.origin);}
 map.addEventListener('pointerdown',event=>{const target=event.target.closest('[data-kind]');if(target){selected={kind:target.dataset.kind,i:Number(target.dataset.index)};mode='select';document.querySelectorAll('[data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode==='select'));$('hint').textContent='已选中'+names[selected.kind]+'，在坐标面板输入数值微调，也可继续拖动。';drag={...selected,start:world(event),moved:false};map.setPointerCapture(event.pointerId);draw();list();return;}if(mode==='select')return;const [x,y]=world(event).map(snapped);remember();if(mode==='corridor'){site.corridor_waypoints.push({x,y,agl:Number($('default-agl').value)});selected={kind:mode,i:site.corridor_waypoints.length-1};}else if(mode==='survey'){searchPoints().push([x,y]);selected={kind:mode,i:searchPoints().length-1};}else{updatePoint(mode,0,x,y);selected={kind:mode,i:0};}render();});
 map.addEventListener('pointermove',event=>{const coords=world(event);$('cursor').textContent='X '+coords[0].toFixed(2)+' m　Y '+coords[1].toFixed(2)+' m';if(!drag)return;if(!drag.moved&&Math.hypot(coords[0]-drag.start[0],coords[1]-drag.start[1])<.02)return;if(!drag.moved){remember();drag.moved=true;}updatePoint(drag.kind,drag.i,...coords.map(snapped));draw();list();});
@@ -75,14 +77,14 @@ let importName=null,importVersion=0;
 async function importLocal(text,name){
   if(!site)throw new Error('地图尚未就绪，请稍候再导入');
   const version=++importVersion;
-  const result=await(await api('/api/waypoints/import',{text,base_site:site})).json();
+  const result=await(await api(mapApi('import'),{text,base_site:site})).json();
   if(version!==importVersion)return;
   remember();site=result.site;importName=name;selected=null;render();
   $('import-status').hidden=false;$('import-status').textContent='已从本机导入 '+name+'。航点和地图已载入，点击“保存并用于本组”后应用。'+(result.ignored_fields.length?'文件中的其他字段未作为飞行参数导入，模式和速度沿用工作台设置。':'');
   window.parent.postMessage({type:'waypoint-imported',name},location.origin);toast('已载入本机 YAML');
 }
 $('import').onchange=async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>2*1024*1024)throw new Error('配置文件不能超过 2MiB');await importLocal(await file.text(),file.name);}catch(e){toast(e.message);}event.target.value='';};
-$('download-map').onclick=async()=>{try{const data=await(await api('/api/waypoints/export',{site})).json();const url=URL.createObjectURL(new Blob([data.yaml],{type:'application/yaml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='waypoint_map.yaml';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('已导出 waypoint_map.yaml');}catch(e){toast(e.message);}};
+$('download-map').onclick=async()=>{try{const data=await(await api(mapApi('export'),{site})).json();const url=URL.createObjectURL(new Blob([data.yaml],{type:'application/yaml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='waypoint_map.yaml';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('已导出 waypoint_map.yaml');}catch(e){toast(e.message);}};
 let initialSite=null,initialImportName=null;
 $('export').onclick=()=>{if(!site)return;$('export').disabled=true;window.parent.postMessage({type:'waypoint-apply',site,import_name:importName},location.origin);};
 $('cancel-map').onclick=()=>window.parent.postMessage({type:'waypoint-cancel'},location.origin);
@@ -90,6 +92,8 @@ window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==window.parent)return;
   if(event.data?.type==='waypoint-context'){
     if(initialSite){window.parent.postMessage({type:'waypoint-context-ready'},location.origin);return;}
+    competition=event.data.context.folder==='competition';
+    if(competition){$('default-agl').max='1.8';$('entry').max='100';}
     lowMulti=event.data.context.folder==='05_low_multi';
     if(lowMulti){names.survey='低空搜索航点（1.4m）';document.querySelector('[data-mode=survey]').textContent='低空搜索航点';document.querySelector('[data-mode=staging]').hidden=true;}
     site=event.data.context.site;initialSite=structuredClone(site);importName=event.data.context.draft?.enabled!==false?event.data.context.draft?.import_name||null:null;initialImportName=importName;history=[];selected=null;render();
