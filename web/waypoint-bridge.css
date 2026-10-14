@@ -1,2 +1,18 @@
 .waypoint-entry{padding:12px 0;margin-bottom:10px;border-bottom:1px solid #cbd7df}.waypoint-open{width:100%;font-weight:600}.waypoint-entry p{margin:8px 0 0;line-height:1.7}.waypoint-dialog{width:min(1500px,96vw);height:94vh;max-width:none;max-height:none;padding:0;border:1px solid #9eb2c2;border-radius:8px;background:#edf2f5;overflow:hidden;color:#203a50}.waypoint-dialog::backdrop{background:rgba(27,46,65,.55)}.waypoint-dialog-head{height:56px;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:10px 20px;background:white;border-bottom:1px solid #cbd7df}.waypoint-dialog-note{margin:0;padding:8px 20px;font-size:12px;line-height:1.6;background:#e6f0f6}.waypoint-dialog-note.error{color:#a84032}.waypoint-dialog iframe{display:block;width:100%;height:calc(100% - 94px);border:0}.waypoint-dialog-head strong{font-size:15px}@media(max-width:650px){.waypoint-dialog{width:100vw;height:98vh;border-radius:0}.waypoint-dialog-head{padding:10px}.waypoint-dialog-note{padding:8px 10px}}
 .waypoint-entry input[type=file][hidden]{display:none!important}.waypoint-entry>button{margin-bottom:6px}
+
+/* File selection keeps filenames readable in narrow flight task cards. */
+.competition-file-current{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.competition-file-current strong{font-size:14px;overflow-wrap:anywhere;color:#173b52}
+.competition-file-current small{font-size:12px;overflow-wrap:anywhere;color:#5f7e93}
+.competition-file-current .btn{align-self:flex-start}
+.competition-file-dialog{width:min(620px,calc(100vw - 32px));max-height:80vh;box-sizing:border-box;padding:20px;border:1px solid #9ebed0;border-radius:12px;background:#f8fbfd;color:#173b52}
+.competition-file-dialog::backdrop{background:#173b5266}
+.competition-file-shortcuts,.competition-file-nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.competition-file-nav span{font-size:13px;overflow-wrap:anywhere;min-width:0;flex:1}
+.competition-file-list{max-height:45vh;overflow:auto;border-top:1px solid #cadce7}
+.competition-file-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 8px;border:0;border-bottom:1px solid #d9e6ee;background:transparent;color:#173b52;cursor:pointer}
+.competition-file-item:hover{background:#e4f1f7}
+.competition-file-item:focus-visible{outline:3px solid #338eb2;outline-offset:-3px}
+.competition-file-kind{font-size:11px;flex:0 0 44px;color:#5f7e93}
+.competition-file-name{font-size:14px;overflow-wrap:anywhere;min-width:0}

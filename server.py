@@ -1425,6 +1425,8 @@ class Handler(BaseHTTPRequestHandler):
                 if action == 'preview':return self._json(wb_competition_map.preview(body))
                 if action == 'import':return self._json(wb_competition_map.import_yaml(body))
                 if action == 'export':return self._json(wb_competition_map.export_yaml(body))
+            if route == "/api/competition/config-files":
+                return self._json(wb_config_summary.list_files(workbench, body))
             if route == "/api/competition/config-summary":
                 return self._json(workbench.competition_config_summary(body))
             if route == "/api/survey/plan":

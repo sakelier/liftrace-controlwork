@@ -842,12 +842,14 @@ function shellArgQuote(s) {
 }
 
 function groupCommandBody(g, mode, realRelease, checkConfig, speed, options) {
+  if (g.simulation && realRelease) return {body:null,note:'WSL仿真仅支持mock投递'};
   var c = state.connection || {};
   var folder = g.folder || '';
   var siteDir = c.site_dir || 'deployment/site_20260928';
   var siteConfig = (g.site_config || siteDir + '/test_area.yaml').replace(/\{site_dir\}/g, siteDir);
   var route = g.channel || 'module';
   var moduleBase = 'deployment/board_trials_4x4/' + folder;
+  var moduleEntry = g.simulation ? 'deployment/workbench_sim/start.sh full_mission' : moduleBase + '/start.sh';
   var extra = '';
   options = options || {};
   if (options.flight_settings != null) {
@@ -861,16 +863,16 @@ function groupCommandBody(g, mode, realRelease, checkConfig, speed, options) {
     }
     var field = options.competition_config == null ? g.site_config : options.competition_config;
     if (typeof field !== 'string' || !field.trim() || /[\r\n\x00]/.test(field) ||
-        (mode === 'flight' && !checkConfig && !realRelease)) return {body:null,note:'独立正赛需要场地配置，flight仅支持实投'};
+        (mode === 'flight' && !checkConfig && !realRelease && !g.simulation)) return {body:null,note:'独立正赛需要场地配置，flight仅支持实投'};
     for (var pair of [['motion-optimization',options.motion_optimization],['resume-survey',options.resume_survey],['obstacle-columns',options.obstacle_columns]]) {
       if (pair[1] != null) {
         if (['on','off'].indexOf(pair[1]) < 0) return {body:null,note:'开关仅支持on/off，省略继承YAML'};
         extra += ' --' + pair[0] + ' ' + pair[1];
       }
     }
-    return {body:'bash ' + shellArgQuote(g.entry || 'deployment/competition/start.sh') + ' ' +
-      (checkConfig ? 'preview' : mode) + ' --site-config ' + shellArgQuote(field.trim()) + extra + (checkConfig ? ' --check-config' : ''),
-      note:'所选YAML为权威；继承不传覆盖，on/off显式覆盖。先配置检查核对有效参数；测试场地成功不代表10×10正赛。'};
+    return {body:'bash ' + (g.simulation ? 'deployment/workbench_sim/start.sh competition' : shellArgQuote(g.entry || 'deployment/competition/start.sh')) + ' ' +
+      (checkConfig ? 'preview' : mode) + ' --site-config ' + shellArgQuote(field.trim()) + extra + (checkConfig ? ' --check-config' : '') + (g.simulation ? ' --scene-seed '+(g.scene_seed == null ? 11 : g.scene_seed) : ''),
+      note:g.simulation ? '独立正赛SITL：正式配置和任务策略，模拟起飞与mock投递。' : '所选YAML为权威；继承不传覆盖，on/off显式覆盖。先配置检查核对有效参数；测试场地成功不代表10×10正赛。'};
   }
   if (g.channel === 'low_observation') {
     if (['hover','forward','square'].indexOf(g.profile) < 0 || realRelease || speed != null ||
@@ -899,7 +901,7 @@ function groupCommandBody(g, mode, realRelease, checkConfig, speed, options) {
 
   // check_config 优先于 channel：后端只在“启动 ROS 节点”时才区分现场/模块入口
   if (checkConfig) {
-    return { body: 'bash ' + moduleBase + '/start.sh preview --site-config ' + shellArgQuote(siteConfig) + extra + ' --check-config',
+    return { body: 'bash ' + moduleEntry + ' preview --site-config ' + shellArgQuote(siteConfig) + extra + ' --check-config',
              note: '只做配置检查：按模块入口展开参数，不启动任何 ROS 节点' };
   }
   if (route === 'site') {
@@ -918,7 +920,7 @@ function groupCommandBody(g, mode, realRelease, checkConfig, speed, options) {
         : (folder + ' 没有 start_real.sh，不能走实投入口（后端会拒绝该组合）')
     };
   }
-  return { body: 'bash ' + moduleBase + '/start.sh ' + mode + ' --site-config ' + shellArgQuote(siteConfig) + extra,
+  return { body: 'bash ' + moduleEntry + ' ' + mode + ' --site-config ' + shellArgQuote(siteConfig) + extra,
            note: '模块入口：默认模拟投递（mock 舵机），不接 PWM' };
 }
 
@@ -1215,17 +1217,20 @@ function groupCard(g) {
   if (g.competition_options_supported) {
     var presetRow=el('div','grp-row');presetRow.appendChild(el('span','lbl','配置来源'));
     var preset=el('select','grp-choice');preset.setAttribute('data-option','competitionPreset');
-    var custom=el('option',null,'自定义路径（在下方填写）');custom.value='';preset.appendChild(custom);
+    var custom=el('option',null,'其他文件（点击下方选择文件）');custom.value='';preset.appendChild(custom);
     (g.competition_config_options || []).forEach(function(item){var option=el('option',null,item.label);option.value=item.path;preset.appendChild(option);});
     preset.value=U.competitionConfig == null ? g.site_config : U.competitionConfig;
     preset.addEventListener('change',function(){if(preset.value){U.competitionConfig=preset.value;U.geometryEnabled=false;U.geometryPlans={};U.armedOk=false;U.realConfirm='';renderGroups();}});
     presetRow.appendChild(preset);ops.appendChild(presetRow);
     var configRow = el('div','grp-row');
     configRow.appendChild(el('span','lbl','场地YAML'));
-    var field = el('input'); field.type='text'; field.setAttribute('data-option','competitionConfig');
-    field.value = U.competitionConfig == null ? g.site_config : U.competitionConfig;
-    field.addEventListener('change',function(){U.competitionConfig=field.value;U.geometryEnabled=false;U.geometryPlans={};U.armedOk=false;renderGroups();});
-    configRow.appendChild(field);ops.appendChild(configRow);
+    var currentPath=U.competitionConfig == null ? g.site_config : U.competitionConfig;
+    var fileInfo=el('div','competition-file-current');
+    fileInfo.appendChild(el('strong',null,(currentPath || '').split('/').pop() || '尚未选择'));
+    fileInfo.appendChild(el('small',null,(currentPath || '').split('/').slice(0,-1).join('/') || '工程目录'));
+    var chooseFile=el('button','btn btn-sm','选择文件');chooseFile.setAttribute('data-option','competitionConfig');chooseFile.disabled=tSessRunning();
+    chooseFile.onclick=function(){competitionFilePicker(g);};fileInfo.appendChild(chooseFile);
+    configRow.appendChild(fileInfo);ops.appendChild(configRow);
     if (U.competitionConfig === 'deployment/competition/field_20261007_validated.yaml') {
       ops.appendChild(el('div','warn-line','当前选择测试场地复现：不是正赛默认参数，不能宣称10×10比赛验收；实际高度/速度以前述文件的配置检查为准。'));
     }
