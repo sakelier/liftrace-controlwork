@@ -14,14 +14,18 @@ from wb_waypoint_validation import validate
 LOCK = threading.RLock()
 FOLDERS = {'04_corridor_landing': 'module04.yaml', '05_low_multi': 'module05.yaml', '08_full_mission': 'module08.yaml'}
 FIELDS = ('flight_area', 'corridor_waypoints', 'landing_xy', 'corridor_geometry')
-MAP_FIELDS = FIELDS + ('search_waypoints_xy',)
+MAP_FIELDS = FIELDS + ('search_waypoints_xy', 'high_agl', 'low_agl')
 READ_SOURCE = '''import json,pathlib,sys,yaml
 root=pathlib.Path(sys.argv[1]).resolve(); path=pathlib.Path(sys.argv[2])
 if not path.is_absolute():path=root/path
 path=path.resolve()
 if root not in path.parents:raise ValueError("site outside project")
 if path.stat().st_size>2*1024*1024:raise ValueError("site too large")
-print("WB_WAYPOINT_SITE="+json.dumps(yaml.safe_load(path.read_text()),ensure_ascii=True))
+site=yaml.safe_load(path.read_text())
+settings=yaml.safe_load((root/'deployment/board_trials_4x4'/sys.argv[3]/'settings.yaml').read_text())
+for key in ('low_agl','high_agl','max_agl'):
+ if key not in site and key in settings:site[key]=settings[key]
+print("WB_WAYPOINT_SITE="+json.dumps(site,ensure_ascii=True))
 '''
 
 
@@ -62,8 +66,8 @@ def context(workbench, body):
     if workbench.connection.get('state') == 'ok' and workbench.target.transport != 'local':
         encoded = base64.b64encode(READ_SOURCE.encode()).decode()
         snippet = 'import base64;exec(base64.b64decode(%r))' % encoded
-        command = '%s -c %s %s %s' % (wb_board.quote(workbench.config['connection'].get('board_python', '/usr/bin/python3')),
-                    wb_board.quote(snippet), wb_board.quote(workbench.board.root), wb_board.quote(source))
+        command = '%s -c %s %s %s %s' % (wb_board.quote(workbench.config['connection'].get('board_python', '/usr/bin/python3')),
+                    wb_board.quote(snippet), wb_board.quote(workbench.board.root), wb_board.quote(source), wb_board.quote(group['folder']))
         code, output = workbench.board.run(command, timeout=20)
         lines = [line for line in output.splitlines() if line.startswith('WB_WAYPOINT_SITE=')]
         if code or not lines: raise ValueError('无法读取所选板端现场配置；请检查路径与连接，未使用示例代替板端文件')
@@ -127,6 +131,9 @@ def save(workbench, body):
     if group['folder']=='05_low_multi' and 'search_waypoints_xy' not in (body.get('site') or {}):
         raise ValueError('任务二必须填写低空搜索XY航点')
     patch = patch_from_site(body.get('site'))
+    if group['folder']=='04_corridor_landing':
+        # The corridor-only map has no search-height editor; keep its authority.
+        patch.pop('high_agl',None);patch.pop('low_agl',None)
     import_name = body.get('import_name')
     if import_name is not None and (not isinstance(import_name,str) or len(import_name)>255 or any(c in import_name for c in '/\\\r\n')):
         raise ValueError('导入文件名不合法')

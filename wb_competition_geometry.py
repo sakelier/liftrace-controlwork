@@ -10,7 +10,7 @@ import base64
 def validate_patch(value):
     allowed = {'flight_bounds', 'search_center_bounds', 'target_bounds', 'coverage_bounds',
                'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy',
-               'high_agl', 'landing_transit_agl', 'landing_capture_agl',
+               'high_agl', 'low_agl', 'landing_transit_agl', 'landing_capture_agl',
                'corridor_speed_schedule', '_source_digest', 'map_size'}
     if not isinstance(value, dict) or not value or set(value) - allowed:
         raise ValueError('仅允许独立正赛的航点、范围、墙面和观察高度')
@@ -39,6 +39,8 @@ def validate_patch(value):
             if v is None:continue
             if not isinstance(v, dict) or set(v) != {'axis', 'wall_coordinates', 'entry_waypoints'}:raise ValueError('墙面配置仅允许轴、墙位置和入口序号')
             if type(v['axis']) is not int or v['axis'] not in (0, 1) or not isinstance(v['wall_coordinates'], list) or not v['wall_coordinates'] or not all(number(x) for x in v['wall_coordinates']) or type(v['entry_waypoints']) is not int or v['entry_waypoints'] < 1:raise ValueError('无效墙面几何')
+        elif key == 'low_agl':
+            if not number(v) or not 1.0 <= v <= 1.8:raise ValueError('低位搜索/复核高度需1.0～1.8m')
         elif not number(v) or not 0 < v <= 4:raise ValueError('无效高度：' + key)
     if '_source_digest' not in value:raise ValueError('请先读取场地 YAML')
     return json.loads(json.dumps(value, allow_nan=False))

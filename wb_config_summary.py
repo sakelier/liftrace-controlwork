@@ -34,7 +34,7 @@ def summarize(settings):
         result[name] = {'value': value, 'configured': key in values,
                         'key': (block + '.' if block else '') + key}
     geometry_keys = ('flight_bounds', 'search_center_bounds', 'target_bounds', 'coverage_bounds',
-                     'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy', 'high_agl',
+                     'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy', 'high_agl', 'low_agl',
                      'landing_transit_agl', 'landing_capture_agl', 'map_size')
     result['geometry'] = {key: settings.get(key) for key in geometry_keys}
     schedule = settings.get('corridor_speed_schedule') or {}

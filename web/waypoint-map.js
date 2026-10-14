@@ -1,5 +1,5 @@
 'use strict';
-let lowMulti=false, competition=false;
+let lowMulti=false, competition=false, searchHeightEditable=false;
 function mapApi(action){return (competition?'/api/competition-map/':'/api/waypoints/')+action;}
 function searchPoints(){return lowMulti?site.search_waypoints_xy:site.flight_area.survey_xy;}
 let site, mode='corridor', selected=null, history=[], drag=null, previewTimer, previewVersion=0;
@@ -35,7 +35,7 @@ function draw(){
   const origin=screen(0,0);svg('path',{d:`M${origin[0]-7},${origin[1]}h14 M${origin[0]},${origin[1]-7}v14`,stroke:'#3d5669','stroke-width':2});svg('text',{x:origin[0]+11,y:origin[1]+20,fill:'#405e72','font-size':12},'起飞 (0, 0)');
   for(const kind of ['survey','corridor','staging','landing'])points(kind).forEach((p,i)=>{
     const [x,y]=screen(...p);if(selected?.kind===kind&&selected.i===i)svg('circle',{cx:x,cy:y,r:20,fill:'none',stroke:colors[kind],'stroke-width':2,'stroke-opacity':.5});
-    const circle=svg('circle',{cx:x,cy:y,r:kind==='landing'?15:13,fill:kind==='survey'?'white':colors[kind],stroke:colors[kind],'stroke-width':2,'data-kind':kind,'data-index':i});circle.style.cursor='grab';
+    const circle=svg('circle',{cx:x,cy:y,r:kind==='landing'?15:13,fill:kind==='survey'?'white':colors[kind],stroke:colors[kind],'stroke-width':2,'data-kind':kind,'data-index':i});circle.style.cursor='grab';if(kind==='survey' && searchHeightEditable){const t=document.createElementNS('http://www.w3.org/2000/svg','title');const h=site[lowMulti?'low_agl':'high_agl'];t.textContent='搜索点 '+(i+1)+' · FC AGL '+(Number.isFinite(h)?h.toFixed(2)+' m':'未读取');circle.append(t);}
     svg('text',{x,y:y+4,'text-anchor':'middle',fill:kind==='survey'?colors[kind]:'white','font-size':kind==='landing'?14:12,'font-weight':600,'pointer-events':'none'},kind==='landing'?'H':kind==='staging'?'S':i+1);
   });
 }
@@ -51,18 +51,36 @@ function list(){
     if(['survey','corridor'].includes(kind))for(const [label,delta]of [['上移',-1],['下移',1],['删除',0]]){const button=document.createElement('button');button.textContent=label;button.disabled=delta!==0&&(i+delta<0||i+delta>=ps.length);button.onclick=()=>{remember();const arr=kind==='survey'?searchPoints():site.corridor_waypoints;if(delta){[arr[i],arr[i+delta]]=[arr[i+delta],arr[i]];selected={kind,i:i+delta};}else{arr.splice(i,1);selected=null;}render();};buttons.append(button);}
     top.append(buttons);row.append(top);const coords=document.createElement('div');coords.className='coords';
     for(const [label,value,index]of [['X',p[0],0],['Y',p[1],1],...(kind==='corridor'?[['AGL',site.corridor_waypoints[i].agl??1.4,2]]:[])]){const lab=document.createElement('label');lab.textContent=label+' / m';const input=document.createElement('input');input.type='number';input.step=index===2?'0.05':'0.01';input.value=value;input.setAttribute('aria-label',title.textContent+' '+label);input.oninput=()=>{if(!Number.isFinite(input.valueAsNumber))return;if(!input.dataset.editStarted){remember();input.dataset.editStarted='1';}const current=points(kind)[i];if(index===2)site.corridor_waypoints[i].agl=input.valueAsNumber;else updatePoint(kind,i,index===0?input.valueAsNumber:current[0],index===1?input.valueAsNumber:current[1]);selected={kind,i};draw();preview();document.getElementById('undo').disabled=false;};input.onblur=()=>{delete input.dataset.editStarted;};lab.append(input);coords.append(lab);}
+    if(kind==='survey' && searchHeightEditable){const altitude=document.createElement('div');altitude.className='point-search-height';const height=site[lowMulti?'low_agl':'high_agl'];altitude.textContent=Number.isFinite(height)?'搜索 AGL '+height.toFixed(2)+' m':'搜索高度尚未读取';row.append(altitude);}
     row.append(coords);$('points').append(row);
   });
 }
 function geometry(){
   $('geometry').replaceChildren();for(const [label,key]of [['飞行边界','center_bounds'],['目标范围','target_bounds'],['搜索范围','search_bounds'],['地图尺寸 X / Y / Z','map_size']]){const lab=document.createElement('label');lab.className='geometry-row';lab.textContent=label+' / m';const input=document.createElement('input');input.value=site.flight_area[key].join(', ');input.onchange=()=>{remember();site.flight_area[key]=input.value.split(/[,，\s]+/).filter(Boolean).map(Number);render();};lab.append(input);$('geometry').append(lab);}
-  for(const [label,key]of (competition?[['高位搜索FC AGL','high_agl'],['H接近FC AGL','landing_transit_agl'],['H识别FC AGL','landing_capture_agl']]:[])){const lab=document.createElement('label');lab.textContent=label+' / m';const input=document.createElement('input');input.type='number';input.step='.1';input.value=site[key];input.onchange=()=>{remember();site[key]=input.valueAsNumber;render();};lab.append(input);$('geometry').append(lab);}
+  for(const [label,key]of []){const lab=document.createElement('label');lab.textContent=label+' / m';const input=document.createElement('input');input.type='number';input.step='.1';input.value=site[key];input.onchange=()=>{remember();site[key]=input.valueAsNumber;render();};lab.append(input);$('geometry').append(lab);}
   if(competition){const lab=document.createElement('label');lab.className='geometry-row';lab.textContent='覆盖范围 / m';const input=document.createElement('input');input.value=site.coverage_bounds.join(', ');input.onchange=()=>{remember();site.coverage_bounds=input.value.split(/[,，\s]+/).filter(Boolean).map(Number);render();};lab.append(input);$('geometry').append(lab);}
   const g=site.corridor_geometry||{wall_axis:1,wall_coordinates:[0,-1.4],entry_waypoints:1};$('wall-axis').value=g.wall_axis;$('walls').value=g.wall_coordinates.join(', ');$('entry').value=g.entry_waypoints;
 }
+function searchHeights(){
+  $('search-altitude').hidden=!searchHeightEditable;
+  if(!searchHeightEditable)return;
+  $('high-height-field').hidden=lowMulti;
+  $('low-height-label').textContent=lowMulti?'低空搜索 AGL':'低位复核 AGL';
+  $('search-height-note').textContent=lowMulti?'低空搜索点共同高度':'高位航线 / 低位复核';
+  const field=(id,key)=>{const input=$(id);if(document.activeElement!==input)input.value=Number.isFinite(site[key])?site[key]:'';input.disabled=!(key in site);};
+  field('search-high-agl','high_agl');field('search-low-agl','low_agl');
+  $('search-high-agl').max=competition?Math.min(3,site.max_agl):Math.min(2.8,site.max_agl);
+  $('height-cap').textContent=Number.isFinite(site.max_agl)?'当前 FC 高度上限 '+site.max_agl.toFixed(2)+' m':'高度上限尚未读取';
+}
+for(const [id,key]of [['search-high-agl','high_agl'],['search-low-agl','low_agl']])$(id).oninput=()=>{
+  const input=$(id);
+  if(!input.dataset.editStarted){remember();input.dataset.editStarted='1';}
+  site[key]=Number.isFinite(input.valueAsNumber)?input.valueAsNumber:null;draw();list();preview();$('undo').disabled=false;
+};
+for(const id of ['search-high-agl','search-low-agl'])$(id).onblur=()=>{delete $(id).dataset.editStarted;searchHeights();};
 async function api(url,body){const r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});if(!r.ok){const e=await r.json();throw new Error(e.error||'读取失败');}return r;}
 function preview(){const version=++previewVersion;clearTimeout(previewTimer);$('export').disabled=true;previewTimer=setTimeout(async()=>{try{const data=await(await api(mapApi('preview'),{site})).json();if(version!==previewVersion)return;$('preview').textContent=data.yaml;$('validation').className=data.errors.length?'invalid':'';$('validation').replaceChildren();for(const text of data.errors.length?data.errors:['坐标检查通过，可保存到工作台']){const p=document.createElement('div');p.textContent=text;$('validation').append(p);}$('export').disabled=!!data.errors.length;}catch(e){if(version!==previewVersion)return;$('validation').className='invalid';$('validation').textContent=e.message;}},180);}
-function render(){draw();list();geometry();preview();$('undo').disabled=!history.length;$('import-status').hidden=!importName;if(importName)$('import-status').textContent='当前地图来源：'+importName+'。点击“保存并用于本组”后应用；飞行参数仍沿用工作台设置。';window.parent.postMessage({type:'waypoint-imported',name:importName},location.origin);}
+function render(){draw();list();geometry();searchHeights();preview();$('undo').disabled=!history.length;$('import-status').hidden=!importName;if(importName)$('import-status').textContent='当前地图来源：'+importName+'。点击“保存并用于本组”后应用；飞行参数仍沿用工作台设置。';window.parent.postMessage({type:'waypoint-imported',name:importName},location.origin);}
 map.addEventListener('pointerdown',event=>{const target=event.target.closest('[data-kind]');if(target){selected={kind:target.dataset.kind,i:Number(target.dataset.index)};mode='select';document.querySelectorAll('[data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode==='select'));$('hint').textContent='已选中'+names[selected.kind]+'，在坐标面板输入数值微调，也可继续拖动。';drag={...selected,start:world(event),moved:false};map.setPointerCapture(event.pointerId);draw();list();return;}if(mode==='select')return;const [x,y]=world(event).map(snapped);remember();if(mode==='corridor'){site.corridor_waypoints.push({x,y,agl:Number($('default-agl').value)});selected={kind:mode,i:site.corridor_waypoints.length-1};}else if(mode==='survey'){searchPoints().push([x,y]);selected={kind:mode,i:searchPoints().length-1};}else{updatePoint(mode,0,x,y);selected={kind:mode,i:0};}render();});
 map.addEventListener('pointermove',event=>{const coords=world(event);$('cursor').textContent='X '+coords[0].toFixed(2)+' m　Y '+coords[1].toFixed(2)+' m';if(!drag)return;if(!drag.moved&&Math.hypot(coords[0]-drag.start[0],coords[1]-drag.start[1])<.02)return;if(!drag.moved){remember();drag.moved=true;}updatePoint(drag.kind,drag.i,...coords.map(snapped));draw();list();});
 function endDrag(event){if(drag?.moved)render();else if(drag&&event.type==='pointerup'){const row=$('points').querySelector('.selected');if(row){row.scrollIntoView({block:'nearest',behavior:'instant'});const input=row.querySelector('input');input?.focus({preventScroll:true});input?.select();}}drag=null;}map.addEventListener('pointerup',endDrag);map.addEventListener('pointercancel',endDrag);
@@ -93,9 +111,10 @@ window.addEventListener('message',event=>{
   if(event.data?.type==='waypoint-context'){
     if(initialSite){window.parent.postMessage({type:'waypoint-context-ready'},location.origin);return;}
     competition=event.data.context.folder==='competition';
+    searchHeightEditable=competition || ['05_low_multi','08_full_mission'].includes(event.data.context.folder);
     if(competition){$('default-agl').max='1.8';$('entry').max='100';}
     lowMulti=event.data.context.folder==='05_low_multi';
-    if(lowMulti){names.survey='低空搜索航点（1.4m）';document.querySelector('[data-mode=survey]').textContent='低空搜索航点';document.querySelector('[data-mode=staging]').hidden=true;}
+    if(lowMulti){names.survey='低空搜索航点';document.querySelector('[data-mode=survey]').textContent='低空搜索航点';document.querySelector('[data-mode=staging]').hidden=true;}
     site=event.data.context.site;initialSite=structuredClone(site);importName=event.data.context.draft?.enabled!==false?event.data.context.draft?.import_name||null:null;initialImportName=importName;history=[];selected=null;render();
     window.parent.postMessage({type:'waypoint-context-ready'},location.origin);
   }else if(event.data?.type==='waypoint-load-local'){importLocal(event.data.text,event.data.name).catch(e=>toast(e.message));

@@ -1072,6 +1072,9 @@ function geometryFromDraft(U,g) {
     try { result.flight_area=JSON.parse(U.geometryArea); }
     catch(e) { throw Error('flight_area：JSON格式错误，请使用完整JSON对象'); }
   }
+  if(U.waypointDraftApplied && U.geometryValues){
+    ['high_agl','low_agl'].forEach(function(key){if(Object.prototype.hasOwnProperty.call(U.geometryValues,key))result[key]=U.geometryValues[key];});
+  }
   return result;
 }
 

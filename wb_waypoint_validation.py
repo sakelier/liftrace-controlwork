@@ -2,7 +2,7 @@
 import math
 import yaml
 
-ALLOWED = {'search_waypoints_xy', 'flight_area', 'search_line_x', 'compressed_image_topic', 'high_agl', 'max_agl',
+ALLOWED = {'search_waypoints_xy', 'flight_area', 'search_line_x', 'compressed_image_topic', 'high_agl', 'low_agl', 'max_agl',
            'terminal_hover_agl', 'auto_start_after_arm', 'initialization_timeout', 'obstacle_columns_enabled',
            'bag_image_hz', 'bag_image_topic', 'record_inflated_cloud', 'record_map_clouds',
            'landing_xy', 'landing_handoff_mode', 'landing_handoff_status_topic', 'landing_posctl',
@@ -56,6 +56,8 @@ def validate(site):
     elif center and (max(abs(center[0]), abs(center[1])) + .3 >= size[0]/2 or max(abs(center[2]), abs(center[3])) + .3 >= size[1]/2):
         errors.append('地图 XY 尺寸不足：需覆盖飞行边界并预留 0.30m 起飞参考偏差')
     high = site.get('high_agl')
+    low = site.get('low_agl')
+    if 'low_agl' in site and (not finite(low) or not 1.0 <= low <= 1.8):errors.append('低位搜索/复核AGL须为1.0～1.8m')
     cap = site.get('max_agl')
     if not finite(high) or not 2 <= high <= 3: errors.append('高位搜索 AGL 须为 2.0～3.0m')
     if not finite(cap) or (finite(high) and cap < high): errors.append('最大高度须不低于高位搜索高度')
