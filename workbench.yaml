@@ -229,21 +229,22 @@ groups:
     section: competition
     name: "独立正赛 · 10×10 实测场地"
     entry: "deployment/competition/start.sh"
-    site_config: "deployment/competition/field.example.yaml"
+    site_config: "deployment/competition/field_10x10_default.yaml"
     competition_config_options:
-      - {path: "deployment/competition/field.example.yaml", label: "默认比赛模板 · 10×10待实测确认"}
+      - {path: "deployment/competition/field_10x10_default.yaml", label: "默认正赛 · 用户10×10航点 · 待场地确认"}
+      - {path: "deployment/competition/field.example.yaml", label: "空白比赛模板 · 待实测填写"}
       - {path: "deployment/competition/candidates/rectangle_motion.yaml", label: "正式候选 · 四边形 · 待现场实测"}
       - {path: "deployment/competition/candidates/snake_motion.yaml", label: "正式候选 · 两线往返 · 待现场实测"}
       - {path: "deployment/competition/candidates/snake3_motion.yaml", label: "正式候选 · 三扫描线 · 待现场实测"}
       - {path: "deployment/competition/field_20261007_validated.yaml", label: "可选测试复现 · 非10×10正赛参数"}
-    plan: "默认比赛模板：FC高位2.6m、规划上限1.2m/s与1.0m/s²、搜索/接近前视1.0/0.4m、走廊前视0.6/0.4m、投递FC AGL 0.35m、FC软件限高3.2m；场地尺寸、门口、H与路线须实测确认。"
+    plan: "用户10×10航点：高位搜索2.6m、5个走廊点AGL0.9m、H中心(8.3,-3.5)、H识别0.9m；速度、投递和降落模式继承原正式配置，场地未确认。"
     ending: "依所选配置执行末段；POSCTL交接须飞手完成落地"
     release: real
     release_options: [real]
     needs_servo: true
     competition_options_supported: true
     resume_survey_supported: true
-    notes: "默认仅为未确认的正赛模板。昨晚成功轮是测试场地，不能作为10×10正赛坐标或验收；可另填测试示例路径，配置检查须展示实际有效参数。继承表示不传覆盖参数，开启/关闭显式传on/off。"
+    notes: "默认采用用户提供的10×10地图；源文件仅含几何，非几何参数补齐自原正式模板。实测与起飞坐标系需核对后确认场地；显式开关覆盖仍按原流程。"
 
   - id: site1
     key: "1"
