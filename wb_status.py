@@ -154,7 +154,7 @@ def parse_probe_line(line):
         return None
     if "master" in value and not isinstance(value["master"], bool):
         return None
-    for field in ("topics", "services", "state", "extended", "observe", "observe_status", "ros_env", "probe"):
+    for field in ("topics", "services", "state", "extended", "observe", "observe_status", "ros_env", "probe", "resources"):
         if value.get(field) is not None and not isinstance(value[field], dict):
             return None
     if any(not isinstance(info, dict) for info in (value.get("topics") or {}).values()):

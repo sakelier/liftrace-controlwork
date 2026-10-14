@@ -1650,6 +1650,63 @@ function kvRow(box, k, v, cls) {
   box.appendChild(el('div', 'v ' + (cls || ''), v === undefined || v === null || v === '' ? '—' : String(v)));
 }
 
+function resourceSection() {
+  var section=el('div','sec resource-panel');
+  section.appendChild(secHead('远端资源占用','约 1Hz · 只读'));
+  var content=el('div','sec-body');
+  section.appendChild(content);
+  var telemetry=state.telemetry||{},resource=telemetry.resources;
+  var age=telemetry.at ? nowSec()-Number(telemetry.at)+Number(resource && resource.age_seconds||0) : Infinity;
+  var connected=state.connection && state.connection.state==='ok';
+  var fresh=connected && resource && Number.isFinite(age) && age>=0 && age<=3;
+  section.classList.toggle('resource-stale',!fresh);
+  content.appendChild(el('div','tiny muted resource-note',fresh ?
+    '板端 '+((telemetry.probe||{}).host||'设备')+' · '+hhmmss(telemetry.at)+' 更新' :
+    !connected ? '未连接远端设备' : !resource ? '等待资源采样；旧探针请重启工作台后重新连接' : '资源数据已过期，请检查探针连接'));
+  var grid=el('div','kv resource-kv');content.appendChild(grid);
+  function number(value){return typeof value==='number' && Number.isFinite(value) && value>=0;}
+  function percent(value){return number(value) && value<=100 ? value.toFixed(1)+'%' : '采样中';}
+  function gb(value){return (value/1e9).toFixed(1)+'GB';}
+  function row(label,text,data){
+    var value=el('div','v',fresh ? text : '—');grid.appendChild(el('div','k',label));grid.appendChild(value);
+    if(data && data.reason)value.title=data.reason;
+    if(fresh && data && number(data.percent) && data.percent<=100){
+      var progress=document.createElement('progress');progress.max=100;progress.value=data.percent;
+      progress.setAttribute('aria-label',label+'占用 '+percent(data.percent));value.appendChild(progress);
+    }
+  }
+  function load(label,data){
+    var text=data && data.status!=='unavailable' ? percent(data.percent) : '不可读';
+    if(data && Array.isArray(data.cores) && data.cores.length && label==='NPU'){
+      text+='（均值） · '+data.cores.map(function(core){return core.name+' '+percent(core.percent);}).join(' / ');
+    }
+    row(label,text,data);
+  }
+  resource=resource||{};
+  load('CPU',resource.cpu);load('GPU',resource.gpu);load('NPU',resource.npu);
+  var memory=resource.memory||{};
+  row('内存',number(memory.used_bytes)&&number(memory.total_bytes) ?
+    gb(memory.used_bytes)+' / '+gb(memory.total_bytes)+' · '+percent(memory.percent) : '不可读',memory);
+  if(number(memory.swap_total_bytes) && memory.swap_total_bytes>0){
+    row('Swap',gb(memory.swap_used_bytes)+' / '+gb(memory.swap_total_bytes),memory);
+  }
+  var disks=Array.isArray(resource.disks)?resource.disks:[];
+  if(!disks.length)row('磁盘','不可读');
+  disks.forEach(function(disk){
+    row('磁盘 '+disk.mount,number(disk.used_bytes)&&number(disk.total_bytes) ?
+      gb(disk.used_bytes)+' / '+gb(disk.total_bytes)+' · '+percent(disk.percent) : '不可读',disk);
+  });
+  var interfaces=Array.isArray(resource.network)?resource.network:[];
+  if(!interfaces.length)row('网络带宽','无活动网卡或不可读');
+  interfaces.forEach(function(nic){
+    var text=number(nic.rx_bytes_per_sec)&&number(nic.tx_bytes_per_sec) ?
+      '接收 '+(nic.rx_bytes_per_sec*8/1e6).toFixed(2)+' Mb/s · 发送 '+(nic.tx_bytes_per_sec*8/1e6).toFixed(2)+' Mb/s' : '采样中';
+    if(number(nic.link_mbps)&&nic.link_mbps>0)text+=' / 链路 '+nic.link_mbps+' Mb/s';
+    row('网络 '+nic.name,text,nic);
+  });
+  return section;
+}
+
 function renderMonitor() {
   var body = $('#monitor-body');
   if (!body) return;
@@ -1685,7 +1742,9 @@ function renderMonitor() {
   card.appendChild(elapsed);
   body.appendChild(card);
 
-  // 启动任务按钮紧贴大状态卡
+  // 远端资源放在阶段状态卡之后、自动任务之前。
+  body.appendChild(resourceSection());
+
   body.appendChild(missionStartSection(stage));
 
   // 指标网格
@@ -1995,6 +2054,8 @@ function nowSec() { return Date.now() / 1000; }
 
 /* 每秒刷新阶段持续时间（本地时钟，不用服务端时间） */
 function tickElapsed() {
+  var resourcePanel = document.querySelector('.resource-panel');
+  if (resourcePanel) resourcePanel.replaceWith(resourceSection());
   if (probeView().usable !== state._lastProbeUsable) scheduleRender();
   var nodes = document.querySelectorAll('[data-elapsed-since]');
   for (var i = 0; i < nodes.length; i++) {

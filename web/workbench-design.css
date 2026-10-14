@@ -102,3 +102,5 @@ body.logs-page h1{font-size:28px;font-weight:650}
   .workspace-links a{white-space:normal;overflow-wrap:anywhere}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
+
+.resource-kv{grid-template-columns:76px minmax(0,1fr);gap:9px 8px}.resource-kv .v{min-width:0}.resource-kv progress{display:block;width:100%;height:5px;margin-top:4px;accent-color:var(--accent)}.resource-note{margin-bottom:10px;overflow-wrap:anywhere}.resource-stale .v{color:var(--muted)}
