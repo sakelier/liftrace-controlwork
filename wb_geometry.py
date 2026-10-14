@@ -1,6 +1,6 @@
 """Measured site overlays for existing 04/08 entries; no hardware operations."""
 import base64
-import hashlib
+from datetime import datetime, timedelta, timezone
 import json
 import math
 import shlex
@@ -93,7 +93,7 @@ with tempfile.TemporaryDirectory(prefix="workbench_geometry_") as tmp:
 if root not in dest.resolve().parents:raise ValueError("overlay path outside workspace")
 dest.parent.mkdir(parents=True,exist_ok=True)
 content=yaml.safe_dump(profile,sort_keys=False)
-if dest.exists() and dest.read_text()!=content:raise ValueError("site source changed; regenerate command with a new geometry revision")
+if dest.exists() and dest.read_text()!=content:raise ValueError("same-minute overlay exists with different content; regenerate next minute (existing file preserved)")
 if not dest.exists():
  with dest.open("x") as f:f.write(content)
 print("MEASURED_SITE_OVERLAY="+str(dest))
@@ -110,7 +110,7 @@ def overlay_command(source, folder, geometry, revision):
     if 'search_waypoints_xy' in clean and folder!='05_low_multi':raise ValueError('低空XY航点仅适用于任务二')
     if any(key in clean for key in ('high_agl','low_agl')) and folder not in ('05_low_multi','08_full_mission'):raise ValueError('搜索高度仅适用于任务二或任务08地图')
     data=json.dumps(clean,sort_keys=True,separators=(',',':'),allow_nan=False)
-    token=hashlib.sha256((source+'\n'+folder+'\n'+revision+'\n'+data).encode()).hexdigest()[:20]
+    token=datetime.now(timezone(timedelta(hours=8))).strftime('%m%d-%H%M')
     relative='logs/flight_workbench/site_overlays/'+folder+'_'+token+'.yaml'
     payload=base64.b64encode(data.encode()).decode()
     command='python3 -c '+shlex.quote(REMOTE_WRITER)+' '+shlex.quote(source)+' '+shlex.quote(relative)+' '+shlex.quote(payload)+' '+shlex.quote(folder)

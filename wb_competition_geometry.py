@@ -5,6 +5,7 @@ import json
 import math
 import shlex
 import base64
+from datetime import datetime, timedelta, timezone
 
 
 def validate_patch(value):
@@ -53,7 +54,7 @@ def overlay_command(source, geometry, revision, motion=None, columns=None, resum
         raise ValueError('请重新生成坐标命令')
     clean = validate_patch(geometry)
     data = json.dumps(clean, sort_keys=True, separators=(',', ':'), allow_nan=False)
-    token = hashlib.sha256((source + '\n' + revision + '\n' + data).encode()).hexdigest()[:20]
+    token = datetime.now(timezone(timedelta(hours=8))).strftime('%m%d-%H%M')
     relative = 'logs/flight_workbench/site_overlays/competition_' + token + '.yaml'
     script = 'import pathlib,sys,json,base64,hashlib,math,tempfile,yaml\n' + inspect.getsource(validate_patch) + '''
 root=pathlib.Path.cwd().resolve()
@@ -77,7 +78,7 @@ if settings.get('site_confirmed') and len(settings['corridor_waypoints'])>=2 and
  with tempfile.TemporaryDirectory() as tmp:generate(root,tmp,effective,(0.,0.,0.),rig)
 content=yaml.safe_dump(settings,sort_keys=False,allow_unicode=True)
 dest.parent.mkdir(parents=True,exist_ok=True)
-if dest.exists() and dest.read_text(encoding='utf-8')!=content:raise ValueError('运行配置已改变，请重新生成命令')
+if dest.exists() and dest.read_text(encoding='utf-8')!=content:raise ValueError('同一分钟的运行配置已存在且内容不同，请下一分钟重新生成命令；原配置未覆盖')
 if not dest.exists():
  with dest.open('x',encoding='utf-8') as handle:handle.write(content)
 print('COMPETITION_SITE_OVERLAY='+str(dest))
