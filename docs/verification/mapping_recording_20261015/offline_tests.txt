@@ -6,6 +6,6 @@ test_traversal_and_arbitrary_web_output_rejected (test_offline_workbench.Offline
 test_upload_stream_does_not_accept_truncated_bag (test_offline_workbench.OfflineWorkbenchTests.test_upload_stream_does_not_accept_truncated_bag) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.009s
+Ran 6 tests in 0.008s
 
 OK

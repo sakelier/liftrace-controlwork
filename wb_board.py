@@ -432,7 +432,7 @@ class BoardClient(object):
         for group in selected_groups:
             if group.get("channel") == "competition":
                 entry = self.abs_path(group.get("entry", "deployment/competition/start.sh"))
-                field = self.abs_path(group.get("site_config", "deployment/competition/field.example.yaml"))
+                field = self.abs_path(group.get("site_config", "deployment/competition/field_10x10_default.yaml"))
                 script.append('if [ -f %s ] && [ -f %s ]; then echo "COMPETITION=OK"; else echo "COMPETITION=MISSING"; fi'
                               % (quote(entry), quote(field)))
                 continue
@@ -447,7 +447,7 @@ class BoardClient(object):
                 % (folder, quote(base), quote(base), quote(base), settings))
         env_script = self.abs_path(connection.get("env_script", ""))
         site_dir = connection.get("site_dir", "deployment/site_20260928")
-        site_config = self.abs_path("deployment/competition/field.example.yaml" if competition
+        site_config = self.abs_path("deployment/competition/field_10x10_default.yaml" if competition
                                     else posixpath.join(site_dir, "test_area.yaml"))
         script.append('if [ -f %s ]; then echo "SITECFG=OK"; else echo "SITECFG=MISSING"; fi' % quote(site_config))
         if competition:

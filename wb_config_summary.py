@@ -34,7 +34,7 @@ def summarize(settings):
         result[name] = {'value': value, 'configured': key in values,
                         'key': (block + '.' if block else '') + key}
     geometry_keys = ('flight_bounds', 'search_center_bounds', 'target_bounds', 'coverage_bounds',
-                     'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy', 'high_agl',
+                     'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy', 'high_agl', 'low_agl',
                      'landing_transit_agl', 'landing_capture_agl', 'map_size')
     result['geometry'] = {key: settings.get(key) for key in geometry_keys}
     schedule = settings.get('corridor_speed_schedule') or {}
@@ -97,3 +97,59 @@ def load(workbench, body):
         if candidate.stat().st_size > 1048576:raise ValueError('YAML 最大1MiB')
         values = parse(candidate.read_text(encoding='utf-8-sig'))
     return {'ok': True, 'path': path, 'source': source, 'values': values}
+
+
+def browse_directory(root, directory):
+    """Read only immediate folders and YAML files, contained in the project."""
+    from pathlib import Path
+    root = Path(root).resolve()
+    path = (root / directory).resolve()
+    if path != root and root not in path.parents:
+        raise ValueError('只能浏览当前工程内的文件夹')
+    if not path.is_dir():
+        raise ValueError('文件夹不存在，请选择其他目录')
+    entries = []
+    for item in sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.casefold())):
+        resolved = item.resolve()
+        if resolved != root and root not in resolved.parents:
+            continue
+        if item.is_dir() or (item.is_file() and item.suffix.lower() in ('.yaml', '.yml')):
+            entries.append({'name': item.name, 'path': item.relative_to(root).as_posix(),
+                            'kind': 'folder' if item.is_dir() else 'yaml'})
+        if len(entries) >= 500:
+            break
+    relative = path.relative_to(root).as_posix()
+    parent = path.parent.relative_to(root).as_posix() if path != root else None
+    return {'directory': relative, 'parent': parent, 'entries': entries}
+
+
+def list_files(workbench, body):
+    from pathlib import Path
+    if not any(g['id'] == body.get('group_id') and g.get('channel') == 'competition'
+               for g in workbench.config.get('groups', [])):
+        raise ValueError('仅支持独立正赛配置')
+    directory = body.get('directory', 'deployment/competition')
+    if not isinstance(directory, str) or any(c in directory for c in '\r\n\x00'):
+        raise ValueError('无效文件夹')
+    if workbench.connection.get('state') == 'ok' and workbench.target.transport != 'local':
+        script = 'import json,sys\n' + inspect.getsource(browse_directory) + '\nprint(json.dumps(browse_directory(sys.argv[1],sys.argv[2]),ensure_ascii=False))'
+        command = 'python3 -c ' + shlex.quote(script) + ' ' + shlex.quote(workbench.config['connection']['board_root']) + ' ' + shlex.quote(directory)
+        code, output = workbench.board.run(command, timeout=15.)
+        if code:
+            raise ValueError('板端文件夹读取失败：' + output[-1000:])
+        try:
+            result = json.loads(output.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            raise ValueError('板端文件列表格式无效')
+        source = 'board_yaml'
+    else:
+        tool = Path(__file__).resolve().parent
+        root = tool.parents[1]
+        # Embedded workbench uses its source checkout; standalone uses bundled references.
+        if not (root / 'deployment/competition').is_dir():
+            root = tool / 'competition_templates'
+            source = 'offline_reference'
+        else:
+            source = 'pc_yaml'
+        result = browse_directory(root, directory)
+    return dict(result, ok=True, source=source)

@@ -95,3 +95,42 @@ function competitionGeometryEditor(g,u) {
   if(u.geometryEnabled){var reset=el('button','btn btn-sm','使用原现场配置');reset.disabled=tSessRunning();reset.onclick=function(){u.geometryEnabled=false;competitionChanged(u);try{localStorage.setItem('competitionDraft:'+key,JSON.stringify({geometry:u.competitionDraft,enabled:false}));}catch(e){}renderGroups();};box.appendChild(reset);}
   return box;
 }
+
+
+function competitionFilePicker(g) {
+  if(tSessRunning()){toast('warn','任务运行中不能切换配置');return;}
+  var u=groupUI(g),connectionKey=JSON.stringify(state.connection || {});
+  var dialog=el('dialog','competition-file-dialog');dialog.setAttribute('aria-label','选择场地 YAML');
+  var head=el('div','waypoint-dialog-head');head.appendChild(el('strong',null,'选择场地 YAML'));
+  var close=el('button','btn','关闭');close.onclick=function(){dialog.close();dialog.remove();};head.appendChild(close);dialog.appendChild(head);
+  var shortcuts=el('div','competition-file-shortcuts');
+  [['正赛配置','deployment/competition'],['已生成配置','logs/flight_workbench/site_overlays'],['工程目录','.']].forEach(function(pair){var b=el('button','btn btn-sm',pair[0]);b.onclick=function(){load(pair[1]);};shortcuts.appendChild(b);});dialog.appendChild(shortcuts);
+  var origin=el('p','tiny muted'),nav=el('div','competition-file-nav'),list=el('div','competition-file-list');
+  dialog.appendChild(origin);dialog.appendChild(nav);dialog.appendChild(list);document.body.appendChild(dialog);
+  dialog.addEventListener('cancel',function(){dialog.remove();});dialog.showModal();
+  var serial=0;
+  function load(directory){
+    var requestId=++serial;origin.textContent='正在读取文件夹…';list.replaceChildren();nav.replaceChildren();
+    fetch('/api/competition/config-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({group_id:g.id,directory:directory})})
+      .then(function(r){return r.json().then(function(v){if(!r.ok || !v.ok)throw Error(v.error || '文件夹读取失败');return v;});})
+      .then(function(v){if(!dialog.isConnected || requestId!==serial)return;
+        if(connectionKey!==JSON.stringify(state.connection || {}))throw Error('连接已改变，请关闭后重新选择');
+        origin.textContent=({'board_yaml':'香橙派工程文件','pc_yaml':'PC工程文件（未核对板端）','offline_reference':'随包参考文件（未核对板端）'}[v.source])+'。选择后将读取配置，执行前请配置检查。';
+        if(v.parent!==null){var up=el('button','btn btn-sm','上一级');up.onclick=function(){load(v.parent);};nav.appendChild(up);}
+        nav.appendChild(el('span',null,v.directory==='.'?'工程目录':v.directory));
+        if(!v.entries.length)list.appendChild(el('p','muted','此目录没有文件夹或 YAML 文件。'));
+        v.entries.forEach(function(item){
+          var row=el('button','competition-file-item');row.type='button';
+          row.appendChild(el('span','competition-file-kind',item.kind==='folder'?'文件夹':'YAML'));
+          row.appendChild(el('span','competition-file-name',item.name));
+          row.onclick=function(){if(item.kind==='folder')return load(item.path);
+            if(tSessRunning() || connectionKey!==JSON.stringify(state.connection || {})){toast('warn','任务或连接状态已改变，请重新选择');return;}
+            u.competitionConfig=item.path;u.geometryEnabled=false;competitionChanged(u);u.competitionReadScope=null;
+            dialog.close();dialog.remove();renderGroups();
+          };list.appendChild(row);
+        });
+      }).catch(function(e){if(dialog.isConnected && requestId===serial){origin.textContent=e.message;list.replaceChildren();}});
+  }
+  var selected=u.competitionConfig || g.site_config || '';var split=selected.lastIndexOf('/');
+  load(split>=0?selected.slice(0,split):'deployment/competition');
+}

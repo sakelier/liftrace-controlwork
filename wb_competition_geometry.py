@@ -5,12 +5,13 @@ import json
 import math
 import shlex
 import base64
+from datetime import datetime, timedelta, timezone
 
 
 def validate_patch(value):
     allowed = {'flight_bounds', 'search_center_bounds', 'target_bounds', 'coverage_bounds',
                'staging_xy', 'survey_xy', 'corridor_waypoints', 'landing_xy',
-               'high_agl', 'landing_transit_agl', 'landing_capture_agl',
+               'high_agl', 'low_agl', 'landing_transit_agl', 'landing_capture_agl',
                'corridor_speed_schedule', '_source_digest', 'map_size'}
     if not isinstance(value, dict) or not value or set(value) - allowed:
         raise ValueError('仅允许独立正赛的航点、范围、墙面和观察高度')
@@ -39,6 +40,8 @@ def validate_patch(value):
             if v is None:continue
             if not isinstance(v, dict) or set(v) != {'axis', 'wall_coordinates', 'entry_waypoints'}:raise ValueError('墙面配置仅允许轴、墙位置和入口序号')
             if type(v['axis']) is not int or v['axis'] not in (0, 1) or not isinstance(v['wall_coordinates'], list) or not v['wall_coordinates'] or not all(number(x) for x in v['wall_coordinates']) or type(v['entry_waypoints']) is not int or v['entry_waypoints'] < 1:raise ValueError('无效墙面几何')
+        elif key == 'low_agl':
+            if not number(v) or not 1.0 <= v <= 1.8:raise ValueError('低位搜索/复核高度需1.0～1.8m')
         elif not number(v) or not 0 < v <= 4:raise ValueError('无效高度：' + key)
     if '_source_digest' not in value:raise ValueError('请先读取场地 YAML')
     return json.loads(json.dumps(value, allow_nan=False))
@@ -51,7 +54,7 @@ def overlay_command(source, geometry, revision, motion=None, columns=None, resum
         raise ValueError('请重新生成坐标命令')
     clean = validate_patch(geometry)
     data = json.dumps(clean, sort_keys=True, separators=(',', ':'), allow_nan=False)
-    token = hashlib.sha256((source + '\n' + revision + '\n' + data).encode()).hexdigest()[:20]
+    token = datetime.now(timezone(timedelta(hours=8))).strftime('%m%d-%H%M')
     relative = 'logs/flight_workbench/site_overlays/competition_' + token + '.yaml'
     script = 'import pathlib,sys,json,base64,hashlib,math,tempfile,yaml\n' + inspect.getsource(validate_patch) + '''
 root=pathlib.Path.cwd().resolve()
@@ -75,7 +78,7 @@ if settings.get('site_confirmed') and len(settings['corridor_waypoints'])>=2 and
  with tempfile.TemporaryDirectory() as tmp:generate(root,tmp,effective,(0.,0.,0.),rig)
 content=yaml.safe_dump(settings,sort_keys=False,allow_unicode=True)
 dest.parent.mkdir(parents=True,exist_ok=True)
-if dest.exists() and dest.read_text(encoding='utf-8')!=content:raise ValueError('运行配置已改变，请重新生成命令')
+if dest.exists() and dest.read_text(encoding='utf-8')!=content:raise ValueError('同一分钟的运行配置已存在且内容不同，请下一分钟重新生成命令；原配置未覆盖')
 if not dest.exists():
  with dest.open('x',encoding='utf-8') as handle:handle.write(content)
 print('COMPETITION_SITE_OVERLAY='+str(dest))

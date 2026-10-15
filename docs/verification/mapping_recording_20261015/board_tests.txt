@@ -20,6 +20,6 @@ test_stop_drains_queue_deterministically (__main__.RecordingTests.test_stop_drai
 test_write_failure_never_reports_complete (__main__.RecordingTests.test_write_failure_never_reports_complete) ... ok
 
 ----------------------------------------------------------------------
-Ran 16 tests in 0.050s
+Ran 16 tests in 0.035s
 
 OK

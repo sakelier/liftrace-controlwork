@@ -16,6 +16,6 @@ test_tagged_recorder_located_before_ready_without_selecting_old_runs (test_fligh
 test_truncation_and_replacement_restart_staging (test_flight_sync.FlightSyncTests.test_truncation_and_replacement_restart_staging) ... ok
 
 ----------------------------------------------------------------------
-Ran 16 tests in 2.845s
+Ran 16 tests in 1.594s
 
 OK

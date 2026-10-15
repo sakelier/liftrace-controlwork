@@ -1,6 +1,6 @@
 """Measured site overlays for existing 04/08 entries; no hardware operations."""
 import base64
-import hashlib
+from datetime import datetime, timedelta, timezone
 import json
 import math
 import shlex
@@ -12,13 +12,15 @@ FOLDERS = tuple(set(CORRIDOR_FOLDERS + SURVEY_FOLDERS))
 
 
 def validate_geometry(value):
-    if not isinstance(value, dict) or set(value) - {'corridor_waypoints', 'landing_xy', 'corridor_geometry', 'flight_area','survey_plan','search_waypoints_xy'}:
+    if not isinstance(value, dict) or set(value) - {'corridor_waypoints', 'landing_xy', 'corridor_geometry', 'flight_area','survey_plan','search_waypoints_xy','high_agl','low_agl'}:
         raise ValueError('只允许走廊航点、H坐标、墙面几何与flight_area；不修改速度或飞行模式')
     def number(v):
         return type(v) in (int, float) and math.isfinite(v)
     def vector(v, n):
         return isinstance(v, list) and len(v) == n and all(number(x) for x in v)
     if not value:raise ValueError('场地坐标不能为空')
+    for key, lo, hi in (('high_agl',2.0,2.8),('low_agl',1.0,1.8)):
+        if key in value and (not number(value[key]) or not lo <= value[key] <= hi):raise ValueError(key+' 高度超出允许范围')
     points = value.get('corridor_waypoints')
     has_corridor = 'corridor_waypoints' in value or 'landing_xy' in value
     if has_corridor and (not isinstance(points, list) or not 2 <= len(points) <= 100):
@@ -91,7 +93,7 @@ with tempfile.TemporaryDirectory(prefix="workbench_geometry_") as tmp:
 if root not in dest.resolve().parents:raise ValueError("overlay path outside workspace")
 dest.parent.mkdir(parents=True,exist_ok=True)
 content=yaml.safe_dump(profile,sort_keys=False)
-if dest.exists() and dest.read_text()!=content:raise ValueError("site source changed; regenerate command with a new geometry revision")
+if dest.exists() and dest.read_text()!=content:raise ValueError("same-minute overlay exists with different content; regenerate next minute (existing file preserved)")
 if not dest.exists():
  with dest.open("x") as f:f.write(content)
 print("MEASURED_SITE_OVERLAY="+str(dest))
@@ -106,8 +108,9 @@ def overlay_command(source, folder, geometry, revision):
     if 'survey_plan' in clean and folder not in SURVEY_FOLDERS:raise ValueError('该组没有高位搜索阶段')
     if any(k in clean for k in ('landing_xy','corridor_waypoints','corridor_geometry')) and folder not in CORRIDOR_FOLDERS:raise ValueError('该组不使用走廊/H航点')
     if 'search_waypoints_xy' in clean and folder!='05_low_multi':raise ValueError('低空XY航点仅适用于任务二')
+    if any(key in clean for key in ('high_agl','low_agl')) and folder not in ('05_low_multi','08_full_mission'):raise ValueError('搜索高度仅适用于任务二或任务08地图')
     data=json.dumps(clean,sort_keys=True,separators=(',',':'),allow_nan=False)
-    token=hashlib.sha256((source+'\n'+folder+'\n'+revision+'\n'+data).encode()).hexdigest()[:20]
+    token=datetime.now(timezone(timedelta(hours=8))).strftime('%m%d-%H%M')
     relative='logs/flight_workbench/site_overlays/'+folder+'_'+token+'.yaml'
     payload=base64.b64encode(data.encode()).decode()
     command='python3 -c '+shlex.quote(REMOTE_WRITER)+' '+shlex.quote(source)+' '+shlex.quote(relative)+' '+shlex.quote(payload)+' '+shlex.quote(folder)

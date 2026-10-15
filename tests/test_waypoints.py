@@ -61,7 +61,7 @@ class WaypointTests(unittest.TestCase):
 
     def test_preserves_other_business_and_builds_the_actual_start_overlay(self):
         data = self.save()
-        self.assertEqual(set(data['patch']),set(waypoints.FIELDS))
+        self.assertEqual(set(data['patch']),set(waypoints.FIELDS)|{'high_agl','low_agl'})
         group = next(g for g in self.wb.config['groups'] if g['id']=='mod08')
         for mode,check in [('preview',True),('preview',False),('flight',False)]:
             command,_ = wb_board.build_group_command(self.wb.config,group,mode,route='module',check_config=check,
@@ -124,10 +124,10 @@ class WaypointTests(unittest.TestCase):
 
     def test_import_ignores_other_flight_parameters(self):
         base=waypoints.context(self.wb,{'group_id':'mod08'})['site']
-        result=waypoints.import_yaml({'text':yaml.safe_dump({'landing_xy':[8,-3.4],'high_agl':3,'drop_descent_mode':4}),'base_site':base})
-        self.assertEqual(result['site']['high_agl'],base['high_agl'])
+        result=waypoints.import_yaml({'text':yaml.safe_dump({'landing_xy':[8,-3.4],'high_agl':2.2,'drop_descent_mode':4}),'base_site':base})
+        self.assertEqual(result['site']['high_agl'],2.2)
         self.assertNotIn('drop_descent_mode',result['site'])
-        self.assertEqual(set(result['ignored_fields']),{'high_agl','drop_descent_mode'})
+        self.assertEqual(set(result['ignored_fields']),{'drop_descent_mode'})
 
     def test_invalid_import_is_not_saved(self):
         base=waypoints.context(self.wb,{'group_id':'mod08'})['site']

@@ -79,3 +79,5 @@ corridor_geometry:
   - 0.0
   - -1.4
   entry_waypoints: 1
+
+low_agl: 1.4

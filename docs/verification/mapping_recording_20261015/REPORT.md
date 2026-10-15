@@ -45,3 +45,8 @@ python3 patrol_uav_ws-patrol_planner/src/uav_mission/test/test_freedom_recording
 遵照用户要求未编译或部署。2026-10-15 用户已授权源码和文档提交、推送到 WorkBench 及板端 liftrace_board_trial_20260928 分支；这不代表完成板端部署或实机验收。未运行 ROS1 原生 Bag 写入、真实 LZ4、板端话题连通、Orange Pi 5 Plus 实时吞吐/CPU/磁盘性能，以及实机飞行。真实微型 bag 的测试使用 PC 已有 rosbags 库，不替代板端运行验收。
 
 后续应先审核并配套升级板端和工作台，在地面只读回放/数据源下核对实际话题、分卷封闭、断开后的状态及空间阈值，再单独授权飞行验收。保留原件见各仓 `logs/mapping_feature_20261015/before/`。
+
+
+## 同期远端更新合并
+
+首次推送遇到并发远端更新，取回板端 32a15f48 和工作台 e12fca3 后合并。保留远端新增的默认 10×10 场地、地图高度、配置命名、文件选择及任务参数编辑功能；run_trial.py 和 server.py 自动合并，板端变更台账的追加段冲突保留双方完整记录。合并后重跑本功能的 60 项 Python 离线回归和前端检查，不编译、不部署、不改变远端新增业务。

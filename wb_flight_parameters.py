@@ -5,7 +5,7 @@ import wb_board
 from wb_flight_settings import DROP_FOLDERS, H_FOLDERS
 
 READ_SOURCE = r'''
-def read_current_files(root, source, folder, speed_profile=None, geometry=None):
+def read_current_files(root, source, folder, speed_profile=None, geometry=None, task_fields=None):
     import copy, pathlib, sys, yaml
     root=pathlib.Path(root).resolve();sources=[];labels={};warnings=[]
     def load(relative):
@@ -43,6 +43,17 @@ def read_current_files(root, source, folder, speed_profile=None, geometry=None):
             if key in geometry:
                 settings[key]=(dict(settings.get(key,{}) or {},**geometry[key]) if key in ('flight_area','corridor_speed_schedule') and geometry[key] is not None else copy.deepcopy(geometry[key]))
                 labels[key]='本机地图坐标草稿'
+    if task_fields is not None:
+        values={};origins={}
+        for field in task_fields:
+            parts=field['key'].split('.');value=settings
+            for part in parts:
+                value=value.get(part) if isinstance(value,dict) else None
+            if value is None:
+                value=field['default'];origin='当前生成器默认值' if value is not None else '未在配置中设置'
+            else:origin=labels.get(parts[0],'配置文件')
+            values[field['key']]=value;origins[field['key']]=origin
+        return dict(values=values,origins=origins,sources=sources,warnings=[],description='所选配置叠加现场文件与速度档后的值；不代表运行中的ROS参数。',details={'navigation_lead':'当前生成策略固定巡航前视1.0m、其他前视0.6m；此页不提供无效的前视编辑。'})
     values={};origins={}
     def put(key,value,default='机载代码默认'):
         values[key]=value;origins[key]=labels.get(key,default)
@@ -103,7 +114,7 @@ def read(workbench, body):
         else:
             import wb_geometry
             geometry=wb_geometry.validate_geometry(geometry)
-    request=dict(root=workbench.board.root,source=source,folder=folder,speed_profile=speed,geometry=geometry)
+    request=dict(root=workbench.board.root,source=source,folder=folder,speed_profile=speed,geometry=geometry,task_fields=body.get('task_fields'))
     script=READ_SOURCE+'\nimport json\nrequest='+repr(request)+'\nprint("WB_FLIGHT_PARAMETERS="+json.dumps(read_current_files(**request),ensure_ascii=True))\n'
     snippet='import base64;exec(base64.b64decode(%r))'%base64.b64encode(script.encode()).decode()
     command='%s -c %s'%(wb_board.quote(workbench.config['connection'].get('board_python','/usr/bin/python3')),wb_board.quote(snippet))

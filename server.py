@@ -39,6 +39,7 @@ import wb_replay
 import wb_waypoints
 import wb_flight_sync
 import wb_flight_parameters
+import wb_task_parameters
 import wb_servo_debug
 from wb_ssh import SessionManager, Target, run_once
 
@@ -1464,10 +1465,17 @@ class Handler(BaseHTTPRequestHandler):
                 if action == 'preview':return self._json(wb_competition_map.preview(body))
                 if action == 'import':return self._json(wb_competition_map.import_yaml(body))
                 if action == 'export':return self._json(wb_competition_map.export_yaml(body))
+            if route == "/api/competition/config-files":
+                return self._json(wb_config_summary.list_files(workbench, body))
             if route == "/api/competition/config-summary":
                 return self._json(workbench.competition_config_summary(body))
             if route == "/api/survey/plan":
                 return self._json({"ok": True, "plan": wb_survey.plan(body)})
+            if route == '/api/task-parameters/schema':
+                return self._json(wb_task_parameters.schema(workbench,body))
+            if route == '/api/task-parameters/current':
+                self._same_origin()
+                return self._json(wb_task_parameters.current(workbench,body))
             if route == '/api/flight-settings/current':
                 self._same_origin()
                 return self._json(wb_flight_parameters.read(workbench,body))

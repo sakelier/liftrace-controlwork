@@ -16,7 +16,7 @@ def to_site(patch, max_agl):
                 corridor_waypoints=p['corridor_waypoints'], landing_xy=p['landing_xy'],
                 corridor_geometry=(dict(wall_axis=walls['axis'],wall_coordinates=walls['wall_coordinates'],
                 entry_waypoints=walls['entry_waypoints']) if walls else None),
-                high_agl=p['high_agl'], max_agl=max_agl,
+                high_agl=p['high_agl'], low_agl=p.get('low_agl'), max_agl=max_agl,
                 landing_transit_agl=p['landing_transit_agl'],landing_capture_agl=p['landing_capture_agl'],
                 coverage_bounds=p['coverage_bounds'],_competition_geometry=p)
 
@@ -24,7 +24,7 @@ def to_site(patch, max_agl):
 def to_patch(site, complete=True):
     if not isinstance(site, dict) or not isinstance(site.get('_competition_geometry'),dict):
         raise ValueError('请从独立正赛卡片打开地图')
-    allowed={'flight_area','corridor_waypoints','landing_xy','corridor_geometry','high_agl','max_agl',
+    allowed={'flight_area','corridor_waypoints','landing_xy','corridor_geometry','high_agl','low_agl','max_agl',
              'landing_transit_agl','landing_capture_agl','coverage_bounds','_competition_geometry'}
     if set(site)-allowed:raise ValueError('地图中含不支持的字段')
     p=copy.deepcopy(site['_competition_geometry']);area=site['flight_area']
@@ -33,6 +33,7 @@ def to_patch(site, complete=True):
         p[dst]=copy.deepcopy(area[src])
     for key in ('corridor_waypoints','landing_xy','high_agl','landing_transit_agl','landing_capture_agl','coverage_bounds'):
         p[key]=copy.deepcopy(site[key])
+    if 'low_agl' in site:p['low_agl']=site['low_agl']
     walls=site.get('corridor_geometry')
     p['corridor_speed_schedule']=(dict(axis=walls['wall_axis'],wall_coordinates=walls['wall_coordinates'],entry_waypoints=walls['entry_waypoints']) if walls else None)
     p=wb_competition_geometry.validate_patch(p)

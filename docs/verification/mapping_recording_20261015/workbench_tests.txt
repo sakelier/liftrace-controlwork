@@ -22,6 +22,6 @@ test_big_endian_double_row_padding_and_nan (test_mapping.PcdTests.test_big_endia
 test_real_ros1_bag_exports_last_static_map (test_mapping.PcdTests.test_real_ros1_bag_exports_last_static_map) ... ok
 
 ----------------------------------------------------------------------
-Ran 22 tests in 2.311s
+Ran 22 tests in 1.374s
 
 OK

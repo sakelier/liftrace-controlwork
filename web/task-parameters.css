@@ -1,0 +1,20 @@
+/* Flight operations palette: navy #173b52, teal #247c9f, ice #edf4f8,
+   white #ffffff, border #cad8e3. Existing workbench typeface stays authoritative. */
+.task-parameters-open{margin-left:8px}
+.task-parameters-dialog{width:min(980px,calc(100vw - 28px));max-height:90vh;box-sizing:border-box;overflow:auto;padding:0 24px 20px;border:1px solid #9ebed0;border-radius:12px;background:#fff;color:#173b52}
+.task-parameters-dialog::backdrop{background:#173b5280}
+.task-parameters-head{display:flex;justify-content:space-between;gap:20px;align-items:center;position:sticky;top:0;background:#fff;z-index:2;padding:20px 0 12px;border-bottom:1px solid #cad8e3}
+.task-parameters-head h2{margin:0;font-size:22px}.task-parameters-head p{margin:6px 0 0;font-size:13px}
+.task-parameters-intro{font-size:14px;line-height:1.7;max-width:70ch}
+.task-parameters-tools{display:flex;gap:12px;flex-wrap:wrap}.task-parameters-tools input{flex:1;min-width:160px;border:1px solid #cad8e3;border-radius:6px;padding:10px;font:inherit}
+.task-parameters-nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.task-parameters-sections section{scroll-margin-top:95px}.task-parameters-sections h3{font-size:17px;padding:10px 0;border-bottom:2px solid #247c9f;margin:22px 0 0}
+.task-parameter-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,240px);column-gap:24px;row-gap:5px;padding:15px 0;border-bottom:1px solid #dce7ed}
+.task-parameter-row[hidden],.task-parameters-sections section[hidden]{display:none}
+.task-parameter-row label{display:flex;flex-direction:column;gap:6px}.task-parameter-row strong{font-size:14px}.task-parameter-row label small{font-size:11px;overflow-wrap:anywhere}
+.task-parameter-control{display:flex;gap:8px;align-items:center}.task-parameter-control input,.task-parameter-control select{min-width:0;width:100%;box-sizing:border-box;border:1px solid #cad8e3;border-radius:5px;padding:9px;font:inherit;background:#f8fbfd}
+.task-parameter-unit{width:35px;flex-shrink:0;font-size:12px;color:#60798a}.task-parameter-hint{grid-column:2;font-size:11px;color:#247c9f;overflow-wrap:anywhere}.task-parameter-help{grid-column:1;font-size:12px;color:#60798a;line-height:1.6}
+.task-parameters-source{margin:20px 0}.task-parameters-source summary{cursor:pointer;font-size:13px}
+.task-parameters-footer{position:sticky;bottom:-20px;background:#edf4f8;border-top:1px solid #cad8e3;margin:16px -24px -20px;padding:14px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;z-index:2}.task-parameters-footer .err-line{flex-basis:100%;margin:0}.task-parameters-footer .muted{margin-right:auto;font-size:12px}
+.task-parameters-dialog button:focus-visible,.task-parameters-dialog input:focus-visible,.task-parameters-dialog select:focus-visible{outline:3px solid #338eb2;outline-offset:2px}
+@media(max-width:640px){.task-parameters-dialog{padding:0 16px 16px}.task-parameter-row{grid-template-columns:1fr;gap:8px}.task-parameter-hint,.task-parameter-help{grid-column:1}.task-parameters-footer{margin:16px -16px -16px;bottom:-16px;padding:12px 16px}.task-parameters-tools{flex-direction:column}.task-parameters-head h2{font-size:19px}}

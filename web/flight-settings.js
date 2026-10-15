@@ -4,8 +4,8 @@
  const dropFolders=['01_visual_interrupt','02_high_view_revisit','05_low_multi','06_high_priority','08_full_mission'];
  const hFolders=['03_h_landing','04_corridor_landing','05_low_multi','08_full_mission'];
  function supported(g){return g.channel==='competition'||g.channel==='module'&&(dropFolders.includes(g.folder)||hFolders.includes(g.folder));}
- function scope(g){const c=state.connection||{};return 'flight-settings:'+JSON.stringify([c.host,c.board_root,c.site_dir,g.id,g.site_config]);}
- function restore(g,U){if(!supported(g))return;const key=scope(g);if(U.flightScope===key)return;U.flightScope=key;U.flightSettings=null;U.flightCurrentRead=null;U.geometryPlans={};try{U.flightSettings=JSON.parse(localStorage.getItem(key))||null;}catch(e){U.flightStorageError=e.message;}}
+ function scope(g){const c=state.connection||{},u=state.tabs[g.id]||{};return 'flight-settings:'+JSON.stringify([c.host,c.board_root,c.site_dir,g.id,g.site_config,g.channel==='competition'?(u.competitionConfig||g.site_config):null,u.speedProfile||null]);}
+ function restore(g,U){if(!supported(g))return;const key=scope(g);if(U.flightScope===key)return;U.flightScope=key;U.flightSettings=null;U.flightCurrentRead=null;U.geometryPlans={};try{const c=state.connection||{},legacy='flight-settings:'+JSON.stringify([c.host,c.board_root,c.site_dir,g.id,g.site_config]);let stored=localStorage.getItem(key);if(!stored && localStorage.getItem(legacy)){stored=localStorage.getItem(legacy);localStorage.setItem(key,stored);localStorage.removeItem(legacy);}U.flightSettings=JSON.parse(stored)||null;}catch(e){U.flightStorageError=e.message;}}
  function readBody(g,U){return {group_id:g.id,...(g.channel==='competition'&&U.competitionConfig!=null?{competition_config:U.competitionConfig}:{}),...(U.speedProfile?{speed_profile:U.speedProfile}:{}),...(U.geometryEnabled&&U.geometryValues?{site_geometry:U.geometryValues}:{})};}
  function lookup(object,key){return key.split('.').reduce((v,k)=>v==null?undefined:v[k],object);}
  async function generate(g,U,status){
@@ -27,6 +27,7 @@
  function button(g,U){
   const wrap=document.createElement('div');wrap.className='waypoint-entry';
   const edit=document.createElement('button');edit.className='btn btn-sm';edit.textContent='投递 / H 降落参数';edit.disabled=tSessRunning();edit.onclick=()=>open(g,U);wrap.append(edit);
+  if(window.TaskParameters && TaskParameters.supported(g))wrap.append(TaskParameters.button(g,U));
   const status=document.createElement('p');status.className='tiny muted';status.textContent=U.flightSettings?'已启用飞行参数覆盖；需要生成完整命令并执行配置检查。':'继承当前工程参数；可在飞行前设置模式、高度及允许范围。';wrap.append(status);
   if(U.flightCurrentRead&&U.flightCurrentRead.request===JSON.stringify(readBody(g,U))){
    const v=U.flightCurrentRead.values, current=document.createElement('p');current.className='flight-current-summary';
@@ -107,7 +108,7 @@
    try{
     if(loading)throw Error('正在读取参数，请稍候');
     if(tSessRunning())throw Error('任务运行中不能修改参数');
-    const patch={};Object.entries(fields).forEach(([key,input])=>{
+    const patch=JSON.parse(JSON.stringify(old));Object.keys(fields).forEach(key=>{const p=key.split('.');if(p.length===1)delete patch[key];else if(patch[p[0]]){delete patch[p[0]][p[1]];if(!Object.keys(patch[p[0]]).length)delete patch[p[0]];}});Object.entries(fields).forEach(([key,input])=>{
      if(!input.value.trim())return;
      const path=key.split('.');let value;
      if(key==='landing_xy'){value=input.value.trim().split(/[\s,，]+/).map(Number);if(value.length!==2||!value.every(Number.isFinite))throw Error('H中心需填写两个有限XY数值');}
@@ -134,5 +135,5 @@
   const close=document.createElement('button');close.className='btn';close.textContent='关闭';close.onclick=()=>{dialog.close();dialog.remove();};dialog.append(save,close);document.body.append(dialog);dialog.showModal();dialog.addEventListener('cancel',()=>dialog.remove());
   loadValues();
  }
- window.FlightSettings={supported,restore,button};
+ window.FlightSettings={supported,restore,button,scope,readBody,generate};
 })();
