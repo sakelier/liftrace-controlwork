@@ -16,7 +16,7 @@ def to_site(patch, max_agl):
                 corridor_waypoints=p['corridor_waypoints'], landing_xy=p['landing_xy'],
                 corridor_geometry=(dict(wall_axis=walls['axis'],wall_coordinates=walls['wall_coordinates'],
                 entry_waypoints=walls['entry_waypoints']) if walls else None),
-                high_agl=p['high_agl'], low_agl=p.get('low_agl'), max_agl=max_agl,
+                high_agl=p['high_agl'], low_agl=p.get('low_agl'), max_agl=p.get('max_agl',max_agl),
                 landing_transit_agl=p['landing_transit_agl'],landing_capture_agl=p['landing_capture_agl'],
                 coverage_bounds=p['coverage_bounds'],_competition_geometry=p)
 
@@ -31,7 +31,7 @@ def to_patch(site, complete=True):
     for src,dst in (('center_bounds','flight_bounds'),('target_bounds','target_bounds'),('search_bounds','search_center_bounds'),
                     ('staging_xy','staging_xy'),('survey_xy','survey_xy'),('map_size','map_size')):
         p[dst]=copy.deepcopy(area[src])
-    for key in ('corridor_waypoints','landing_xy','high_agl','landing_transit_agl','landing_capture_agl','coverage_bounds'):
+    for key in ('corridor_waypoints','landing_xy','high_agl','max_agl','landing_transit_agl','landing_capture_agl','coverage_bounds'):
         p[key]=copy.deepcopy(site[key])
     if 'low_agl' in site:p['low_agl']=site['low_agl']
     walls=site.get('corridor_geometry')
@@ -99,7 +99,7 @@ def import_yaml(body):
         update['corridor_speed_schedule']={k:schedule.get(k,1 if k=='entry_waypoints' else None)
             for k in ('axis','wall_coordinates','entry_waypoints')}
     p.update(update);p=wb_competition_geometry.validate_patch(p)
-    site=to_site(p,base['max_agl']);to_patch(site)
+    site=to_site(p,p.get('max_agl',base['max_agl']));to_patch(site)
     return dict(ok=True,site=site,ignored_fields=[k for k in raw if k not in keys])
 
 

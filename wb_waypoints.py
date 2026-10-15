@@ -14,7 +14,7 @@ from wb_waypoint_validation import validate
 LOCK = threading.RLock()
 FOLDERS = {'04_corridor_landing': 'module04.yaml', '05_low_multi': 'module05.yaml', '08_full_mission': 'module08.yaml'}
 FIELDS = ('flight_area', 'corridor_waypoints', 'landing_xy', 'corridor_geometry')
-MAP_FIELDS = FIELDS + ('search_waypoints_xy', 'high_agl', 'low_agl')
+MAP_FIELDS = FIELDS + ('search_waypoints_xy', 'high_agl', 'low_agl', 'max_agl')
 READ_SOURCE = '''import json,pathlib,sys,yaml
 root=pathlib.Path(sys.argv[1]).resolve(); path=pathlib.Path(sys.argv[2])
 if not path.is_absolute():path=root/path

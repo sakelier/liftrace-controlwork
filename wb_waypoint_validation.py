@@ -59,6 +59,7 @@ def validate(site):
     low = site.get('low_agl')
     if 'low_agl' in site and (not finite(low) or not 1.0 <= low <= 1.8):errors.append('低位搜索/复核AGL须为1.0～1.8m')
     cap = site.get('max_agl')
+    if finite(cap) and not 2.0 <= cap <= 3.2: errors.append('最大高度须为2.0～3.2m，具体任务仍须通过板端校验')
     if not finite(high) or not 2 <= high <= 3: errors.append('高位搜索 AGL 须为 2.0～3.0m')
     if not finite(cap) or (finite(high) and cap < high): errors.append('最大高度须不低于高位搜索高度')
     if isinstance(size, list) and len(size) == 3 and all(finite(v) for v in size) and finite(cap) and size[2] <= cap + .1:

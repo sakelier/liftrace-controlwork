@@ -12,14 +12,14 @@ FOLDERS = tuple(set(CORRIDOR_FOLDERS + SURVEY_FOLDERS))
 
 
 def validate_geometry(value):
-    if not isinstance(value, dict) or set(value) - {'corridor_waypoints', 'landing_xy', 'corridor_geometry', 'flight_area','survey_plan','search_waypoints_xy','high_agl','low_agl'}:
+    if not isinstance(value, dict) or set(value) - {'corridor_waypoints', 'landing_xy', 'corridor_geometry', 'flight_area','survey_plan','search_waypoints_xy','high_agl','low_agl','max_agl'}:
         raise ValueError('只允许走廊航点、H坐标、墙面几何与flight_area；不修改速度或飞行模式')
     def number(v):
         return type(v) in (int, float) and math.isfinite(v)
     def vector(v, n):
         return isinstance(v, list) and len(v) == n and all(number(x) for x in v)
     if not value:raise ValueError('场地坐标不能为空')
-    for key, lo, hi in (('high_agl',2.0,2.8),('low_agl',1.0,1.8)):
+    for key, lo, hi in (('high_agl',2.0,2.8),('low_agl',1.0,1.8),('max_agl',2.0,3.5)):
         if key in value and (not number(value[key]) or not lo <= value[key] <= hi):raise ValueError(key+' 高度超出允许范围')
     points = value.get('corridor_waypoints')
     has_corridor = 'corridor_waypoints' in value or 'landing_xy' in value

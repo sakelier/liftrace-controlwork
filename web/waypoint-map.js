@@ -60,6 +60,10 @@ function geometry(){
   for(const [label,key]of (competition?[['H接近FC AGL','landing_transit_agl'],['H识别FC AGL','landing_capture_agl']]:[])){const lab=document.createElement('label');lab.textContent=label+' / m';const input=document.createElement('input');input.type='number';input.step='.1';input.value=site[key];input.onchange=()=>{remember();site[key]=input.valueAsNumber;render();};lab.append(input);$('geometry').append(lab);}
   if(competition){const lab=document.createElement('label');lab.className='geometry-row';lab.textContent='覆盖范围 / m';const input=document.createElement('input');input.value=site.coverage_bounds.join(', ');input.onchange=()=>{remember();site.coverage_bounds=input.value.split(/[,，\s]+/).filter(Boolean).map(Number);render();};lab.append(input);$('geometry').append(lab);}
   const g=site.corridor_geometry||{wall_axis:1,wall_coordinates:[0,-1.4],entry_waypoints:1};$('wall-axis').value=g.wall_axis;$('walls').value=g.wall_coordinates.join(', ');$('entry').value=g.entry_waypoints;
+  const capLabel=document.createElement('label');capLabel.className='geometry-row';capLabel.textContent='最大高度 max_agl / m';
+  const cap=document.createElement('input');cap.id='max-agl';cap.setAttribute('aria-label','最大高度 max_agl');cap.type='number';cap.min='2';cap.max=competition?'3.5':'3.2';cap.step='0.1';cap.value=Number.isFinite(site.max_agl)?site.max_agl:'';
+  cap.onchange=()=>{remember();site.max_agl=Number.isFinite(cap.valueAsNumber)?cap.valueAsNumber:null;render();};capLabel.append(cap);$('geometry').append(capLabel);
+  const capHelp=document.createElement('p');capHelp.className='small';capHelp.textContent='高度上限不会改变搜索高度；须不低于高位搜索 AGL，并为地图 Z 留出余量。修改后点击“保存并用于本组”。';$('geometry').append(capHelp);
 }
 function searchHeights(){
   $('search-altitude').hidden=!searchHeightEditable;

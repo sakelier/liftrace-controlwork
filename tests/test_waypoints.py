@@ -61,7 +61,7 @@ class WaypointTests(unittest.TestCase):
 
     def test_preserves_other_business_and_builds_the_actual_start_overlay(self):
         data = self.save()
-        self.assertEqual(set(data['patch']),set(waypoints.FIELDS)|{'high_agl','low_agl'})
+        self.assertEqual(set(data['patch']),set(waypoints.FIELDS)|{'high_agl','low_agl','max_agl'})
         group = next(g for g in self.wb.config['groups'] if g['id']=='mod08')
         for mode,check in [('preview',True),('preview',False),('flight',False)]:
             command,_ = wb_board.build_group_command(self.wb.config,group,mode,route='module',check_config=check,
