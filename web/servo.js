@@ -47,7 +47,7 @@ async function action(name,body={}){
 }
 for(let i=0;i<3;i++){
  const card=document.createElement('section');card.className='servo-card';
- card.innerHTML='<h2>'+['1 · 后仓','2 · 右仓','3 · 左仓'][i]+'</h2><p class="actual">尚未读取实际状态</p><input type="range" min="0.5" max="2.5" step="0.01" value="1.5" aria-label="'+(i+1)+'号脉宽滑块"><label>脉宽 <input type="number" min="0.5" max="2.5" step="0.01" value="1.5" aria-label="'+(i+1)+'号脉宽毫秒"> ms</label><label><input type="checkbox" class="hold">保持输出</label><div><button class="send" disabled>发送到该舵机</button><button class="initial" disabled>填入归位值</button><button class="release" disabled>填入释放值</button></div>';
+ card.innerHTML='<h2>'+['1 · 后仓','2 · 右仓','3 · 左仓'][i]+'</h2><p class="actual">尚未读取实际状态</p><input type="range" min="0.5" max="2.5" step="0.01" value="1.5" aria-label="'+(i+1)+'号脉宽滑块"><label>脉宽 <input type="number" min="0.5" max="2.5" step="0.01" value="1.5" aria-label="'+(i+1)+'号脉宽毫秒"> ms</label><p>持续输出：发送后保持当前 PWM，需主动关闭输出或退出调试。</p><div><button class="send" disabled>发送到该舵机</button><button class="initial" disabled>填入归位值</button><button class="release" disabled>填入释放值</button></div>';
  document.querySelector('#channels').append(card);
  const range=card.querySelector('input[type=range]'),number=card.querySelector('input[type=number]');
  const row={actual:card.querySelector('.actual'),send:card.querySelector('.send'),initial:card.querySelector('.initial'),release:card.querySelector('.release')};rows.push(row);
@@ -60,9 +60,8 @@ for(let i=0;i<3;i++){
   if(row.send.disabled)return;
   const ms=Number(number.value);
   if(!Number.isFinite(ms)||ms<.5||ms>2.5){resultBox.textContent='脉宽须在0.5～2.5 ms之间';return;}
-  const hold=card.querySelector('.hold').checked;
-  if(!window.confirm('实际操作'+(i+1)+'号舵机：'+ms+' ms，'+(hold?'保持输出直到手动关闭':'输出约0.3秒后关闭')+'。确认执行？'))return;
-  action('set',{slot:i+1,duty_cycle_ns:Math.round(ms*1e6),hold});
+  if(!window.confirm('实际操作'+(i+1)+'号舵机：'+ms+' ms，持续输出直到主动发送新值、关闭输出或退出调试。关闭页面不会停止输出。确认执行？'))return;
+  action('set',{slot:i+1,duty_cycle_ns:Math.round(ms*1e6),hold:true});
  };
 }
 document.querySelector('#ground').onchange=controls;
