@@ -133,14 +133,16 @@ else:raise ValueError('未知动作')
 def validate_set(body):
     if not isinstance(body, dict) or body.get('confirm') != '舵机调试':
         raise ValueError('请确认舵机调试动作')
-    slot, duty, hold = body.get('slot'), body.get('duty_cycle_ns'), body.get('hold', False)
+    slot, duty, hold = body.get('slot'), body.get('duty_cycle_ns'), body.get('hold', True)
     if type(slot) is not int or not 1 <= slot <= 3:
         raise ValueError('slot必须为1、2或3')
     if type(duty) is not int or not 500000 <= duty <= 2500000:
         raise ValueError('脉宽必须为500000～2500000 ns（0.5～2.5 ms）')
     if type(hold) is not bool:
         raise ValueError('hold必须是布尔值')
-    return dict(action='set',slot=slot,duty_cycle_ns=duty,hold=hold)
+    if not hold:
+        raise ValueError('舵机测试已改为持续输出，请刷新调试页面后重试；停止请使用关闭PWM输出')
+    return dict(action='set',slot=slot,duty_cycle_ns=duty,hold=True)
 
 
 def exclusive_hardware_entry(function):

@@ -24,9 +24,17 @@ class ServoIntegrationTests(unittest.TestCase):
                 self.assertEqual(servo.validate_set(dict(confirm='舵机调试',slot=slot,duty_cycle_ns=duty,hold=True)),
                                  dict(action='set',slot=slot,duty_cycle_ns=duty,hold=True))
 
+    def test_workbench_defaults_to_continuous_output(self):
+        request=servo.validate_set(dict(confirm='舵机调试',slot=2,duty_cycle_ns=2100000))
+        self.assertEqual(request,dict(action='set',slot=2,duty_cycle_ns=2100000,hold=True))
+
+    def test_old_short_pulse_request_is_rejected_with_refresh_hint(self):
+        with self.assertRaisesRegex(ValueError,'刷新调试页面'):
+            servo.validate_set(dict(confirm='舵机调试',slot=1,duty_cycle_ns=2100000,hold=False))
+
     def test_invalid_requests_never_reach_board(self):
         for change in ({'slot':True},{'slot':4},{'duty_cycle_ns':499999},{'duty_cycle_ns':2500001},{'hold':'false'},{'confirm':''}):
-            body=dict(confirm='舵机调试',slot=1,duty_cycle_ns=1800000,hold=False);body.update(change)
+            body=dict(confirm='舵机调试',slot=1,duty_cycle_ns=1800000,hold=True);body.update(change)
             with self.assertRaises(ValueError):servo.validate_set(body)
 
     def remote(self,action,registered=None,type_overrides=None,query_error=False,exit_service=True,**fields):
@@ -118,6 +126,13 @@ class HostTests(unittest.TestCase):
             _journal=lambda item:None,sessions=types.SimpleNamespace(get=sessions.get,close=lambda sid:closed.append(sid)))
         debug=servo.ServoDebug(w)
         return debug,closed
+
+    def test_old_short_pulse_never_reaches_remote(self):
+        debug,_=self.make()
+        with patch.object(debug,'run') as remote:
+            with self.assertRaisesRegex(ValueError,'持续输出'):
+                debug.action('set',dict(confirm='舵机调试',slot=1,duty_cycle_ns=2100000,hold=False))
+            remote.assert_not_called()
 
     def test_disconnected_rejects_without_ssh(self):
         debug,_=self.make();debug.w.connection['state']='unknown'
