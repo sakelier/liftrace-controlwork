@@ -513,7 +513,7 @@ def run_once(target, command, timeout=30.0, log_prefix=None):
     return (0 if code is None else code), output
 
 
-def run_bytes(target, command, timeout=60.0):
+def run_bytes(target, command, timeout=60.0, sink=None):
     """Download through pipes, with SSH auth on a separate askpass channel.
 
     Never use a PTY for binary stdout (it merges prompts/stderr and maps LF to
@@ -523,7 +523,7 @@ def run_bytes(target, command, timeout=60.0):
     """
     if os.name == "nt":
         from wb_native_ssh import run_bytes as native_run_bytes
-        return native_run_bytes(target, command, timeout)
+        return native_run_bytes(target, command, timeout, sink=sink)
     import socket
     import subprocess
     import sys
@@ -590,7 +590,42 @@ def run_bytes(target, command, timeout=60.0):
             child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, env=env, start_new_session=True)
             try:
-                output, errors = child.communicate(timeout=float(timeout))
+                if sink is None:
+                    output, errors = child.communicate(timeout=float(timeout))
+                else:
+                    output = b''
+                    errors, failure = bytearray(), []
+                    def read_output():
+                        try:
+                            while True:
+                                data = child.stdout.read(1024*1024)
+                                if not data: break
+                                sink.write(data)
+                        except Exception as error:
+                            failure.append(error)
+                            try:child.kill()
+                            except ProcessLookupError:pass
+                        finally:child.stdout.close()
+                    def read_errors():
+                        try:
+                            while True:
+                                data = child.stderr.read(4096)
+                                if not data: break
+                                errors.extend(data)
+                                if len(errors)>2000: del errors[:-2000]
+                        finally:child.stderr.close()
+                    readers=[threading.Thread(target=read_output,daemon=True), threading.Thread(target=read_errors,daemon=True)]
+                    for reader in readers: reader.start()
+                    try:
+                        child.wait(timeout=float(timeout))
+                    except subprocess.TimeoutExpired:
+                        child.kill();child.wait()
+                        for reader in readers:reader.join(timeout=2)
+                        return 124,b'Download timed out; staging file retained'
+                    for reader in readers:reader.join(timeout=2)
+                    if any(reader.is_alive() for reader in readers):return 1,b'Download stream did not finish'
+                    if failure:return 1,b'Download stream validation/write failed'
+                    errors=bytes(errors)
             except subprocess.TimeoutExpired:
                 child.kill()  # Only this download's local SSH process, no ROS nodes.
                 child.communicate()

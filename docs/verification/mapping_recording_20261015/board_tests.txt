@@ -1,0 +1,25 @@
+test_close_failure_keeps_active_unlisted (__main__.RecordingTests.test_close_failure_keeps_active_unlisted) ... ok
+test_close_log_failure_does_not_escape (__main__.RecordingTests.test_close_log_failure_does_not_escape) ... MAPPING_RECORDING_WARNING: log close failed: close
+ok
+test_close_reports_failure_discovered_during_finalization (__main__.RecordingTests.test_close_reports_failure_discovered_during_finalization) ... ok
+test_dead_child_marks_incomplete (__main__.RecordingTests.test_dead_child_marks_incomplete) ... MAPPING_RECORDING_WARNING: recorder exited without finalization
+ok
+test_disk_floor_and_total_stop_only_recorder (__main__.RecordingTests.test_disk_floor_and_total_stop_only_recorder) ... ok
+test_independent_process_lock_excludes_recorder_without_ros (__main__.RecordingTests.test_independent_process_lock_excludes_recorder_without_ros) ... MAPPING_RECORDING_WARNING: [Errno 11] Resource temporarily unavailable
+ok
+test_invalid_limits_never_overwrite_existing_recording (__main__.RecordingTests.test_invalid_limits_never_overwrite_existing_recording) ... MAPPING_RECORDING_WARNING: startup failed; flight unchanged: invalid mapping recorder limit: buffer_bytes
+ok
+test_message_limit_rejects_without_queue_growth (__main__.RecordingTests.test_message_limit_rejects_without_queue_growth) ... ok
+test_observation_with_external_map_still_requires_mapping_evidence (__main__.RecordingTests.test_observation_with_external_map_still_requires_mapping_evidence) ... ok
+test_observation_without_map_not_applicable_but_errors_visible (__main__.RecordingTests.test_observation_without_map_not_applicable_but_errors_visible) ... ok
+test_queue_limit_and_sequence_gap_report_partial (__main__.RecordingTests.test_queue_limit_and_sequence_gap_report_partial) ... ok
+test_raw_full_rate_connection_headers_and_completion (__main__.RecordingTests.test_raw_full_rate_connection_headers_and_completion) ... ok
+test_split_preserves_all_messages (__main__.RecordingTests.test_split_preserves_all_messages) ... ok
+test_startup_failure_is_fail_open_and_auditable (__main__.RecordingTests.test_startup_failure_is_fail_open_and_auditable) ... ok
+test_stop_drains_queue_deterministically (__main__.RecordingTests.test_stop_drains_queue_deterministically) ... ok
+test_write_failure_never_reports_complete (__main__.RecordingTests.test_write_failure_never_reports_complete) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.050s
+
+OK

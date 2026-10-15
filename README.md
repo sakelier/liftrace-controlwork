@@ -440,3 +440,6 @@ PYTHONPATH=/usr/lib/python3/dist-packages python -m unittest discover -s tools/f
 ## 舵机调试（2026-10-14）
 
 工作台首页顶栏新增舵机角度调试入口，页面为 `/servo`。接入本地工程新增的 SetServoDuty 服务；不再需要笔记本运行 tkinter/ROS。归位与释放预设读取所选板端的权威表，停止仅关闭输出，不发送最小角度。完整使用说明、前提和验证范围见 [SERVO_DEBUG.md](SERVO_DEBUG.md)。
+
+
+2026-10-15：日志页新增 [FreeDOM 自动建图记录与下载](MAPPING_RECORDING.md)。需板端配套升级，flight 入口自动记录，录制异常只告警；按轮次取回封闭 bag、配置和地图，在 PC 导出最后静态地图 PCD。该目录不进入默认 Wi-Fi 飞行日志同步。

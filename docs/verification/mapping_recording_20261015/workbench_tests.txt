@@ -1,0 +1,27 @@
+test_active_full_download_refused_and_single_sealed_allowed (test_mapping.CatalogTests.test_active_full_download_refused_and_single_sealed_allowed) ... ok
+test_catalog_is_independent_of_150_files_and_paged (test_mapping.CatalogTests.test_catalog_is_independent_of_150_files_and_paged) ... ok
+test_changed_board_cannot_download_from_stale_catalog (test_mapping.CatalogTests.test_changed_board_cannot_download_from_stale_catalog) ... ok
+test_dead_owner_derived_partial_without_modifying_manifest (test_mapping.CatalogTests.test_dead_owner_derived_partial_without_modifying_manifest) ... ok
+test_download_integrity_and_changed_source_rejected (test_mapping.CatalogTests.test_download_integrity_and_changed_source_rejected) ... ok
+test_failed_transfer_never_publishes_artifact (test_mapping.CatalogTests.test_failed_transfer_never_publishes_artifact) ... ok
+test_full_package_survives_pcd_unavailable_with_warning (test_mapping.CatalogTests.test_full_package_survives_pcd_unavailable_with_warning) ... ok
+test_live_only_sealed_files_and_immutable_metadata (test_mapping.CatalogTests.test_live_only_sealed_files_and_immutable_metadata) ... ok
+test_restart_marks_inflight_interrupted (test_mapping.CatalogTests.test_restart_marks_inflight_interrupted) ... ok
+test_same_request_deduplicated_other_request_rejected (test_mapping.CatalogTests.test_same_request_deduplicated_other_request_rejected) ... ok
+test_traversal_and_symlinks_refused (test_mapping.CatalogTests.test_traversal_and_symlinks_refused) ... ok
+test_corruption_truncation_wrong_identity_and_extra_bytes_rejected (test_mapping.FramingTests.test_corruption_truncation_wrong_identity_and_extra_bytes_rejected) ... ok
+test_every_two_chunk_boundary_and_byte_at_a_time (test_mapping.FramingTests.test_every_two_chunk_boundary_and_byte_at_a_time) ... ok
+test_native_adapter_drains_into_sink (test_mapping.FramingTests.test_native_adapter_drains_into_sink) ... ok
+test_payload_is_incremental_and_tail_bounded (test_mapping.FramingTests.test_payload_is_incremental_and_tail_bounded) ... ok
+test_posix_sink_failure_returns_failure (test_mapping.FramingTests.test_posix_sink_failure_returns_failure) ... ok
+test_posix_transport_streams_sink_without_returning_file_bytes (test_mapping.FramingTests.test_posix_transport_streams_sink_without_returning_file_bytes) ... ok
+test_file_stream_is_exact_native_attachment (test_mapping.HttpTests.test_file_stream_is_exact_native_attachment) ... ok
+test_logs_only_routes_and_disconnected_local_jobs (test_mapping.HttpTests.test_logs_only_routes_and_disconnected_local_jobs) ... ok
+test_prepare_origin_connection_and_body_validation (test_mapping.HttpTests.test_prepare_origin_connection_and_body_validation) ... ok
+test_big_endian_double_row_padding_and_nan (test_mapping.PcdTests.test_big_endian_double_row_padding_and_nan) ... ok
+test_real_ros1_bag_exports_last_static_map (test_mapping.PcdTests.test_real_ros1_bag_exports_last_static_map) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 2.311s
+
+OK

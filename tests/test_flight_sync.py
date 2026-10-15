@@ -49,6 +49,13 @@ class FlightSyncTests(unittest.TestCase):
     def staging(self, name):
         return Path(self.worker.job['local_directory']) / (name + '.part')
 
+    def test_mapping_archive_is_excluded_from_default_sync(self):
+        mapping_dir=self.run/'mapping';mapping_dir.mkdir()
+        (mapping_dir/'freedom_00001.bag').write_bytes(b'large raw map')
+        (mapping_dir/'manifest.json').write_text('{}')
+        (self.run/'regular.log').write_text('existing flight log')
+        self.assertEqual([row['path'] for row in self.listing()],['regular.log'])
+
     def test_incremental_transfer_only_reads_missing_bytes(self):
         source = self.run / 'flight.bag.active'
         source.write_bytes(b'A' * 200000)
@@ -200,6 +207,10 @@ class FlightEntryIntegrationTests(unittest.TestCase):
         for item in self.patches: item.start()
         self.workbench = server.Workbench(wb_board.load_config(), {'transport': 'ssh'})
         self.workbench.connection['state'] = 'ok'
+        # Servo preflight was added after these fixtures; keep this suite offline.
+        self.servo_probe=patch.object(self.workbench.servo_debug,'assert_idle')
+        self.servo_probe.start()
+        self.addCleanup(self.servo_probe.stop)
 
     def tearDown(self):
         for item in reversed(self.patches): item.stop()

@@ -1,0 +1,21 @@
+test_default_flight_and_preview_do_not_start_sync (test_flight_sync.FlightEntryIntegrationTests.test_default_flight_and_preview_do_not_start_sync) ... ok
+test_enabled_flight_keeps_entry_and_tracks_directory_and_exit (test_flight_sync.FlightEntryIntegrationTests.test_enabled_flight_keeps_entry_and_tracks_directory_and_exit) ... ok
+test_preflight_rejection_and_sync_failure_leave_flight_boundary_intact (test_flight_sync.FlightEntryIntegrationTests.test_preflight_rejection_and_sync_failure_leave_flight_boundary_intact) ... ok
+test_active_suffix_and_open_writer_are_never_published (test_flight_sync.FlightSyncTests.test_active_suffix_and_open_writer_are_never_published) ... ok
+test_close_rename_repairs_header_and_middle_chunk_rewrites (test_flight_sync.FlightSyncTests.test_close_rename_repairs_header_and_middle_chunk_rewrites) ... ok
+test_corrupt_or_partial_wire_packet_does_not_advance_offset (test_flight_sync.FlightSyncTests.test_corrupt_or_partial_wire_packet_does_not_advance_offset) ... ok
+test_default_off_and_preview_or_invalid_options_rejected (test_flight_sync.FlightSyncTests.test_default_off_and_preview_or_invalid_options_rejected) ... ok
+test_failure_preserves_partial_and_retries_stop_after_five (test_flight_sync.FlightSyncTests.test_failure_preserves_partial_and_retries_stop_after_five) ... ok
+test_finished_run_publishes_only_verified_files (test_flight_sync.FlightSyncTests.test_finished_run_publishes_only_verified_files) ... ok
+test_incremental_transfer_only_reads_missing_bytes (test_flight_sync.FlightSyncTests.test_incremental_transfer_only_reads_missing_bytes) ... ok
+test_mapping_archive_is_excluded_from_default_sync (test_flight_sync.FlightSyncTests.test_mapping_archive_is_excluded_from_default_sync) ... ok
+test_metadata_log_updates_and_nested_files_are_verified (test_flight_sync.FlightSyncTests.test_metadata_log_updates_and_nested_files_are_verified) ... ok
+test_path_scope_symlinks_and_other_runs_rejected (test_flight_sync.FlightSyncTests.test_path_scope_symlinks_and_other_runs_rejected) ... ok
+test_resume_after_restart_keeps_offset_and_rejects_other_board (test_flight_sync.FlightSyncTests.test_resume_after_restart_keeps_offset_and_rejects_other_board) ... ok
+test_tagged_recorder_located_before_ready_without_selecting_old_runs (test_flight_sync.FlightSyncTests.test_tagged_recorder_located_before_ready_without_selecting_old_runs) ... ok
+test_truncation_and_replacement_restart_staging (test_flight_sync.FlightSyncTests.test_truncation_and_replacement_restart_staging) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 2.845s
+
+OK

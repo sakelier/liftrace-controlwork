@@ -81,7 +81,8 @@ def handle(request):
         files=[];visited=0
         for directory,dirs,names in os.walk(run,followlinks=False):
             visited+=1;parent=pathlib.Path(directory)
-            dirs[:]=sorted(d for d in dirs if not d.startswith('.') and not (parent/d).is_symlink())
+            dirs[:]=sorted(d for d in dirs if not d.startswith('.') and not (parent/d).is_symlink()
+                           and not (parent==run and d=='mapping'))
             if len(parent.relative_to(run).parts)>=5:dirs[:]=[]
             if visited>256:raise ValueError('Run directory scan limit exceeded')
             for name in sorted(names):

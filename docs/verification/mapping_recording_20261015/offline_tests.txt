@@ -1,0 +1,11 @@
+test_analysis_result_requires_all_named_images (test_offline_workbench.OfflineWorkbenchTests.test_analysis_result_requires_all_named_images) ... ok
+test_native_lock_excludes_second_worker (test_offline_workbench.OfflineWorkbenchTests.test_native_lock_excludes_second_worker) ... ok
+test_native_output_selection_is_persisted (test_offline_workbench.OfflineWorkbenchTests.test_native_output_selection_is_persisted) ... ok
+test_pending_generated_report_cannot_be_served (test_offline_workbench.OfflineWorkbenchTests.test_pending_generated_report_cannot_be_served) ... ok
+test_traversal_and_arbitrary_web_output_rejected (test_offline_workbench.OfflineWorkbenchTests.test_traversal_and_arbitrary_web_output_rejected) ... ok
+test_upload_stream_does_not_accept_truncated_bag (test_offline_workbench.OfflineWorkbenchTests.test_upload_stream_does_not_accept_truncated_bag) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.009s
+
+OK

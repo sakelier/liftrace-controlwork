@@ -70,6 +70,17 @@
     <div id="log-jobs">尚未查询。工作台只停止自己登记并核对 PID/启动时间/命令的录制或下载进程。</div>
     <p>断开连接或退出页面不会停止这些进程；bag 按所选时长结束，ULog 下载限时 600 秒。停止后等待文件封闭，再下载；不会停止旧任务的内置 bag。</p>
   </section>
+  <section class="log-card" aria-labelledby="mapping-title"><h2 id="mapping-title">FreeDOM 飞行建图记录</h2>
+    <p>每次飞行入口自动记录原频输入点云、位姿 / TF、地图输出及配置。录制异常只告警；没有运行 FreeDOM 的观察飞行会标记“不适用”。</p>
+    <p>完整下载包含已封闭 bag 分卷、建图信息及配置，并在 PC 导出最后收到的非空静态地图 PCD。录制中可下载已封闭分卷；整轮下载需等待收尾。此数据不随默认 Wi-Fi 日志同步传输。</p>
+    <button id="mapping-refresh" class="btn">刷新建图记录</button>
+    <button id="mapping-prev" class="btn" disabled>上一页</button><span id="mapping-page">第 1 页</span>
+    <button id="mapping-next" class="btn" disabled>下一页</button>
+    <p id="mapping-message" role="status" aria-live="polite">等待连接…</p>
+    <div id="mapping-runs"></div>
+    <h3>本机下载 / 导出任务</h3><p>先准备到 PC 工作台缓存，完成后点击文件保存到浏览器下载目录。关闭页面不会中断后台任务。</p>
+    <div id="mapping-jobs"></div>
+  </section>
   <section class="log-card"><h2>板端日志文件</h2>
     <p>bag 下载到本机时自动命名，如 <code>1013-1530-投递H2D1-H降落vhD2.bag</code>。H/D 分别表示水平调整/下降模式，时间取该日志的记录时间；缺失模式标为“未知”。</p>
     <label for="log-filter">筛选文件名</label><input id="log-filter" type="search" placeholder="例如 .bag、.ulg 或场景名">
@@ -77,5 +88,6 @@
     <div class="log-table"><table><thead><tr><th>相对路径</th><th>大小</th><th>修改时间</th><th>下载</th></tr></thead><tbody id="log-files"></tbody></table></div>
   </section>
 </main><script src="/static/downloads.js"></script><script src="/static/ulog.js"></script><script src="/static/logs.js"></script>
+<script src="/static/mapping-recordings.js"></script>
 <script src="/static/flight-sync.js"></script><script src="/static/workspace-nav.js"></script>
 </body></html>

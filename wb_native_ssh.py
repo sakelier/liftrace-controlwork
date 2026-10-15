@@ -93,7 +93,7 @@ class ChannelChild:
         self.close(force=force)
 
 
-def run_bytes(target, command, timeout):
+def run_bytes(target, command, timeout, sink=None):
     """Non-PTY stdout/stderr, bounded transfer; never return partial bytes."""
     client = None
     channel = None
@@ -113,10 +113,13 @@ def run_bytes(target, command, timeout):
             # every 64 KiB unnecessarily throttles large bag downloads.
             received = False
             if channel.recv_ready():
-                output.extend(channel.recv(1024 * 1024))
+                data=channel.recv(1024 * 1024)
+                if sink is None: output.extend(data)
+                else: sink.write(data)
                 received = True
             if channel.recv_stderr_ready():
                 errors.extend(channel.recv_stderr(65536))
+                if sink is not None and len(errors)>2000:del errors[:-2000]
                 received = True
             if channel.exit_status_ready() and not channel.recv_ready() and not channel.recv_stderr_ready():
                 code = channel.recv_exit_status()

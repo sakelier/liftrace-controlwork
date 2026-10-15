@@ -32,6 +32,7 @@ import wb_board
 import wb_status
 import wb_ssh
 import wb_logs
+import wb_mapping
 from wb_log_names import attachment_header
 import wb_ulog
 import wb_replay
@@ -86,6 +87,7 @@ class Workbench(object):
         self.board = wb_board.BoardClient(config, self.target)
         self.servo_debug = wb_servo_debug.ServoDebug(self)
         self.logs = wb_logs.LogsClient(self.board)
+        self.mapping = wb_mapping.MappingLibrary(PROFILE_DIR)
         self.ulogs = wb_ulog.ULogLibrary(PROFILE_DIR)
         self.replays = wb_replay.ReplayLibrary(PROFILE_DIR, config.get('replay'))
         self.flight_sync = wb_flight_sync.FlightSync(PROFILE_DIR)
@@ -258,7 +260,7 @@ class Workbench(object):
             return {
                 "ok": True,
                 "logs_only": bool(self.options.get("logs_only")),
-                "capabilities": {"recording": True, "probe_reconnect": not bool(self.options.get("logs_only"))},
+                "capabilities": {"recording": True, "mapping_recording": True, "probe_reconnect": not bool(self.options.get("logs_only"))},
                 "now": time.time(),
                 "connection": dict(self.connection, **{
                     "user": self.target.user, "host": self.target.host,
@@ -1139,6 +1141,39 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(self.workbench.flight_sync.snapshot())
             except ValueError as error:
                 return self._error(error)
+        if route.startswith('/api/mapping-recordings/'):
+            streaming=False
+            try:
+                self._same_origin()
+                if route.endswith('/jobs'):
+                    return self._json(self.workbench.mapping.jobs())
+                if route.endswith('/catalog'):
+                    self._logs_access()
+                    page=int((query.get('page') or ['0'])[0])
+                    return self._json(self.workbench.mapping.catalog(self.workbench.board,page))
+                if route.endswith('/file'):
+                    identifier=(query.get('id') or [''])[0]
+                    name=(query.get('name') or [''])[0]
+                    target=self.workbench.mapping.artifact(identifier,name)
+                    streaming=True
+                    self.send_response(200)
+                    self.send_header('Content-Type','application/octet-stream')
+                    self.send_header('Content-Disposition',attachment_header(target.name))
+                    self.send_header('Content-Length',str(target.stat().st_size))
+                    self.send_header('Cache-Control','no-store')
+                    self.end_headers()
+                    with target.open('rb') as stream:
+                        while True:
+                            chunk=stream.read(1024*1024)
+                            if not chunk:break
+                            self.wfile.write(chunk)
+                    return
+                return self._error('未知建图记录接口',404)
+            except (ValueError,OSError) as error:
+                if streaming:
+                    self.close_connection=True
+                    return
+                return self._error(error)
         if self.workbench.options.get("logs_only"):
             if route in ("/", "/index.html", "/logs"):
                 return self._static("/static/logs.html")
@@ -1302,6 +1337,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(error)
         workbench = self.workbench
         try:
+            if route == '/api/mapping-recordings/prepare':
+                self._logs_access()
+                if not isinstance(body,dict):raise ValueError('请求体必须为对象')
+                return self._json(workbench.mapping.prepare(workbench.board,body))
             if route in ('/api/flight-sync/pause', '/api/flight-sync/resume'):
                 self._same_origin()
                 if route.endswith('/pause'):
